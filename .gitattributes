@@ -1,0 +1,11 @@
+# Prettier настроен на endOfLine: lf — держим LF в репозитории и в рабочей копии,
+# иначе на Windows каждый файл выглядит изменённым и линтер конфликтует с git.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

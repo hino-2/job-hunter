@@ -1,0 +1,2 @@
+# Сюда TypeORM CLI кладёт файлы миграций.
+# Генерация: npm run migration:generate --workspace=backend -- src/database/migrations/InitialSchema

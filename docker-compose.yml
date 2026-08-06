@@ -1,0 +1,73 @@
+name: job-hunter
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Порт наружу не публикуется: к базе ходит только сервис api.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-log}
+      API_PORT: 3000
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      AUTH_USER: ${AUTH_USER}
+      AUTH_PASSWORD: ${AUTH_PASSWORD}
+      HH_API_BASE_URL: ${HH_API_BASE_URL:-https://api.hh.ru}
+      HH_USER_AGENT: ${HH_USER_AGENT}
+      HH_REQUEST_TIMEOUT_MS: ${HH_REQUEST_TIMEOUT_MS:-10000}
+      HH_MAX_RETRIES: ${HH_MAX_RETRIES:-2}
+      HH_SYNC_CONCURRENCY: ${HH_SYNC_CONCURRENCY:-3}
+      HH_SYNC_MIN_DELAY_MS: ${HH_SYNC_MIN_DELAY_MS:-200}
+    # Порт наружу не публикуется: снаружи доступен только web.
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O- http://127.0.0.1:3000/api/health | grep -q ''"db":"up"''']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # Только localhost — приложение не должно быть видно в локальной сети.
+      - '127.0.0.1:${WEB_PORT:-8080}:80'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://127.0.0.1/ || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  pgdata:

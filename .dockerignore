@@ -1,0 +1,25 @@
+# Контекст сборки для обоих Dockerfile — корень монорепо.
+node_modules
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/*.tsbuildinfo
+
+.git
+.gitignore
+.github
+
+# Секреты в образ не попадают — переменные приходят из docker compose.
+.env
+.env.local
+.env.*.local
+
+*.log
+.vscode
+.idea
+.DS_Store
+
+# Документация не влияет на сборку.
+SPECIFICATION.md
+README.md
