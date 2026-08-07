@@ -1,0 +1,183 @@
+/**
+ * Все литералы модуля applications: маршруты, имена таблицы/колонок/индексов,
+ * enum-значения, лимиты длин, дефолты, whitelist'ы сортировки и куски SQL-условий.
+ *
+ * Enum'ы объявлены как `as const`-объекты, а не TS-`enum`: TS-`enum` — это
+ * одновременно значение и тип в одном объявлении, поэтому его нельзя разложить
+ * по конвенции «константы в *.constants.ts, типы в *.type.ts» (§10 пп. 3–4).
+ * Производные union-типы живут в applications.type.ts.
+ */
+
+export const APPLICATIONS_ROUTE = 'applications';
+
+export const APPLICATION_ID_PARAM = 'id';
+
+export const APPLICATION_BY_ID_ROUTE = ':id';
+
+export const APPLICATIONS_TABLE = 'applications';
+
+export const APPLICATIONS_ALIAS = 'application';
+
+/** Свойство сущности → имя колонки в БД. Единственный источник snake_case-имён. */
+export const APPLICATION_COLUMN = {
+  ID: 'id',
+  COMPANY: 'company',
+  POSITION: 'position',
+  VACANCY_URL: 'vacancy_url',
+  RESUME_URL: 'resume_url',
+  STATUS: 'status',
+  RESULT: 'result',
+  EMPLOYER_CONTACT: 'employer_contact',
+  HR_INTERVIEW_AT: 'hr_interview_at',
+  TECH_INTERVIEW_AT: 'tech_interview_at',
+  NOTES: 'notes',
+  HH_VACANCY_ID: 'hh_vacancy_id',
+  HH_ARCHIVED: 'hh_archived',
+  HH_VACANCY_TYPE: 'hh_vacancy_type',
+  LAST_SYNCED_AT: 'last_synced_at',
+  LAST_SYNC_OUTCOME: 'last_sync_outcome',
+  LAST_SYNC_ERROR: 'last_sync_error',
+  CREATED_AT: 'created_at',
+  UPDATED_AT: 'updated_at',
+} as const;
+
+/** Имена совпадают с миграцией, иначе migration:generate начнёт пересоздавать индексы. */
+export const APPLICATION_INDEX = {
+  STATUS: 'IDX_applications_status',
+  CREATED_AT: 'IDX_applications_created_at',
+} as const;
+
+/** §3.2 */
+export const APPLICATION_STATUS = {
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED',
+} as const;
+
+/** §3.3 */
+export const APPLICATION_RESULT = {
+  IN_PROGRESS: 'IN_PROGRESS',
+  OFFER: 'OFFER',
+  REJECTED_BY_COMPANY: 'REJECTED_BY_COMPANY',
+  DECLINED_BY_ME: 'DECLINED_BY_ME',
+  NO_RESPONSE: 'NO_RESPONSE',
+  VACANCY_WITHDRAWN: 'VACANCY_WITHDRAWN',
+} as const;
+
+/**
+ * §4.5. Живёт здесь, а не в модуле hh: колонка last_sync_outcome принадлежит
+ * таблице applications, а зависимость по модулям идёт hh → applications.
+ * Обратная ссылка дала бы цикл.
+ */
+export const SYNC_OUTCOME = {
+  OK: 'OK',
+  NOT_FOUND: 'NOT_FOUND',
+  SKIPPED_NOT_HH: 'SKIPPED_NOT_HH',
+  RATE_LIMITED: 'RATE_LIMITED',
+  ERROR: 'ERROR',
+} as const;
+
+export const DEFAULT_APPLICATION_STATUS = APPLICATION_STATUS.OPEN;
+
+export const DEFAULT_APPLICATION_RESULT = APPLICATION_RESULT.IN_PROGRESS;
+
+export const COMPANY_MAX_LENGTH = 255;
+export const POSITION_MAX_LENGTH = 255;
+export const URL_MAX_LENGTH = 2048;
+export const EMPLOYER_CONTACT_MAX_LENGTH = 2000;
+export const NOTES_MAX_LENGTH = 10_000;
+export const SEARCH_MAX_LENGTH = 255;
+
+export const STATUS_COLUMN_LENGTH = 16;
+export const RESULT_COLUMN_LENGTH = 32;
+export const HH_VACANCY_ID_COLUMN_LENGTH = 32;
+export const HH_VACANCY_TYPE_COLUMN_LENGTH = 32;
+export const SYNC_OUTCOME_COLUMN_LENGTH = 32;
+
+/** §5.1: допустимые значения query-параметра sort. */
+export const APPLICATION_SORT_FIELDS = [
+  'createdAt',
+  'company',
+  'hrInterviewAt',
+  'techInterviewAt',
+] as const;
+
+export const APPLICATION_ORDERS = ['asc', 'desc'] as const;
+
+export const DEFAULT_APPLICATION_SORT = 'createdAt';
+
+export const DEFAULT_APPLICATION_ORDER = 'desc';
+
+/**
+ * Whitelist для ORDER BY: значение sort → имя свойства сущности.
+ * Пользовательский ввод в SQL попадает только через эту статическую карту.
+ */
+export const APPLICATION_SORT_PROPERTIES = {
+  createdAt: 'createdAt',
+  company: 'company',
+  hrInterviewAt: 'hrInterviewAt',
+  techInterviewAt: 'techInterviewAt',
+} as const;
+
+export const APPLICATION_ORDER_DIRECTIONS = {
+  asc: 'ASC',
+  desc: 'DESC',
+} as const;
+
+export const APPLICATION_ORDER_NULLS = 'NULLS LAST';
+
+/**
+ * NULLS LAST нужен только nullable-колонкам (даты собеседований): пустые значения
+ * всегда в конце, в любом направлении.
+ *
+ * Для NOT NULL колонок он не просто бесполезен, а вреден: Postgres строит DESC-индекс
+ * как NULLS FIRST, поэтому «ORDER BY created_at DESC NULLS LAST» не может
+ * воспользоваться IDX_applications_created_at.
+ */
+export const APPLICATION_SORT_NULLS = {
+  createdAt: undefined,
+  company: undefined,
+  hrInterviewAt: APPLICATION_ORDER_NULLS,
+  techInterviewAt: APPLICATION_ORDER_NULLS,
+} as const;
+
+/** Добивка сортировки: без неё записи с равным createdAt отдаются в случайном порядке. */
+export const APPLICATION_TIEBREAK_PROPERTY = 'id';
+
+export const APPLICATION_STATUS_CONDITION = `${APPLICATIONS_ALIAS}.status = :status`;
+
+export const APPLICATION_RESULT_CONDITION = `${APPLICATIONS_ALIAS}.result = :result`;
+
+export const APPLICATION_SEARCH_CONDITION =
+  `(${APPLICATIONS_ALIAS}.company ILIKE :search` +
+  ` OR ${APPLICATIONS_ALIAS}.position ILIKE :search` +
+  ` OR ${APPLICATIONS_ALIAS}.notes ILIKE :search)`;
+
+/** Экранирование метасимволов LIKE, чтобы «100%» искалось как подстрока, а не как шаблон. */
+export const LIKE_ESCAPE_PATTERN = /[\\%_]/g;
+export const LIKE_ESCAPE_REPLACEMENT = '\\$&';
+export const LIKE_WILDCARD = '%';
+
+export const APPLICATION_NOT_FOUND_MESSAGE = 'Запись не найдена';
+
+/** Страховка на случай, если валидация DTO пропустит непарсящуюся дату. */
+export const INVALID_DATE_MESSAGE =
+  'Некорректное значение даты: ожидается ISO 8601 с явной таймзоной';
+
+/**
+ * require_protocol: false — пользователь может вставить «hh.ru/vacancy/123» без схемы;
+ * протоколы ограничены http/https, чтобы не принять javascript: или file:.
+ *
+ * Без `as const`: @IsUrl ждёт `protocols?: string[]`, а readonly-кортеж из `as const`
+ * ему не подходит. Взамен Object.freeze, потому что константа экспортируется и
+ * используется четырьмя полями DTO.
+ *
+ * ВАЖНО: передавать в @IsUrl только КОПИЮ (`{ ...URL_VALIDATION_OPTIONS }`).
+ * validator внутри isURL вызывает merge(options, defaults), а тот дописывает
+ * ~16 дефолтов В ПЕРЕДАННЫЙ объект: на замороженном это TypeError → 500,
+ * на обычном — молчаливая мутация общей константы на первом же запросе.
+ */
+export const URL_VALIDATION_OPTIONS = Object.freeze({
+  protocols: ['http', 'https'],
+  require_protocol: false,
+  require_tld: true,
+});

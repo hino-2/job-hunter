@@ -10,7 +10,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # Порт наружу не публикуется: к базе ходит только сервис api.
+    ports:
+      # Только loopback — в локальной сети база не видна. Публикация нужна для
+      # e2e-тестов и TypeORM CLI, которые запускаются с хоста, а не внутри compose-сети.
+      - '127.0.0.1:${DATABASE_PORT_HOST:-5432}:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 5s

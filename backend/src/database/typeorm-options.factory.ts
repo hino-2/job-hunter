@@ -6,6 +6,7 @@ import {
   ENTITIES_GLOB,
   MIGRATIONS_GLOB,
   MIGRATIONS_TABLE_NAME,
+  UUID_EXTENSION,
 } from './database.constants';
 
 function requireEnvValue(env: NodeJS.ProcessEnv, key: string): string {
@@ -33,6 +34,14 @@ export function buildDataSourceOptions(env: NodeJS.ProcessEnv): DataSourceOption
     username: requireEnvValue(env, 'POSTGRES_USER'),
     password: requireEnvValue(env, 'POSTGRES_PASSWORD'),
     database: requireEnvValue(env, 'POSTGRES_DB'),
+    // Генератор uuid для DDL: gen_random_uuid() (Postgres 13+), а не uuid-ossp.
+    // installExtensions: false обязателен рядом — иначе TypeORM при каждом коннекте
+    // выполняет CREATE EXTENSION IF NOT EXISTS "pgcrypto" (PostgresDriver.afterConnect),
+    // хотя gen_random_uuid() входит в ядро и расширение не нужно. Побочный эффект был
+    // особенно неприятен в e2e: расширение создавалось в системной базе postgres,
+    // к которой подключается пересоздание тестовой БД. На uuidGenerator флаг не влияет.
+    uuidExtension: UUID_EXTENSION,
+    installExtensions: false,
     entities: [ENTITIES_GLOB],
     migrations: [MIGRATIONS_GLOB],
     migrationsTableName: MIGRATIONS_TABLE_NAME,

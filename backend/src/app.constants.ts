@@ -11,4 +11,7 @@ export const VALIDATION_PIPE_OPTIONS: ValidationPipeOptions = {
   whitelist: true,
   forbidNonWhitelisted: true,
   transform: true,
+  // exposeUnsetFields: false — не создавать в DTO ключи для полей, которых не было
+  // в теле запроса. Иначе PATCH не смог бы отличить «поле не передано» от «передан null».
+  transformOptions: { exposeUnsetFields: false },
 };

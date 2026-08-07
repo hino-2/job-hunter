@@ -1,13 +1,9 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
-import {
-  API_GLOBAL_PREFIX,
-  BOOTSTRAP_CONTEXT,
-  LISTEN_HOST,
-  VALIDATION_PIPE_OPTIONS,
-} from './app.constants';
+import { API_GLOBAL_PREFIX, BOOTSTRAP_CONTEXT, LISTEN_HOST } from './app.constants';
 import { AppModule } from './app.module';
+import { configureApp } from './app.setup';
 import { DEFAULT_API_PORT } from './config/config.constants';
 
 async function bootstrap(): Promise<void> {
@@ -15,8 +11,7 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger(BOOTSTRAP_CONTEXT);
   const port = Number(process.env.API_PORT ?? DEFAULT_API_PORT);
 
-  app.setGlobalPrefix(API_GLOBAL_PREFIX);
-  app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS));
+  configureApp(app);
   app.enableShutdownHooks();
 
   await app.listen(port, LISTEN_HOST);

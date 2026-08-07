@@ -570,24 +570,27 @@ Query-параметры (все опциональны):
 
 Файл `.env` в корне (в git не коммитится), плюс `.env.example` с теми же ключами и безопасными заглушками.
 
-| Переменная              | Обяз. | Пример / дефолт                            | Описание                                 |
-| ----------------------- | ----- | ------------------------------------------ | ---------------------------------------- |
-| `POSTGRES_USER`         | да    | `jobhunter`                                |                                          |
-| `POSTGRES_PASSWORD`     | да    | `change-me`                                |                                          |
-| `POSTGRES_DB`           | да    | `jobhunter`                                |                                          |
-| `DATABASE_HOST`         | да    | `db`                                       | Имя сервиса в compose                    |
-| `DATABASE_PORT`         | нет   | `5432`                                     |                                          |
-| `AUTH_USER`             | да    | `igor`                                     | Basic Auth логин                         |
-| `AUTH_PASSWORD`         | да    | `change-me`                                | Basic Auth пароль. Без него старт падает |
-| `HH_API_BASE_URL`       | нет   | `https://api.hh.ru`                        |                                          |
-| `HH_USER_AGENT`         | да    | `job-hunter/1.0 (igor.ushakov@fastdev.se)` | hh.ru требует осмысленный User-Agent     |
-| `HH_REQUEST_TIMEOUT_MS` | нет   | `10000`                                    |                                          |
-| `HH_MAX_RETRIES`        | нет   | `2`                                        |                                          |
-| `HH_SYNC_CONCURRENCY`   | нет   | `3`                                        |                                          |
-| `HH_SYNC_MIN_DELAY_MS`  | нет   | `200`                                      |                                          |
-| `API_PORT`              | нет   | `3000`                                     | Внутренний порт Nest                     |
-| `WEB_PORT`              | нет   | `8080`                                     | Порт, публикуемый на хост                |
-| `LOG_LEVEL`             | нет   | `log`                                      |                                          |
+| Переменная              | Обяз. | Пример / дефолт                            | Описание                                                                                                               |
+| ----------------------- | ----- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`         | да    | `jobhunter`                                |                                                                                                                        |
+| `POSTGRES_PASSWORD`     | да    | `change-me`                                |                                                                                                                        |
+| `POSTGRES_DB`           | да    | `jobhunter`                                |                                                                                                                        |
+| `DATABASE_HOST`         | да    | `db`                                       | Имя сервиса в compose                                                                                                  |
+| `DATABASE_PORT`         | нет   | `5432`                                     |                                                                                                                        |
+| `AUTH_USER`             | да    | `igor`                                     | Basic Auth логин                                                                                                       |
+| `AUTH_PASSWORD`         | да    | `change-me`                                | Basic Auth пароль. Без него старт падает                                                                               |
+| `HH_API_BASE_URL`       | нет   | `https://api.hh.ru`                        |                                                                                                                        |
+| `HH_USER_AGENT`         | да    | `job-hunter/1.0 (igor.ushakov@fastdev.se)` | hh.ru требует осмысленный User-Agent                                                                                   |
+| `HH_REQUEST_TIMEOUT_MS` | нет   | `10000`                                    |                                                                                                                        |
+| `HH_MAX_RETRIES`        | нет   | `2`                                        |                                                                                                                        |
+| `HH_SYNC_CONCURRENCY`   | нет   | `3`                                        |                                                                                                                        |
+| `HH_SYNC_MIN_DELAY_MS`  | нет   | `200`                                      |                                                                                                                        |
+| `API_PORT`              | нет   | `3000`                                     | Внутренний порт Nest                                                                                                   |
+| `WEB_PORT`              | нет   | `8080`                                     | Порт, публикуемый на хост                                                                                              |
+| `LOG_LEVEL`             | нет   | `log`                                      |                                                                                                                        |
+| `DATABASE_PORT_HOST`    | нет   | `5432`                                     | Порт, на котором `db` публикуется на `127.0.0.1` (для e2e и TypeORM CLI с хоста)                                       |
+| `TEST_DATABASE_HOST`    | нет   | `127.0.0.1`                                | Хост БД для e2e-тестов, запускаемых с хоста                                                                            |
+| `TEST_DATABASE_NAME`    | нет   | `jobhunter_test`                           | Отдельная БД для e2e; пересоздаётся при каждом прогоне. Обязана отличаться от `POSTGRES_DB` и заканчиваться на `_test` |
 
 Валидация env при старте — через `@nestjs/config` + схема (`class-validator` или `joi`). Отсутствие обязательной переменной = падение с понятным сообщением.
 
@@ -601,7 +604,9 @@ Query-параметры (все опциональны):
 db:   postgres:16-alpine
       volume: pgdata:/var/lib/postgresql/data
       healthcheck: pg_isready
-      порт на хост НЕ публикуется
+      ports: "127.0.0.1:${DATABASE_PORT_HOST:-5432}:5432"
+             только loopback — нужен для e2e-тестов и TypeORM CLI, запускаемых с хоста
+             (внутри compose-сети база доступна как db:5432)
 
 api:  build: { context: ., dockerfile: backend/Dockerfile }
       multi-stage deps → build → runtime на node:22-alpine
@@ -676,28 +681,33 @@ job-hunter/
 │  ├─ Dockerfile                 ✅ deps → build → runtime
 │  ├─ package.json               ✅ + скрипты migration:*
 │  ├─ tsconfig.json              ✅ tsconfig.build.json ✅ eslint.config.mjs ✅ jest.config.js ✅
-│  ├─ test/jest-e2e.json         ✅
+│  ├─ test/                      ✅ jest-e2e.json, test.constants.ts, e2e.interfaces.ts,
+│  │                             ✅ test-environment.ts, e2e-setup.ts, e2e-global-setup.ts,
+│  │                             ✅ e2e-app.factory.ts, applications.fixtures.ts,
+│  │                             ✅ applications.e2e-spec.ts
 │  └─ src/
-│     ├─ main.ts                 ✅ префикс /api, ValidationPipe, shutdown hooks
-│     ├─ app.module.ts           ✅ app.constants.ts ✅
+│     ├─ main.ts                 ✅ порт + shutdown hooks; настройка — в app.setup.ts
+│     ├─ app.module.ts           ✅ app.constants.ts ✅ app.setup.ts ✅ (configureApp)
 │     ├─ config/                 ✅ config.constants.ts, environment.validation.ts
 │     ├─ auth/                   ⬜ basic-auth.guard.ts, auth.constants.ts
-│     ├─ common/                 ⬜ http-exception.filter.ts, common.type.ts
+│     ├─ common/                 ✅ common.constants.ts, common.interfaces.ts,
+│     │                          ✅ validation.decorators.ts, string.transforms.ts
+│     │                          ⬜ http-exception.filter.ts
 │     ├─ database/               ✅ database.module.ts, data-source.ts,
 │     │                          ✅ typeorm-options.factory.ts, database.constants.ts
-│     │  └─ migrations/          ✅ (пустая, миграций пока нет)
+│     │  └─ migrations/          ✅ <ts>-CreateApplicationsTable.ts
 │     ├─ health/                 ✅ controller, service, constants, type, interfaces
-│     ├─ applications/           ⬜
+│     ├─ applications/           ✅
 │     │  ├─ applications.module.ts
 │     │  ├─ applications.controller.ts
 │     │  ├─ applications.service.ts
 │     │  ├─ application.entity.ts
-│     │  ├─ applications.constants.ts
+│     │  ├─ applications.constants.ts   # + enum SyncOutcome (§4.5), см. ниже
 │     │  ├─ applications.type.ts
 │     │  ├─ applications.interfaces.ts
-│     │  └─ dto/                 # create-application.dto.ts, update-application.dto.ts,
-│     │                          # find-applications.query.dto.ts, application.dto.ts,
-│     │                          # sync-result.dto.ts, sync-summary.dto.ts
+│     │  └─ dto/                 ✅ create-application.dto.ts, update-application.dto.ts,
+│     │                          ✅ find-applications.query.dto.ts, application.dto.ts
+│     │                          ⬜ sync-result.dto.ts, sync-summary.dto.ts
 │     └─ hh/                     ⬜
 │        ├─ hh.module.ts
 │        ├─ hh.controller.ts     # POST /api/hh/preview
@@ -736,6 +746,10 @@ job-hunter/
                                   ⬜ ConfirmDeleteDialog.tsx, SyncStatusIcon.tsx,
                                   ⬜ UrlField.tsx, EmptyState.tsx
 ```
+
+Enum `SyncOutcome` (§4.5) объявлен в `applications/applications.constants.ts`, а не в `hh/`:
+колонка `last_sync_outcome` принадлежит таблице `applications`, а зависимость по модулям
+идёт `hh → applications`. Определение в `hh/` дало бы циклическую зависимость.
 
 `layout.constants.ts` уже содержит значения из §7.2: `FIELD_GAP`, `ACCORDION_GAP`,
 `SUMMARY_COMPANY_WIDTH_PX`, карту `FIELD_FLEX` со всеми flex-basis и
@@ -806,7 +820,12 @@ job-hunter/
 3. **Конфиг и валидация env** ✅ (`config/environment.validation.ts` — валидация всех
    переменных из §8, включая fail-fast на пустом `AUTH_PASSWORD`).
    Осталось: **Basic Auth guard** и **exception filter** (§5.5, §6). _(backend)_
-4. **Сущность, миграция, CRUD** `applications` + DTO + e2e-тесты. _(backend)_
+4. ~~**Сущность, миграция, CRUD** `applications` + DTO + e2e-тесты.~~ ✅ **Сделано.**
+   Сущность по §3.1, миграция `CreateApplicationsTable` (19 колонок, PK, 2 индекса,
+   идемпотентна), четыре DTO, `ApplicationsService`/`ApplicationsController` с пятью
+   эндпоинтами §5.1, инфраструктура e2e (отдельная БД `jobhunter_test`) и 31 e2e-тест
+   на CRUD, фильтры, поиск, сортировку и валидацию. Вычисление `hhVacancyId` из
+   `vacancyUrl` — в шаге 5 (пока поле всегда `null`). _(backend)_
 5. **Модуль hh:** парсер URL с тестами → HTTP-клиент с ретраями → `POST /api/hh/preview`. _(backend)_
 6. **Синхронизация:** `POST /:id/sync`, `POST /sync-open`, правила применения, тесты. _(backend)_
 7. **Фронт: каркас** — тема, `layout.constants.ts`, axios-клиент, React Query, `AppHeader`, `FilterBar`, список аккордеонов с read-only шапками (§7.2.1), раскрытие/сворачивание. _(frontend)_

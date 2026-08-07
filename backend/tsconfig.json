@@ -6,6 +6,10 @@
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    // При target >= ES2022 поля класса без инициализатора материализуются как own-property
+    // со значением undefined. Это ломает и TypeORM (лишние колонки в UPDATE), и семантику
+    // частичного PATCH в DTO, где «поле не передано» отличается от «передан null».
+    "useDefineForClassFields": false,
     "declaration": false,
     "sourceMap": true,
     "outDir": "./dist",

@@ -12,3 +12,20 @@ export const MIGRATIONS_TABLE_NAME = 'migrations';
 export const ENTITIES_GLOB = join(__dirname, '..', '**', '*.entity.{ts,js}').replace(/\\/g, '/');
 
 export const MIGRATIONS_GLOB = join(__dirname, 'migrations', '*.{ts,js}').replace(/\\/g, '/');
+
+/** Типы колонок Postgres, используемые в декораторах сущностей. */
+export const COLUMN_TYPE = {
+  VARCHAR: 'varchar',
+  TEXT: 'text',
+  TIMESTAMPTZ: 'timestamptz',
+  BOOLEAN: 'boolean',
+} as const;
+
+export const PRIMARY_KEY_STRATEGY = 'uuid' as const;
+
+/**
+ * Postgres 13+ отдаёт gen_random_uuid() из ядра, расширение ставить не нужно.
+ * Значение важно для migration:generate: без него TypeORM ожидал бы
+ * uuid_generate_v4() из uuid-ossp и диффил дефолт колонки id на каждом прогоне.
+ */
+export const UUID_EXTENSION = 'pgcrypto' as const;
