@@ -577,8 +577,8 @@ Query-параметры (все опциональны):
 | `POSTGRES_DB`           | да    | `jobhunter`                                |                                                                                                                        |
 | `DATABASE_HOST`         | да    | `db`                                       | Имя сервиса в compose                                                                                                  |
 | `DATABASE_PORT`         | нет   | `5432`                                     |                                                                                                                        |
-| `AUTH_USER`             | да    | `igor`                                     | Basic Auth логин                                                                                                       |
-| `AUTH_PASSWORD`         | да    | `change-me`                                | Basic Auth пароль. Без него старт падает                                                                               |
+| `AUTH_USER`             | да    | `admin`                                    | Basic Auth логин                                                                                                       |
+| `AUTH_PASSWORD`         | да    | `admin`                                    | Basic Auth пароль. Без него старт падает                                                                               |
 | `HH_API_BASE_URL`       | нет   | `https://api.hh.ru`                        |                                                                                                                        |
 | `HH_USER_AGENT`         | да    | `job-hunter/1.0 (igor.ushakov@fastdev.se)` | hh.ru требует осмысленный User-Agent                                                                                   |
 | `HH_REQUEST_TIMEOUT_MS` | нет   | `10000`                                    |                                                                                                                        |
@@ -689,10 +689,11 @@ job-hunter/
 │     ├─ main.ts                 ✅ порт + shutdown hooks; настройка — в app.setup.ts
 │     ├─ app.module.ts           ✅ app.constants.ts ✅ app.setup.ts ✅ (configureApp)
 │     ├─ config/                 ✅ config.constants.ts, environment.validation.ts
-│     ├─ auth/                   ⬜ basic-auth.guard.ts, auth.constants.ts
+│     ├─ auth/                   ✅ basic-auth.guard.ts, auth.constants.ts,
+│     │                          ✅ auth.decorators.ts (@Public), auth.interfaces.ts
 │     ├─ common/                 ✅ common.constants.ts, common.interfaces.ts,
 │     │                          ✅ validation.decorators.ts, string.transforms.ts
-│     │                          ⬜ http-exception.filter.ts
+│     │                          ✅ http-exception.filter.ts
 │     ├─ database/               ✅ database.module.ts, data-source.ts,
 │     │                          ✅ typeorm-options.factory.ts, database.constants.ts
 │     │  └─ migrations/          ✅ <ts>-CreateApplicationsTable.ts
@@ -782,9 +783,9 @@ Enum `SyncOutcome` (§4.5) объявлен в `applications/applications.consta
 
 **Запуск и инфраструктура**
 
-1. `cp .env.example .env`, заполнение `AUTH_PASSWORD`, `docker compose up -d` → через ≤2 минуты `http://localhost:8080` открывается и показывает пустое состояние.
+1. `cp .env.example .env`, `docker compose up -d` → через ≤2 минуты `http://127.0.0.1:8080` открывается и показывает пустое состояние. Креды по умолчанию — `admin` / `admin` из `.env.example`; менять их не обязательно, но можно.
 2. Браузер запрашивает Basic Auth; неверный пароль не даёт доступ к данным; `GET /api/health` отвечает без авторизации.
-3. Старт `api` без `AUTH_PASSWORD` в env — падение с внятным сообщением в логах, а не запуск открытого инстанса.
+3. Старт `api` с пустым `AUTH_PASSWORD` в env — падение с внятным сообщением в логах, а не запуск открытого инстанса. Дефолты живут только в `.env.example`, в коде их нет.
 4. `docker compose down && docker compose up -d` → все записи на месте.
 
 **CRUD** 5. «+ Добавить» с заполненной только компанией создаёт запись со `status = OPEN`, `result = IN_PROGRESS`; она появляется сверху списка **раскрытой**. 6. Изменение любого поля в аккордеоне сохраняется без нажатия «Сохранить»; после `F5` значение на месте. 7. Ошибка сети при автосейве откатывает значение в UI и показывает `Snackbar`. 8. Очистка `DateTimePicker` записывает `null`; после перезагрузки поле пустое. 9. Удаление требует подтверждения и убирает аккордеон из списка. 10. Фильтры «Все / Открытые / Закрытые», поиск по компании/должности/заметкам и сортировка по четырём полям работают.
@@ -817,9 +818,14 @@ Enum `SyncOutcome` (§4.5) объявлен в `applications/applications.consta
 2. ~~**ESLint/Prettier/tsconfig**~~ ✅ **Сделано.** Flat-config в обоих воркспейсах,
    `@stylistic/padding-line-between-statements` (срабатывание проверено на пробном файле),
    `npm run lint` / `typecheck` / `build` зелёные в обоих воркспейсах.
-3. **Конфиг и валидация env** ✅ (`config/environment.validation.ts` — валидация всех
-   переменных из §8, включая fail-fast на пустом `AUTH_PASSWORD`).
-   Осталось: **Basic Auth guard** и **exception filter** (§5.5, §6). _(backend)_
+3. ~~**Конфиг и валидация env, Basic Auth guard, exception filter.**~~ ✅ **Сделано.**
+   `config/environment.validation.ts` — валидация всех переменных из §8, включая fail-fast
+   на пустом `AUTH_PASSWORD`. `auth/basic-auth.guard.ts` — глобальный Basic Auth (§6) на
+   всех `/api/*`, кроме помеченного `@Public()` `GET /api/health`; сравнение через
+   `crypto.timingSafeEqual` по SHA-256-дайджестам. `common/http-exception.filter.ts` —
+   единый формат тела ошибки (§5.5), стек только в лог, не-`HttpException` отдаётся как
+   обезличенный 500. Регистрация guard'а и filter'а — в `app.setup.ts`, то есть одинаково
+   в проде и в e2e. _(backend)_
 4. ~~**Сущность, миграция, CRUD** `applications` + DTO + e2e-тесты.~~ ✅ **Сделано.**
    Сущность по §3.1, миграция `CreateApplicationsTable` (19 колонок, PK, 2 индекса,
    идемпотентна), четыре DTO, `ApplicationsService`/`ApplicationsController` с пятью

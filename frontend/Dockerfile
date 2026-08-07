@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# Директива `# syntax=` намеренно не используется — см. комментарий в backend/Dockerfile.
 # Контекст сборки — корень монорепо (см. docker-compose.yml).
 
 # --- Стадия 1: сборка статики ---

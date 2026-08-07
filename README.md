@@ -11,11 +11,16 @@
 
 ```bash
 cp .env.example .env
-# отредактируй .env: как минимум AUTH_PASSWORD, POSTGRES_PASSWORD и HH_USER_AGENT
+# в .env уже есть рабочие дефолты (Basic Auth — admin/admin).
+# Смени AUTH_USER/AUTH_PASSWORD, POSTGRES_PASSWORD и HH_USER_AGENT под себя.
 docker compose up -d --build
 ```
 
-Открой <http://127.0.0.1:8080>. Браузер спросит логин/пароль — это `AUTH_USER` / `AUTH_PASSWORD` из `.env`.
+Открой <http://127.0.0.1:8080>. Статика отдаётся без авторизации (секретов в бандле нет),
+а на первом же запросе к `/api/*` браузер покажет нативный диалог Basic Auth — логин
+и пароль это `AUTH_USER` / `AUTH_PASSWORD` из `.env` (по умолчанию `admin` / `admin`).
+Единственное исключение — `GET /api/health`: он публичный, его опрашивает healthcheck
+контейнера.
 
 Полезное:
 

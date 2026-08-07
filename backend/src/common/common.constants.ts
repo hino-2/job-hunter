@@ -1,4 +1,6 @@
-/** Константы, общие для всех модулей: используются валидаторами и трансформерами DTO. */
+/** Константы, общие для всех модулей: используются валидаторами, трансформерами DTO и фильтром ошибок. */
+
+import { HttpStatus } from '@nestjs/common';
 
 export const EMPTY_STRING = '';
 
@@ -28,3 +30,32 @@ export const ISO_8601_INSTANT_VALIDATION_OPTIONS = {
   message:
     '$property должен быть датой ISO 8601 с явной таймзоной, например 2026-08-10T09:00:00.000Z',
 };
+
+/**
+ * Тело любого 5xx (§5.5). Обезличено намеренно: сообщения TypeORM содержат SQL и имена
+ * колонок, а сообщения драйвера — параметры запроса. Подробности уходят только в лог.
+ */
+export const INTERNAL_SERVER_ERROR_MESSAGE = 'Внутренняя ошибка сервера';
+
+/**
+ * Fallback для поля error, когда http.STATUS_CODES не знает такого кода.
+ * Нужен из-за noUncheckedIndexedAccess: STATUS_CODES[status] имеет тип string | undefined.
+ */
+export const UNKNOWN_ERROR_TEXT = 'Error';
+
+/** Подставляется в лог вместо стека, когда брошено не-Error (строка, объект, undefined). */
+export const NON_ERROR_THROWN_MESSAGE = 'Брошено значение, не являющееся Error';
+
+export const EXCEPTION_FILTER_CONTEXT = 'ExceptionFilter';
+
+/**
+ * Границы диапазона клиентских ошибок. Тип сужен до number намеренно — сравнение
+ * `status >= HttpStatus.X` с обычным числом запрещено правилом no-unsafe-enum-comparison.
+ *
+ * С SERVER_ERROR_MIN_STATUS ошибка считается серверной: пишется уровнем error и со стеком.
+ */
+export const CLIENT_ERROR_MIN_STATUS: number = HttpStatus.BAD_REQUEST;
+export const SERVER_ERROR_MIN_STATUS: number = HttpStatus.INTERNAL_SERVER_ERROR;
+
+/** Отправка ответа уже началась — тело §5.5 доставить невозможно, только закрыть соединение. */
+export const HEADERS_ALREADY_SENT_MESSAGE = 'Ответ уже отправляется, тело ошибки не заменить';
