@@ -22,7 +22,10 @@ import {
   STATUS_COLUMN_LENGTH,
   SYNC_OUTCOME_COLUMN_LENGTH,
 } from './applications.constants';
-import type { ApplicationWritableFields } from './applications.interfaces';
+import type {
+  ApplicationDerivedFields,
+  ApplicationWritableFields,
+} from './applications.interfaces';
 import type { ApplicationResult, ApplicationStatus, SyncOutcome } from './applications.type';
 
 /**
@@ -34,7 +37,7 @@ import type { ApplicationResult, ApplicationStatus, SyncOutcome } from './applic
  * без кастомной NamingStrategy.
  */
 @Entity({ name: APPLICATIONS_TABLE })
-export class Application implements ApplicationWritableFields {
+export class Application implements ApplicationWritableFields, ApplicationDerivedFields {
   @PrimaryGeneratedColumn(PRIMARY_KEY_STRATEGY, { name: APPLICATION_COLUMN.ID })
   id!: string;
 

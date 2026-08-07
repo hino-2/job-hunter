@@ -6,6 +6,7 @@ import { ENV_FILE_PATHS } from './config/config.constants';
 import { validateEnvironment } from './config/environment.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { HhModule } from './hh/hh.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { HealthModule } from './health/health.module';
     DatabaseModule,
     ApplicationsModule,
     HealthModule,
+    HhModule,
   ],
 })
 export class AppModule {}

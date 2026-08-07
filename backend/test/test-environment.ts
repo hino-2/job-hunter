@@ -1,10 +1,15 @@
 import { config as loadEnvFile } from 'dotenv';
 
-import { DEFAULT_DATABASE_PORT, ENV_FILE_PATHS } from '../src/config/config.constants';
+import {
+  DEFAULT_DATABASE_PORT,
+  DEFAULT_HH_MAX_RETRIES,
+  ENV_FILE_PATHS,
+} from '../src/config/config.constants';
 import type { TestDatabaseSettings } from './e2e.interfaces';
 import {
   DEFAULT_TEST_DATABASE_HOST,
   DEFAULT_TEST_DATABASE_NAME,
+  HH_STUB_BASE_URL,
   TEST_AUTH_PASSWORD,
   TEST_AUTH_USER,
   TEST_DATABASE_NAME_PATTERN,
@@ -83,7 +88,13 @@ export function applyTestEnvironment(): TestDatabaseSettings {
   // детерминированные значения, совпадающие с теми, что подставляет агент.
   process.env.AUTH_USER = TEST_AUTH_USER;
   process.env.AUTH_PASSWORD = TEST_AUTH_PASSWORD;
-  process.env.HH_USER_AGENT = process.env.HH_USER_AGENT ?? TEST_HH_USER_AGENT;
+  // hh.ru подменяется локальной заглушкой для ВСЕХ e2e: ни один тест не должен
+  // ходить в интернет — ни случайно, ни в будущих спеках синхронизации.
+  // Значения тоже фиксируются принудительно, иначе ожидания в спеках зависели бы
+  // от содержимого .env разработчика.
+  process.env.HH_API_BASE_URL = HH_STUB_BASE_URL;
+  process.env.HH_USER_AGENT = TEST_HH_USER_AGENT;
+  process.env.HH_MAX_RETRIES = String(DEFAULT_HH_MAX_RETRIES);
   process.env[TEST_ENV_APPLIED_FLAG] = TEST_ENV_APPLIED_VALUE;
 
   return { host, port, name };

@@ -19,6 +19,17 @@ export interface ApplicationWritableFields {
 }
 
 /**
+ * Поля, которые бэкенд вычисляет сам и которые пользователь прислать не может (§4.2):
+ * hh_vacancy_id выводится из vacancy_url при каждой его записи.
+ *
+ * Вынесены отдельно от ApplicationWritableFields, чтобы в DTO ничего подобного не
+ * появилось по недосмотру: whitelist ValidationPipe отбивает такие поля в 400.
+ */
+export interface ApplicationDerivedFields {
+  hhVacancyId: string | null;
+}
+
+/**
  * Внешний JSON-контракт записи (§5): camelCase, даты — строки ISO 8601 с Z.
  * Реализуется ApplicationDto; e2e-тесты типизируют им response.body.
  */

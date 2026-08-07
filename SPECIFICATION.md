@@ -684,7 +684,8 @@ job-hunter/
 │  ├─ test/                      ✅ jest-e2e.json, test.constants.ts, e2e.interfaces.ts,
 │  │                             ✅ test-environment.ts, e2e-setup.ts, e2e-global-setup.ts,
 │  │                             ✅ e2e-app.factory.ts, applications.fixtures.ts,
-│  │                             ✅ applications.e2e-spec.ts
+│  │                             ✅ applications.e2e-spec.ts, hh-stub.server.ts,
+│  │                             ✅ hh.fixtures.ts, hh-preview.e2e-spec.ts
 │  └─ src/
 │     ├─ main.ts                 ✅ порт + shutdown hooks; настройка — в app.setup.ts
 │     ├─ app.module.ts           ✅ app.constants.ts ✅ app.setup.ts ✅ (configureApp)
@@ -693,7 +694,7 @@ job-hunter/
 │     │                          ✅ auth.decorators.ts (@Public), auth.interfaces.ts
 │     ├─ common/                 ✅ common.constants.ts, common.interfaces.ts,
 │     │                          ✅ validation.decorators.ts, string.transforms.ts
-│     │                          ✅ http-exception.filter.ts
+│     │                          ✅ http-exception.filter.ts, async.helpers.ts
 │     ├─ database/               ✅ database.module.ts, data-source.ts,
 │     │                          ✅ typeorm-options.factory.ts, database.constants.ts
 │     │  └─ migrations/          ✅ <ts>-CreateApplicationsTable.ts
@@ -709,15 +710,17 @@ job-hunter/
 │     │  └─ dto/                 ✅ create-application.dto.ts, update-application.dto.ts,
 │     │                          ✅ find-applications.query.dto.ts, application.dto.ts
 │     │                          ⬜ sync-result.dto.ts, sync-summary.dto.ts
-│     └─ hh/                     ⬜
-│        ├─ hh.module.ts
-│        ├─ hh.controller.ts     # POST /api/hh/preview
-│        ├─ hh-api.service.ts    # HTTP-клиент, ретраи, таймауты
-│        ├─ hh-url.parser.ts     # извлечение vacancy_id (+ .spec.ts)
-│        ├─ hh-sync.service.ts   # применение правил §4.3, массовый прогон
-│        ├─ hh.constants.ts
-│        ├─ hh.type.ts
-│        └─ hh.interfaces.ts
+│     └─ hh/
+│        ├─ hh.module.ts                 ✅
+│        ├─ hh.controller.ts             ✅ POST /api/hh/preview
+│        ├─ hh-api.service.ts            ✅ HTTP-клиент, ретраи, таймауты (+ .spec.ts)
+│        ├─ hh-http-options.factory.ts   ✅ опции axios из env
+│        ├─ hh-url.parser.ts             ✅ извлечение vacancy_id (+ .spec.ts)
+│        ├─ hh-sync.service.ts           ⬜ применение правил §4.3, массовый прогон
+│        ├─ hh.constants.ts              ✅
+│        ├─ hh.type.ts                   ✅
+│        ├─ hh.interfaces.ts             ✅
+│        └─ dto/                         ✅ preview-vacancy.dto.ts, hh-preview.dto.ts
 └─ frontend/
    ├─ Dockerfile  nginx.conf      ✅
    ├─ index.html                  ✅
@@ -832,7 +835,17 @@ Enum `SyncOutcome` (§4.5) объявлен в `applications/applications.consta
    эндпоинтами §5.1, инфраструктура e2e (отдельная БД `jobhunter_test`) и 31 e2e-тест
    на CRUD, фильтры, поиск, сортировку и валидацию. Вычисление `hhVacancyId` из
    `vacancyUrl` — в шаге 5 (пока поле всегда `null`). _(backend)_
-5. **Модуль hh:** парсер URL с тестами → HTTP-клиент с ретраями → `POST /api/hh/preview`. _(backend)_
+5. ~~**Модуль hh:** парсер URL с тестами → HTTP-клиент с ретраями → `POST /api/hh/preview`.~~
+   ✅ **Сделано.** `hh/hh-url.parser.ts` — чистая функция `parseHhVacancyId` (§4.2) с 30
+   unit-тестами на все кейсы спецификации; чистая, а не провайдер, чтобы её мог звать и
+   `ApplicationsService`, не заводя цикл модулей `applications ↔ hh`. `hh/hh-api.service.ts` —
+   клиент поверх `HttpModule` (baseURL/таймаут/User-Agent из env), ретраи только на 429 и 5xx
+   с backoff 500/1500 мс, сужение ответа hh.ru из `unknown` в `HhVacancy`; наружу отдаёт исход
+   из §4.5, исключений не бросает. `hh/hh.controller.ts` — `POST /api/hh/preview` (§5.3):
+   нераспознанная ссылка → 200 с нулями, `NOT_FOUND` → 404, остальное → 502. `hh_vacancy_id`
+   теперь вычисляется при создании и при каждом изменении `vacancy_url` (§4.2). e2e: локальная
+   заглушка hh.ru (`test/hh-stub.server.ts`) на фиксированном порту — `HH_API_BASE_URL`
+   подменяется в `applyTestEnvironment`, поэтому ни один e2e не ходит в интернет. _(backend)_
 6. **Синхронизация:** `POST /:id/sync`, `POST /sync-open`, правила применения, тесты. _(backend)_
 7. **Фронт: каркас** — тема, `layout.constants.ts`, axios-клиент, React Query, `AppHeader`, `FilterBar`, список аккордеонов с read-only шапками (§7.2.1), раскрытие/сворачивание. _(frontend)_
 8. **Фронт: поля в `AccordionDetails`** (§7.2.2) + inline-редактирование с автосейвом, оптимистичными апдейтами и откатом. _(frontend)_

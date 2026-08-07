@@ -17,6 +17,7 @@ import {
   ISO_UTC_PATTERN,
   MALFORMED_UUID,
   MISSING_UUID,
+  NON_HH_URL,
   UPDATED_AT_DELAY_MS,
   UUID_PATTERN,
 } from './test.constants';
@@ -97,7 +98,26 @@ describe('Applications (e2e)', () => {
       expect(created.hrInterviewAt).toBe('2026-08-10T09:00:00.000Z');
       expect(created.techInterviewAt).toBe('2026-08-11T09:00:00.000Z');
       expect(created.notes).toBe('Просили тестовое');
-      // hhVacancyId вычисляется в шаге 5, пока всегда null даже для hh-ссылки.
+      // §4.2: id вакансии вычисляет бэкенд из vacancyUrl.
+      expect(created.hhVacancyId).toBe('12345678');
+    });
+
+    it('вычисляет hhVacancyId из ссылки без схемы и с query', async () => {
+      const created = await seedApplication(
+        ctx.api,
+        buildCreatePayload({ vacancyUrl: 'spb.hh.ru/vacancy/87654321?from=vacancy_search_list' }),
+      );
+
+      expect(created.hhVacancyId).toBe('87654321');
+    });
+
+    it('оставляет hhVacancyId пустым для ссылки не на вакансию hh.ru', async () => {
+      const created = await seedApplication(
+        ctx.api,
+        buildCreatePayload({ vacancyUrl: NON_HH_URL }),
+      );
+
+      expect(created.vacancyUrl).toBe(NON_HH_URL);
       expect(created.hhVacancyId).toBeNull();
     });
 
@@ -415,6 +435,58 @@ describe('Applications (e2e)', () => {
         .patch(applicationEndpoint(created.id))
         .send({ company: null })
         .expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('пересчитывает hhVacancyId при смене vacancyUrl', async () => {
+      const created = await seedApplication(
+        ctx.api,
+        buildCreatePayload({ vacancyUrl: 'https://hh.ru/vacancy/11111111' }),
+      );
+
+      expect(created.hhVacancyId).toBe('11111111');
+
+      const response = await ctx.api
+        .patch(applicationEndpoint(created.id))
+        .send({ vacancyUrl: 'https://hh.kz/vacancy/22222222/' })
+        .expect(HttpStatus.OK);
+      const body = response.body as ApplicationResponse;
+
+      expect(body.hhVacancyId).toBe('22222222');
+    });
+
+    it('сбрасывает hhVacancyId, если ссылку заменили на постороннюю или очистили', async () => {
+      const created = await seedApplication(
+        ctx.api,
+        buildCreatePayload({ vacancyUrl: 'https://hh.ru/vacancy/11111111' }),
+      );
+      const replaced = await ctx.api
+        .patch(applicationEndpoint(created.id))
+        .send({ vacancyUrl: NON_HH_URL })
+        .expect(HttpStatus.OK);
+
+      expect((replaced.body as ApplicationResponse).hhVacancyId).toBeNull();
+
+      const cleared = await ctx.api
+        .patch(applicationEndpoint(created.id))
+        .send({ vacancyUrl: null })
+        .expect(HttpStatus.OK);
+
+      expect((cleared.body as ApplicationResponse).vacancyUrl).toBeNull();
+      expect((cleared.body as ApplicationResponse).hhVacancyId).toBeNull();
+    });
+
+    it('не трогает hhVacancyId, если vacancyUrl не присылали', async () => {
+      const created = await seedApplication(
+        ctx.api,
+        buildCreatePayload({ vacancyUrl: 'https://hh.ru/vacancy/11111111' }),
+      );
+      const response = await ctx.api
+        .patch(applicationEndpoint(created.id))
+        .send({ notes: 'другое поле' })
+        .expect(HttpStatus.OK);
+      const body = response.body as ApplicationResponse;
+
+      expect(body.hhVacancyId).toBe('11111111');
     });
 
     it('отдаёт 404 для несуществующего id', async () => {

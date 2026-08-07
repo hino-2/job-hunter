@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { SelectQueryBuilder } from 'typeorm';
 
+import { parseHhVacancyId } from '../hh/hh-url.parser';
 import { Application } from './application.entity';
 import {
   APPLICATION_NOT_FOUND_MESSAGE,
@@ -23,8 +24,7 @@ import {
   LIKE_ESCAPE_REPLACEMENT,
   LIKE_WILDCARD,
 } from './applications.constants';
-import type { ApplicationWritableFields } from './applications.interfaces';
-import type { ApplicationPatch } from './applications.type';
+import type { ApplicationCreatePayload, ApplicationPatch } from './applications.type';
 import type { CreateApplicationDto } from './dto/create-application.dto';
 import type { FindApplicationsQueryDto } from './dto/find-applications.query.dto';
 import type { UpdateApplicationDto } from './dto/update-application.dto';
@@ -153,11 +153,12 @@ export class ApplicationsService {
    * Полный набор полей для INSERT. Дефолты подставляем в коде, а не полагаемся
    * на DEFAULT в БД: иначе после save() свойства остались бы undefined.
    */
-  private buildCreatePayload(dto: CreateApplicationDto): ApplicationWritableFields {
+  private buildCreatePayload(dto: CreateApplicationDto): ApplicationCreatePayload {
     return {
       company: dto.company,
       position: dto.position ?? null,
       vacancyUrl: dto.vacancyUrl ?? null,
+      hhVacancyId: parseHhVacancyId(dto.vacancyUrl),
       resumeUrl: dto.resumeUrl ?? null,
       status: dto.status ?? DEFAULT_APPLICATION_STATUS,
       result: dto.result ?? DEFAULT_APPLICATION_RESULT,
@@ -184,8 +185,11 @@ export class ApplicationsService {
       patch.position = dto.position;
     }
 
+    // §4.2: hh_vacancy_id пересчитывается при КАЖДОЙ записи vacancy_url, в том числе
+    // при его очистке (null → null) и при замене hh-ссылки на постороннюю.
     if (dto.vacancyUrl !== undefined) {
       patch.vacancyUrl = dto.vacancyUrl;
+      patch.hhVacancyId = parseHhVacancyId(dto.vacancyUrl);
     }
 
     if (dto.resumeUrl !== undefined) {
