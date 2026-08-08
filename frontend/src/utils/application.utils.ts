@@ -13,8 +13,10 @@ import { UPCOMING_INTERVIEW_HIGHLIGHT_HOURS } from '../constants/layout.constant
 import type {
   Application,
   ApplicationCounts,
+  ApplicationCreate,
   ApplicationsFilters,
   ApplicationUpdate,
+  CreateApplicationFormValues,
   UpcomingInterview,
 } from '../types/application.interfaces';
 import type {
@@ -220,4 +222,59 @@ export function buildServerEchoPatch(
   }
 
   return echo;
+}
+
+/**
+ * Значения формы диалога создания → тело POST /api/applications (§7.4, §5.1).
+ * status и серверные поля сюда никогда не попадают — форма их не показывает вовсе.
+ * Опциональные текстовые поля тримятся и попадают в payload только непустыми: иначе
+ * пустая строка ушла бы туда, где бэкенд ждёт либо значение, либо отсутствие поля.
+ */
+export function buildCreateApplicationPayload(
+  values: CreateApplicationFormValues,
+): ApplicationCreate {
+  const payload: ApplicationCreate = {
+    company: values.company.trim(),
+    result: values.result,
+  };
+
+  const position = values.position.trim();
+
+  if (position.length > 0) {
+    payload.position = position;
+  }
+
+  const vacancyUrl = values.vacancyUrl.trim();
+
+  if (vacancyUrl.length > 0) {
+    payload.vacancyUrl = vacancyUrl;
+  }
+
+  const resumeUrl = values.resumeUrl.trim();
+
+  if (resumeUrl.length > 0) {
+    payload.resumeUrl = resumeUrl;
+  }
+
+  const employerContact = values.employerContact.trim();
+
+  if (employerContact.length > 0) {
+    payload.employerContact = employerContact;
+  }
+
+  if (values.hrInterviewAt !== null) {
+    payload.hrInterviewAt = values.hrInterviewAt;
+  }
+
+  if (values.techInterviewAt !== null) {
+    payload.techInterviewAt = values.techInterviewAt;
+  }
+
+  const notes = values.notes.trim();
+
+  if (notes.length > 0) {
+    payload.notes = notes;
+  }
+
+  return payload;
 }

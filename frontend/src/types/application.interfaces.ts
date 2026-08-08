@@ -82,6 +82,36 @@ export interface ApplicationCounts {
   total: number;
 }
 
+/**
+ * Тело POST /api/applications (§5.1). status здесь нет и не будет: §7.4 — новая запись
+ * всегда создаётся открытой, это дефолт бэкенда. hhVacancyId тоже нет — его вычисляет
+ * бэкенд из vacancyUrl (§4.2), а forbidNonWhitelisted ответил бы 400 на попытку прислать.
+ */
+export interface ApplicationCreate {
+  company: string;
+  position?: string;
+  vacancyUrl?: string;
+  resumeUrl?: string;
+  result?: ApplicationResult;
+  employerContact?: string;
+  hrInterviewAt?: string;
+  techInterviewAt?: string;
+  notes?: string;
+}
+
+/** Значения формы диалога создания (§7.4). Даты — Dayjs-совместимая ISO-строка или null. */
+export interface CreateApplicationFormValues {
+  vacancyUrl: string;
+  company: string;
+  position: string;
+  resumeUrl: string;
+  employerContact: string;
+  hrInterviewAt: string | null;
+  techInterviewAt: string | null;
+  result: ApplicationResult;
+  notes: string;
+}
+
 /** Ближайшее будущее собеседование для свёрнутой шапки (§7.2.1, элемент 5). */
 export interface UpcomingInterview {
   at: string;

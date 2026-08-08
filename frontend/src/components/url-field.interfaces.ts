@@ -3,5 +3,9 @@ export interface UrlFieldProps {
   value: string;
   maxLength: number;
   onValueChange: (value: string) => void;
-  onBlur: () => void;
+  /** Не нужен там, где по этому полю не запускается preview (§4.4, resumeUrl). */
+  onBlur?: () => void;
+  /** Спиннер preview идёт перед кнопкой OpenInNew (§4.4), поле остаётся редактируемым. */
+  isLoading?: boolean;
+  autoFocus?: boolean;
 }

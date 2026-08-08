@@ -56,3 +56,15 @@ export function extractApiErrorMessage(error: unknown, fallback: string): string
 
   return text.length > 0 ? text : fallback;
 }
+
+/**
+ * HTTP-статус ответа, если ошибка вообще пришла от сервера. Нужен там, где severity
+ * Snackbar'а зависит от статуса (404 preview §4.4 — штатный исход, а не сбой).
+ */
+export function extractApiErrorStatus(error: unknown): number | null {
+  if (!axios.isAxiosError<unknown>(error)) {
+    return null;
+  }
+
+  return error.response?.status ?? null;
+}

@@ -110,3 +110,12 @@ export const SNACKBAR_AUTO_HIDE_MS = 6000;
 
 /** Снизу по центру: Snackbar не перекрывает ни шапку, ни панель фильтров. */
 export const SNACKBAR_ANCHOR_ORIGIN = { vertical: 'bottom', horizontal: 'center' } as const;
+
+/** Ряд полей §7.2.2: собственный flex-контейнер с переносом и зазором 8px по обеим осям. */
+export const ROW_SX = { display: 'flex', flexWrap: 'wrap', gap: FIELD_GAP } as const;
+
+/** Спиннер preview в endAdornment поля-ссылки (§4.4) — по размеру рядом с иконкой OpenInNew. */
+export const FIELD_PROGRESS_SIZE_PX = 16;
+
+/** Без него обрезается floating label самого верхнего поля диалога. */
+export const DIALOG_CONTENT_PADDING_TOP = 1;

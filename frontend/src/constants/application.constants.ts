@@ -32,6 +32,7 @@ import type {
   Application,
   ApplicationsFilters,
   ApplicationUpdate,
+  CreateApplicationFormValues,
 } from '../types/application.interfaces';
 
 /** §3.2 */
@@ -298,3 +299,22 @@ export const DEFAULT_APPLICATION_FILTERS: ApplicationsFilters = {
   sort: DEFAULT_APPLICATION_SORT,
   order: DEFAULT_APPLICATION_ORDER,
 };
+
+/** Форма диалога создания (§7.4) в чистом виде: поля пусты, результат — «В процессе». */
+export const CREATE_APPLICATION_INITIAL_VALUES: CreateApplicationFormValues = {
+  vacancyUrl: EMPTY_TEXT_FIELD_VALUE,
+  company: EMPTY_TEXT_FIELD_VALUE,
+  position: EMPTY_TEXT_FIELD_VALUE,
+  resumeUrl: EMPTY_TEXT_FIELD_VALUE,
+  employerContact: EMPTY_TEXT_FIELD_VALUE,
+  hrInterviewAt: null,
+  techInterviewAt: null,
+  result: APPLICATION_RESULT.IN_PROGRESS,
+  notes: EMPTY_TEXT_FIELD_VALUE,
+};
+
+export const CREATE_SUCCESS_MESSAGE = 'Вакансия добавлена';
+export const CREATE_ERROR_FALLBACK_MESSAGE = 'Не удалось добавить запись';
+export const DELETE_SUCCESS_MESSAGE = 'Запись удалена';
+export const DELETE_ERROR_FALLBACK_MESSAGE = 'Не удалось удалить запись';
+export const PREVIEW_ERROR_FALLBACK_MESSAGE = 'Не удалось получить данные с hh.ru';

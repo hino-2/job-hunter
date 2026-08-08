@@ -46,3 +46,20 @@ export function patchApplicationInCaches(
     return items.map((item) => (item.id === id ? { ...item, ...patch } : item));
   });
 }
+
+/** Вычистка удалённой записи (§7.5) из всех закэшированных комбинаций фильтров разом. */
+export function removeApplicationFromCaches(client: QueryClient, id: string): void {
+  client.setQueriesData<Application[]>({ queryKey: APPLICATIONS_QUERY_KEY }, (items) => {
+    if (items === undefined) {
+      return items;
+    }
+
+    // Та же ссылка, если записи в этом кэше нет — иначе React Query пометит изменёнными
+    // все закэшированные варианты фильтров и вызовет лишние рендеры.
+    if (!items.some((item) => item.id === id)) {
+      return items;
+    }
+
+    return items.filter((item) => item.id !== id);
+  });
+}

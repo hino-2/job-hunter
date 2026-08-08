@@ -2,6 +2,7 @@ import { API_PATH_SEPARATOR, APPLICATIONS_ENDPOINT } from '../constants/api.cons
 import { STATUS_FILTER } from '../constants/application.constants';
 import type {
   Application,
+  ApplicationCreate,
   ApplicationsFilters,
   ApplicationsQueryParams,
   ApplicationUpdate,
@@ -54,4 +55,16 @@ export async function updateApplication(
   );
 
   return response.data;
+}
+
+/** POST /api/applications (§5.1, §7.4). status не отправляется — бэкенд создаёт OPEN. */
+export async function createApplication(payload: ApplicationCreate): Promise<Application> {
+  const response = await apiClient.post<Application>(APPLICATIONS_ENDPOINT, payload);
+
+  return response.data;
+}
+
+/** DELETE /api/applications/:id (§5.1, §7.5) — 204 без тела, response.data не читаем. */
+export async function deleteApplication(id: string): Promise<void> {
+  await apiClient.delete(`${APPLICATIONS_ENDPOINT}${API_PATH_SEPARATOR}${id}`);
 }

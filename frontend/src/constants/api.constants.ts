@@ -5,6 +5,8 @@ export const API_TIMEOUT_MS = 20_000;
 
 export const APPLICATIONS_ENDPOINT = '/applications';
 
+export const HH_PREVIEW_ENDPOINT = '/hh/preview';
+
 /** Разделитель сегментов пути: путь к одной записи — `${APPLICATIONS_ENDPOINT}/${id}`. */
 export const API_PATH_SEPARATOR = '/';
 
@@ -13,3 +15,6 @@ export const API_PATH_SEPARATOR = '/';
  * по строке на каждое нарушенное правило, а места на многострочный текст в Snackbar нет.
  */
 export const API_ERROR_MESSAGE_SEPARATOR = ', ';
+
+/** §5.3: нераспознанная ссылка hh.ru — штатный исход, а не сбой (extractApiErrorStatus). */
+export const HTTP_STATUS_NOT_FOUND = 404;
