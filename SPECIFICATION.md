@@ -709,14 +709,14 @@ job-hunter/
 │     │  ├─ applications.interfaces.ts
 │     │  └─ dto/                 ✅ create-application.dto.ts, update-application.dto.ts,
 │     │                          ✅ find-applications.query.dto.ts, application.dto.ts
-│     │                          ⬜ sync-result.dto.ts, sync-summary.dto.ts
+│     │                          ✅ sync-result.dto.ts, sync-summary.dto.ts
 │     └─ hh/
 │        ├─ hh.module.ts                 ✅
 │        ├─ hh.controller.ts             ✅ POST /api/hh/preview
 │        ├─ hh-api.service.ts            ✅ HTTP-клиент, ретраи, таймауты (+ .spec.ts)
 │        ├─ hh-http-options.factory.ts   ✅ опции axios из env
 │        ├─ hh-url.parser.ts             ✅ извлечение vacancy_id (+ .spec.ts)
-│        ├─ hh-sync.service.ts           ⬜ применение правил §4.3, массовый прогон
+│        ├─ hh-sync.service.ts           ✅ применение правил §4.3, массовый прогон
 │        ├─ hh.constants.ts              ✅
 │        ├─ hh.type.ts                   ✅
 │        ├─ hh.interfaces.ts             ✅
@@ -732,25 +732,35 @@ job-hunter/
       ├─ App.tsx                  ✅ экран списка: фильтры, дебаунс поиска, раскрытость
       ├─ theme.ts                 ✅ size="small" по умолчанию
       ├─ vite-env.d.ts            ✅  test/setup.ts ✅
-      ├─ api/                     ✅ client.ts, applications.api.ts
-      │                           ⬜ hh.api.ts
-      ├─ types/                   ✅ application.type.ts, application.interfaces.ts
-      │                           ⬜ sync.type.ts
+      ├─ api/                     ✅ client.ts, applications.api.ts, hh.api.ts
+      ├─ types/                   ✅ application.type.ts, application.interfaces.ts,
+      │                           ✅ sync.type.ts, sync.interfaces.ts,
+      │                           ✅ api.interfaces.ts, hh.interfaces.ts,
+      │                           ✅ notification.type.ts, notification.interfaces.ts
       ├─ constants/               ✅ api.constants.ts, query.constants.ts,
       │                           ✅ theme.constants.ts, layout.constants.ts (зазоры, flex-basis, 48h)
       │                           ✅ application.constants.ts (enum + ru-подписи)
-      ├─ utils/                   ✅ date.utils.ts, application.utils.ts
+      │                           ✅ sync.constants.ts (подписи §7.6/§7.7 + карта severity)
+      │                           ✅ notification.constants.ts, pickers.constants.ts, url.constants.ts
+      ├─ utils/                   ✅ date.utils.ts, application.utils.ts, sync.utils.ts,
+      │                           ✅ applications-cache.utils.ts, url.utils.ts, error.utils.ts
       ├─ hooks/                   ✅ useApplications.ts, useExpandedIds.ts
       │                           ✅ (+ use-expanded-ids.interfaces.ts), useDebouncedValue.ts
-      │                           ⬜ useUpdateApplication.ts, useCreateApplication.ts,
-      │                           ⬜ useDeleteApplication.ts, useSyncApplication.ts,
-      │                           ⬜ useSyncAllOpen.ts, useHhPreview.ts, useAutosaveField.ts
+      │                           ✅ useUpdateApplication.ts, useCreateApplication.ts,
+      │                           ✅ useDeleteApplication.ts, useSyncApplication.ts,
+      │                           ✅ useSyncAllOpen.ts, useHhPreview.ts,
+      │                           ✅ useInlineEdits.ts, useNotification.ts
       └─ components/              ✅ AppHeader.tsx, FilterBar.tsx, ApplicationsList.tsx,
                                   ✅ ApplicationAccordion.tsx, ApplicationSummaryRow.tsx,
                                   ✅ SyncStatusIcon.tsx, EmptyState.tsx (+ парные *.interfaces.ts)
-                                  ⬜ ApplicationFields.tsx, CreateApplicationDialog.tsx,
-                                  ⬜ ConfirmDeleteDialog.tsx, UrlField.tsx
+                                  ✅ ApplicationFields.tsx, CreateApplicationDialog.tsx,
+                                  ✅ ConfirmDeleteDialog.tsx, UrlField.tsx, FieldCell.tsx,
+                                  ✅ SyncSummaryAlert.tsx, NotificationSnackbar.tsx
 ```
+
+`useAutosaveField.ts` из исходного дерева так и не появился: его роль целиком закрыл
+`useInlineEdits.ts` — черновики всего списка обязаны жить в одном месте (§14 шаг 8),
+а хук «на одно поле» держал бы состояние внутри компонента полей.
 
 Каталог `src/utils/` в исходном дереве не значился — добавлен на шаге 7. Чистые хелперы
 форматирования дат и выборки ближайшего собеседования не являются ни компонентом, ни хуком,
@@ -1023,27 +1033,101 @@ Enum `SyncOutcome` (§4.5) объявлен в `applications/applications.consta
    запрещён: `forbidNonWhitelisted` (§5.6) вернул бы 400 на любом лишнем поле, поэтому
    `status`, `hhVacancyId` и `lastSync*` в `ApplicationCreate` отсутствуют как тип. Пустые
    после `trim()` строки в тело не попадают вовсе, даты уходят только через `isCommittableDate`
-   + `toIsoOrNull`. Заведомо невалидное не отправляется (правило шага 8): кнопка «Добавить»
-   заблокирована при пустой «Компании» (§7.4 буквально) и при не проходящей `isSavableUrl`
-   ссылке. `<form>` не используем — `DateTimePicker` и multiline перехватывают Enter,
-   а §7.4 сабмита по Enter не требует. `onClose` игнорируется, пока запрос в полёте.
-   Попутно разъехались по своим местам константы, у которых появился второй потребитель:
-   `ROW_SX` → `constants/layout.constants.ts`, `PICKER_*` → `constants/pickers.constants.ts`;
-   `isSaved` у `FieldCell` и `onBlur` у `UrlField` стали необязательными (в диалоге нет
-   ни подсветки «сохранено», ни blur-логики у ссылки на резюме).
-   Осознанно принятые края: клик по 🗑 сначала снимает фокус с редактируемого поля, поэтому
-   PATCH может прилететь после DELETE и дать лишний error-Snackbar (механику отмены не заводим,
-   §1.3); «Добавить» во время летящего preview не блокируется (§4.4 требует, чтобы preview
-   не мешал сохранению), поэтому автоподстановки в этом случае не будет; мёртвые ключи
-   в `pendingById`/`expandedIds` после удаления безвредны — без записи нет и аккордеона.
-   **Тесты шага сознательно отложены** по решению пользователя (новые spec-файлы в проекте
-   не заводим). Выполнена только статическая проверка — `lint`, `typecheck`, `test`, `build`,
-   `format` зелёные в обоих воркспейсах, плюс сверка формы `ApplicationCreate`/`HhPreview`
-   и маршрутов с бэкендовыми DTO поле в поле. **Ручной прогон в браузере не выполнялся**:
-   критерии §13.5 (создание с одной компанией → запись сверху и раскрыта), §13.9 (удаление
-   с подтверждением) и §13.11 (автоподстановка из hh.ru, введённое вручную не перетёрто)
-   глазами не проверены. _(frontend)_
-10. **Фронт: синхронизация** — кнопка в строке, кнопка «все открытые», прогресс, сводка, колонка «Синхр.». _(frontend)_
+   - `toIsoOrNull`. Заведомо невалидное не отправляется (правило шага 8): кнопка «Добавить»
+     заблокирована при пустой «Компании» (§7.4 буквально) и при не проходящей `isSavableUrl`
+     ссылке. `<form>` не используем — `DateTimePicker` и multiline перехватывают Enter,
+     а §7.4 сабмита по Enter не требует. `onClose` игнорируется, пока запрос в полёте.
+     Попутно разъехались по своим местам константы, у которых появился второй потребитель:
+     `ROW_SX` → `constants/layout.constants.ts`, `PICKER_*` → `constants/pickers.constants.ts`;
+     `isSaved` у `FieldCell` и `onBlur` у `UrlField` стали необязательными (в диалоге нет
+     ни подсветки «сохранено», ни blur-логики у ссылки на резюме).
+     Осознанно принятые края: клик по 🗑 сначала снимает фокус с редактируемого поля, поэтому
+     PATCH может прилететь после DELETE и дать лишний error-Snackbar (механику отмены не заводим,
+     §1.3); «Добавить» во время летящего preview не блокируется (§4.4 требует, чтобы preview
+     не мешал сохранению), поэтому автоподстановки в этом случае не будет; мёртвые ключи
+     в `pendingById`/`expandedIds` после удаления безвредны — без записи нет и аккордеона.
+     **Тесты шага сознательно отложены** по решению пользователя (новые spec-файлы в проекте
+     не заводим). Выполнена только статическая проверка — `lint`, `typecheck`, `test`, `build`,
+     `format` зелёные в обоих воркспейсах, плюс сверка формы `ApplicationCreate`/`HhPreview`
+     и маршрутов с бэкендовыми DTO поле в поле. **Ручной прогон в браузере не выполнялся**:
+     критерии §13.5 (создание с одной компанией → запись сверху и раскрыта), §13.9 (удаление
+     с подтверждением) и §13.11 (автоподстановка из hh.ru, введённое вручную не перетёрто)
+     глазами не проверены. _(frontend)_
+10. ~~**Фронт: синхронизация** — кнопка в строке, кнопка «все открытые», прогресс, сводка,
+    колонка «Синхр.».~~
+    ✅ **Сделано** (кроме тестов и ручного прогона, см. ниже). Две независимые мутации:
+    `useSyncApplication` (одна запись, §7.6) и `useSyncAllOpen` (прогон, §7.7). Колбэки исхода —
+    в опциях хуков, а не в вызове `mutate()`, по той же причине, что на шаге 8: `MutationObserver`
+    у `useMutation` один, второй `mutate()` отцепляет предыдущую мутацию.
+    **Набор синхронизирующихся id (`ReadonlySet<string>`) живёт внутри `useSyncApplication`,
+    а не в `App` и не в компоненте строки.** `isPending`/`variables` у `useMutation` описывают
+    только последний `mutate`, а кликнуть 🔄 на двух строках подряд можно — вторая кнопка
+    «отвисла» бы вместе с первой. Набор меняется функциональным `setState` в `onMutate`/`onSettled`,
+    поэтому парность «добавили — сняли» держится на всех путях, включая отцепленную мутацию.
+    В аккордеон уходит **срез-`boolean`** (`syncingIds.has(id)`), ровно как `pendingById[id]`
+    на шаге 8: набор целиком пробил бы `memo` у всех аккордеонов на каждый старт и финиш.
+    **Отключённая 🔄 обёрнута в `span` со `stopPropagation`.** Шаг 7 отказался от `disabled`-заглушки
+    именно потому, что MUI ставит отключённому `IconButton` `pointer-events: none` и клик
+    проваливается в `AccordionSummary`, переключая раскрытость (§13.10.3). Теперь `disabled`
+    требуется буквой §7.6, поэтому событие гасит обёртка; пока кнопка активна, событие гасится
+    раньше — в самом `handleSync`, — так что двойного `stopPropagation` не возникает. Заодно
+    `span` даёт `Tooltip` живого потомка, способного принимать события.
+    **Из ответа `/sync` в кэш переносятся только колонки, которыми владеет синхронизация**
+    (`buildSyncEchoPatch`: `status`, `hhArchived`, `hhVacancyType`, `lastSynced*`, `lastSync*`,
+    плюс заведомо более свежий `updatedAt`) — замена записи целиком откатила бы оптимистичное
+    значение поля, которое правят прямо сейчас: ответ мог быть сформирован до того, как долетел
+    параллельный автосейв. Симметрично `buildServerEchoPatch` шага 8. Черновики `useInlineEdits`
+    при этом не трогаются вовсе — они текстовые, а в патче синхронизации текстовых полей нет.
+    Инвалидация — только на смену `status` (правило шага 8: состав отфильтрованного списка
+    и счётчик §7.8). `404` в `onError` вычищает запись из кэшей: её удалили в другой вкладке,
+    и фантомный аккордеон обязан исчезнуть.
+    **`applications[]` из ответа `sync-open` в кэш сознательно не вливается** — вместо этого
+    инвалидация префикса `APPLICATIONS_QUERY_KEY`. Вливание не решает главного: членства записи
+    в отфильтрованных выборках (закрывшаяся запись обязана уйти из «Открытых»), а её позицию
+    в чужих сортировках клиент не знает — то же обоснование, что у `useCreateApplication`.
+    Поле объявлено в типе ради построчной сверки с бэкендом и помечено как неиспользуемое.
+    Инвалидация выполняется **и в `onError`**: прогон синхронный и мог отработать в БД, а ответ —
+    не доехать по таймауту; оставить список в старом виде было бы прямым обманом.
+    **Сводка §7.7 — отдельный `SyncSummaryAlert` в потоке страницы, а не расширение
+    `useNotification`.** Тот умеет одно короткое сообщение и гасит его через 6 с; сводке нужны
+    многострочный текст, кнопка раскрытия и список до 50 строк, живущий до явного закрытия.
+    Раскрывающийся список внутри автогасящегося тоста — и плохой UX, и лишний флаг «не гасить»
+    в модели уведомлений, которую переиспользуют пять других мест; §7.7 разрешает «`Snackbar`/`Alert`».
+    `useNotification` остался как есть и обслуживает транзиентное: подпись исхода `/sync` (§7.6)
+    и сбой самого запроса. `isExpanded` держится **внутри** компонента сводки — в отличие
+    от шага 8, снаружи её сворачивание никто не инициирует, требования §13.10.7 здесь нет.
+    Три канала исходов не смешиваются: неуспешный `outcome` при HTTP 200 — это результат операции
+    и идёт в Snackbar с severity по §7.6 (`SYNC_OUTCOME_NOTIFICATION_SEVERITY`: `info` для
+    `NOT_FOUND`/`SKIPPED_NOT_HH`, поэтому карта **не** совпадает с `SYNC_OUTCOME_ICON_COLORS`,
+    где они `warning`); сбой запроса — error-Snackbar; `ERROR`/`RATE_LIMITED` внутри успешного
+    ответа — только в `Alert` сводки, дублировать их тостом нельзя.
+    **Таймауты подняты пер-запросно** (`SYNC_REQUEST_TIMEOUT_MS = 45 000`,
+    `SYNC_OPEN_REQUEST_TIMEOUT_MS = 120 000`): дефолтные 20 000 мс короче штатного худшего случая
+    одной записи на бэкенде (3 попытки × 10 000 мс + backoff 500/1500 мс ≈ 32 с) и оборвали бы
+    вполне успешный запрос. Дальше поднимать бессмысленно — упрёмся в `proxy_read_timeout 120s`
+    у nginx, а очередей, воркеров и SSE §12 запрещает, поэтому `LinearProgress` только
+    indeterminate: никаких процентов и «7 из 12».
+    Колонка «Синхр.» (§7.2.1 п.6) на этом шаге не менялась — `SyncStatusIcon` был закрыт целиком
+    ещё на шаге 7, включая осознанное отступление от буквы §7.2.3: «непустой `lastSyncError` →
+    иконка цветом error» прочитано как «не зелёная», потому что бэкенд пишет непустой
+    `lastSyncError` и для `NOT_FOUND`, и для `SKIPPED_NOT_HH`, а красить их в `error` прямо
+    противоречило бы §7.6, где это `info`-исходы.
+    Осознанно принятые края: кнопки 🔄 в строках во время массового прогона **не** блокируются
+    (§7.7 «список остаётся доступным»; двойной запрос по одной вакансии безвреден, финальное
+    состояние приходит инвалидацией); Snackbar «Обновлено» покажется и для записи, удалённой
+    пока летел `/sync` (тот же класс, что «PATCH после DELETE» на шаге 9, механику отмены
+    не заводим); отправленное, но не отвеченное значение поля может кратко откатиться, если
+    рефетч после прогона обгонит `PATCH` (самолечится ближайшим фетчем, счётчиков поколений
+    не заводим); сводка не персистится и сбрасывается при старте нового прогона; при неизвестном
+    счётчике открытых кнопка «Обновить все открытые» отключена — это честнее, чем отправлять
+    прогон в неизвестность.
+    **Тесты шага сознательно отложены** по решению пользователя (новые spec-файлы в проекте
+    не заводим). Выполнена статическая проверка — `lint`, `typecheck`, `test`, `build` зелёные
+    в обоих воркспейсах (49 backend-unit и 50 e2e не тронуты), плюс сверка `SyncResult`,
+    `SyncSummary`, `SyncSummaryItem` и `SyncOutcomeCounts` с бэкендовыми DTO поле в поле.
+    **Ручной прогон в браузере не выполнялся**: критерии §13.12–13.15 (исходы 🔄 на живой,
+    снятой и не-hh вакансии; прогресс и сводка «Обновить все открытые») глазами не проверены.
+    _(frontend)_
 11. **Финальный проход:** прогон критериев приёмки §13, README с инструкцией запуска.
 
 После шагов 4, 6, 8 и 10 — обязательный проход `code-reviewer`.

@@ -10,6 +10,8 @@ export interface ApplicationAccordionProps {
   handlers: InlineEditHandlers;
   expanded: boolean;
   onToggle: (id: string, expanded: boolean) => void;
-  onSync?: (id: string) => void;
+  /** §7.6: у этой записи /sync в полёте — спиннер вместо иконки в шапке. */
+  isSyncing: boolean;
+  onSync: (id: string) => void;
   onDelete?: (id: string) => void;
 }

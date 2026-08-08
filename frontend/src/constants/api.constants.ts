@@ -18,3 +18,16 @@ export const API_ERROR_MESSAGE_SEPARATOR = ', ';
 
 /** §5.3: нераспознанная ссылка hh.ru — штатный исход, а не сбой (extractApiErrorStatus). */
 export const HTTP_STATUS_NOT_FOUND = 404;
+
+export const SYNC_PATH_SEGMENT = 'sync';
+export const SYNC_OPEN_PATH_SEGMENT = 'sync-open';
+
+/**
+ * Худший случай одной записи на бэкенде: 3 попытки × 10 000 мс + backoff 500/1500 мс ≈ 32 с
+ * (backend/src/config/config.constants.ts, backend/src/hh/hh.constants.ts), то есть дефолтный
+ * API_TIMEOUT_MS (20 000) оборвал бы штатный запрос.
+ */
+export const SYNC_REQUEST_TIMEOUT_MS = 45_000;
+
+/** Ровно столько же держит nginx (proxy_read_timeout 120s) — больше ждать бессмысленно. */
+export const SYNC_OPEN_REQUEST_TIMEOUT_MS = 120_000;

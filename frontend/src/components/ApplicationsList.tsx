@@ -24,6 +24,7 @@ export function ApplicationsList({
   savedById,
   editHandlers,
   onAdd,
+  syncingIds,
   onSync,
   onDelete,
 }: ApplicationsListProps) {
@@ -83,6 +84,7 @@ export function ApplicationsList({
           handlers={editHandlers}
           expanded={isExpanded(application.id)}
           onToggle={onToggle}
+          isSyncing={syncingIds.has(application.id)}
           onSync={onSync}
           onDelete={onDelete}
         />

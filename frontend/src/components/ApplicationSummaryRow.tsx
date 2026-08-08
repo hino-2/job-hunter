@@ -1,7 +1,7 @@
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EventIcon from '@mui/icons-material/Event';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { Box, Chip, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, CircularProgress, IconButton, Tooltip, Typography } from '@mui/material';
 import type { MouseEvent } from 'react';
 
 import {
@@ -15,8 +15,10 @@ import {
   FIELD_GAP,
   SUMMARY_FLEX,
   SUMMARY_ICON_GAP,
+  SUMMARY_SYNC_PROGRESS_SIZE_PX,
   SUMMARY_TEXT_MIN_WIDTH_PX,
 } from '../constants/layout.constants';
+import { SYNC_ROW_LABEL, SYNC_ROW_PENDING_LABEL } from '../constants/sync.constants';
 import { selectUpcomingInterview } from '../utils/application.utils';
 import { formatDateTimeShort } from '../utils/date.utils';
 import type { ApplicationSummaryRowProps } from './application-summary-row.interfaces';
@@ -29,6 +31,7 @@ import { SyncStatusIcon } from './SyncStatusIcon';
  */
 export function ApplicationSummaryRow({
   application,
+  isSyncing,
   onSync,
   onDelete,
 }: ApplicationSummaryRowProps) {
@@ -39,7 +42,13 @@ export function ApplicationSummaryRow({
   // до AccordionSummary и переключил раскрытость (§13.10.3).
   const handleSync = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    onSync?.(application.id);
+    onSync(application.id);
+  };
+
+  // MUI ставит отключённому IconButton pointer-events: none, и клик по нему провалился бы
+  // в AccordionSummary мимо handleSync — гасим его уже на обёртке (§13.10.3).
+  const handleSyncWrapperClick = (event: MouseEvent<HTMLSpanElement>) => {
+    event.stopPropagation();
   };
 
   const handleDelete = (event: MouseEvent<HTMLButtonElement>) => {
@@ -122,14 +131,20 @@ export function ApplicationSummaryRow({
         />
       </Box>
 
-      <Tooltip title="Обновить статус">
-        <IconButton
-          aria-label="Обновить статус"
-          onClick={handleSync}
-          sx={{ flex: SUMMARY_FLEX.auto }}
+      <Tooltip title={isSyncing ? SYNC_ROW_PENDING_LABEL : SYNC_ROW_LABEL}>
+        <Box
+          component="span"
+          onClick={handleSyncWrapperClick}
+          sx={{ flex: SUMMARY_FLEX.auto, display: 'inline-flex' }}
         >
-          <RefreshIcon fontSize="small" />
-        </IconButton>
+          <IconButton aria-label={SYNC_ROW_LABEL} disabled={isSyncing} onClick={handleSync}>
+            {isSyncing ? (
+              <CircularProgress size={SUMMARY_SYNC_PROGRESS_SIZE_PX} />
+            ) : (
+              <RefreshIcon fontSize="small" />
+            )}
+          </IconButton>
+        </Box>
       </Tooltip>
 
       <Tooltip title="Удалить">

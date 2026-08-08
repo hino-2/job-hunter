@@ -225,6 +225,34 @@ export function buildServerEchoPatch(
 }
 
 /**
+ * Что из ответа /sync (§5.2) переносится в кэш. Ровно колонки, которыми владеет
+ * синхронизация (§4.3): company/position/result/ссылки/даты/notes не переносятся вовсе —
+ * ответ мог быть сформирован до того, как долетел параллельный автосейв, и затёр бы
+ * оптимистичное значение поля, которое правят прямо сейчас (то же правило, что у
+ * buildServerEchoPatch). hhVacancyId тоже не переносится: синхронизация его не меняет,
+ * а PATCH vacancyUrl мог уже уйти вперёд.
+ */
+export function buildSyncEchoPatch(
+  saved: Application,
+  cached: Application | undefined,
+): Partial<Application> {
+  const patch: Partial<Application> = {
+    status: saved.status,
+    hhArchived: saved.hhArchived,
+    hhVacancyType: saved.hhVacancyType,
+    lastSyncedAt: saved.lastSyncedAt,
+    lastSyncOutcome: saved.lastSyncOutcome,
+    lastSyncError: saved.lastSyncError,
+  };
+
+  if (cached === undefined || saved.updatedAt > cached.updatedAt) {
+    return { ...patch, updatedAt: saved.updatedAt };
+  }
+
+  return patch;
+}
+
+/**
  * Значения формы диалога создания → тело POST /api/applications (§7.4, §5.1).
  * status и серверные поля сюда никогда не попадают — форма их не показывает вовсе.
  * Опциональные текстовые поля тримятся и попадают в payload только непустыми: иначе

@@ -17,6 +17,8 @@ export interface ApplicationsListProps {
   savedById: SavedById;
   editHandlers: InlineEditHandlers;
   onAdd?: () => void;
-  onSync?: (id: string) => void;
+  /** id записей с летящим /sync (§7.6) — в аккордеон уходит срез-boolean по id. */
+  syncingIds: ReadonlySet<string>;
+  onSync: (id: string) => void;
   onDelete?: (id: string) => void;
 }

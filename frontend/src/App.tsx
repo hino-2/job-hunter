@@ -7,6 +7,7 @@ import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog';
 import { CreateApplicationDialog } from './components/CreateApplicationDialog';
 import { FilterBar } from './components/FilterBar';
 import { NotificationSnackbar } from './components/NotificationSnackbar';
+import { SyncSummaryAlert } from './components/SyncSummaryAlert';
 import {
   CREATE_ERROR_FALLBACK_MESSAGE,
   CREATE_SUCCESS_MESSAGE,
@@ -15,11 +16,17 @@ import {
   DELETE_SUCCESS_MESSAGE,
   EMPTY_APPLICATIONS,
   PREVIEW_ERROR_FALLBACK_MESSAGE,
+  SYNC_OUTCOME_LABELS,
 } from './constants/application.constants';
 import { HTTP_STATUS_NOT_FOUND } from './constants/api.constants';
 import { CONTAINER_PADDING_X, CONTAINER_PADDING_Y, FIELD_GAP } from './constants/layout.constants';
 import { NOTIFICATION_SEVERITY } from './constants/notification.constants';
 import { SEARCH_DEBOUNCE_MS } from './constants/query.constants';
+import {
+  SYNC_ALL_ERROR_FALLBACK_MESSAGE,
+  SYNC_ERROR_FALLBACK_MESSAGE,
+  SYNC_OUTCOME_NOTIFICATION_SEVERITY,
+} from './constants/sync.constants';
 import { useApplications, useApplicationsCounts } from './hooks/useApplications';
 import { useCreateApplication } from './hooks/useCreateApplication';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
@@ -27,11 +34,14 @@ import { useDeleteApplication } from './hooks/useDeleteApplication';
 import { useExpandedIds } from './hooks/useExpandedIds';
 import { useInlineEdits } from './hooks/useInlineEdits';
 import { useNotification } from './hooks/useNotification';
+import { useSyncAllOpen } from './hooks/useSyncAllOpen';
+import { useSyncApplication } from './hooks/useSyncApplication';
 import type {
   Application,
   ApplicationCreate,
   ApplicationsFilters,
 } from './types/application.interfaces';
+import type { SyncResult, SyncSummary } from './types/sync.interfaces';
 import { isFilterActive } from './utils/application.utils';
 import { extractApiErrorMessage, extractApiErrorStatus } from './utils/error.utils';
 
@@ -58,6 +68,7 @@ export function App() {
   const edits = useInlineEdits({ onError: notification.notifyError });
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
 
   const items = applications.data ?? EMPTY_APPLICATIONS;
   const ids = useMemo(() => items.map((item) => item.id), [items]);
@@ -157,11 +168,56 @@ export function App() {
     [notification],
   );
 
+  // §7.6: только подпись исхода, без message — подробности (lastSyncError) уже осели
+  // в tooltip иконки «Синхр.», кэш патчится до вызова onSynced.
+  const handleSynced = useCallback(
+    (result: SyncResult) => {
+      notification.notify(
+        SYNC_OUTCOME_LABELS[result.outcome],
+        SYNC_OUTCOME_NOTIFICATION_SEVERITY[result.outcome],
+      );
+    },
+    [notification],
+  );
+
+  const handleSyncFailed = useCallback(
+    (error: Error) => {
+      notification.notifyError(extractApiErrorMessage(error, SYNC_ERROR_FALLBACK_MESSAGE));
+    },
+    [notification],
+  );
+
+  const handleSyncAllFinished = useCallback((summary: SyncSummary) => {
+    setSyncSummary(summary);
+  }, []);
+
+  const handleSyncAllFailed = useCallback(
+    (error: Error) => {
+      notification.notifyError(extractApiErrorMessage(error, SYNC_ALL_ERROR_FALLBACK_MESSAGE));
+    },
+    [notification],
+  );
+
+  const handleSyncSummaryDismiss = useCallback(() => {
+    setSyncSummary(null);
+  }, []);
+
   const create = useCreateApplication({ onCreated: handleCreated, onFailed: handleCreateFailed });
   const remove = useDeleteApplication({ onDeleted: handleDeleted, onFailed: handleDeleteFailed });
+  const rowSync = useSyncApplication({ onSynced: handleSynced, onFailed: handleSyncFailed });
+  const syncAll = useSyncAllOpen({
+    onFinished: handleSyncAllFinished,
+    onFailed: handleSyncAllFailed,
+  });
 
   const handleCreateSubmit = (payload: ApplicationCreate) => {
     create.mutate(payload);
+  };
+
+  const handleSyncAllOpen = () => {
+    setSyncSummary(null); // сводка предыдущего прогона не должна висеть поверх нового
+
+    syncAll.mutate();
   };
 
   const handleDeleteConfirm = (id: string) => {
@@ -176,6 +232,8 @@ export function App() {
         // Именно «чисел нет», а не «идёт загрузка»: при ошибке запроса isPending уже false,
         // а data всё ещё undefined — и счётчик показал бы достоверно выглядящее «0 / 0».
         isCountsUnknown={counts.data === undefined}
+        isSyncingAll={syncAll.isPending}
+        onSyncAllOpen={handleSyncAllOpen}
       />
 
       <Container maxWidth={false} sx={{ px: CONTAINER_PADDING_X, py: CONTAINER_PADDING_Y }}>
@@ -187,6 +245,10 @@ export function App() {
             onToggleExpandAll={handleToggleExpandAll}
             onAdd={handleAdd}
           />
+
+          {syncSummary !== null ? (
+            <SyncSummaryAlert summary={syncSummary} onDismiss={handleSyncSummaryDismiss} />
+          ) : null}
 
           <ApplicationsList
             applications={items}
@@ -201,6 +263,8 @@ export function App() {
             savedById={edits.savedById}
             editHandlers={edits.handlers}
             onAdd={handleAdd}
+            syncingIds={rowSync.syncingIds}
+            onSync={rowSync.sync}
             onDelete={handleDeleteRequest}
           />
         </Stack>

@@ -33,6 +33,7 @@ export const ApplicationAccordion = memo(function ApplicationAccordion({
   handlers,
   expanded,
   onToggle,
+  isSyncing,
   onSync,
   onDelete,
 }: ApplicationAccordionProps) {
@@ -78,7 +79,12 @@ export const ApplicationAccordion = memo(function ApplicationAccordion({
           },
         }}
       >
-        <ApplicationSummaryRow application={merged} onSync={onSync} onDelete={onDelete} />
+        <ApplicationSummaryRow
+          application={merged}
+          isSyncing={isSyncing}
+          onSync={onSync}
+          onDelete={onDelete}
+        />
       </AccordionSummary>
 
       <AccordionDetails

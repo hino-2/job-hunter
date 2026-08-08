@@ -119,3 +119,9 @@ export const FIELD_PROGRESS_SIZE_PX = 16;
 
 /** Без него обрезается floating label самого верхнего поля диалога. */
 export const DIALOG_CONTENT_PADDING_TOP = 1;
+
+/** §7.6 буквально: CircularProgress size=16 вместо иконки 🔄. */
+export const SUMMARY_SYNC_PROGRESS_SIZE_PX = 16;
+
+/** Проблемных записей в сводке §7.7 может быть до 50 — список скроллится, а не растёт вниз. */
+export const SYNC_SUMMARY_LIST_MAX_HEIGHT_PX = 240;

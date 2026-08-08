@@ -3,6 +3,7 @@ export interface AppHeaderProps {
   totalCount: number;
   /** Чисел ещё (или уже) нет: и загрузка, и ошибка запроса счётчика. */
   isCountsUnknown: boolean;
-  /** Колбэк появится на шаге 10 (§7.7). */
-  onSyncAllOpen?: () => void;
+  /** §7.7: прогон в полёте — LinearProgress под Toolbar, кнопка disabled с «Обновляем…». */
+  isSyncingAll: boolean;
+  onSyncAllOpen: () => void;
 }

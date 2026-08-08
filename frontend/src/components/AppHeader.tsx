@@ -1,5 +1,5 @@
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { AppBar, Button, Toolbar, Typography } from '@mui/material';
+import { AppBar, Button, LinearProgress, Toolbar, Typography } from '@mui/material';
 
 import { COUNTS_PENDING_PLACEHOLDER } from '../constants/application.constants';
 import {
@@ -7,6 +7,11 @@ import {
   APP_BAR_TITLE_FLEX_GROW,
   FIELD_GAP,
 } from '../constants/layout.constants';
+import {
+  SYNC_ALL_LABEL,
+  SYNC_ALL_PENDING_LABEL,
+  SYNC_ALL_PROGRESS_LABEL,
+} from '../constants/sync.constants';
 import type { AppHeaderProps } from './app-header.interfaces';
 
 /** Шапка приложения (§7.1): заголовок, массовая синхронизация и счётчик «Открытых: N / M». */
@@ -14,6 +19,7 @@ export function AppHeader({
   openCount,
   totalCount,
   isCountsUnknown,
+  isSyncingAll,
   onSyncAllOpen,
 }: AppHeaderProps) {
   const open = isCountsUnknown ? COUNTS_PENDING_PLACEHOLDER : String(openCount);
@@ -28,17 +34,19 @@ export function AppHeader({
 
         <Button
           startIcon={<RefreshIcon />}
-          // §7.7: без открытых записей обновлять нечего. Сам прогон появится на шаге 10.
-          disabled={openCount === 0}
+          // §7.7: без открытых записей обновлять нечего, а во время прогона — повторный клик.
+          disabled={openCount === 0 || isSyncingAll}
           onClick={onSyncAllOpen}
         >
-          Обновить все открытые
+          {isSyncingAll ? SYNC_ALL_PENDING_LABEL : SYNC_ALL_LABEL}
         </Button>
 
         <Typography variant="body2" color="text.secondary">
           Открытых: {open} / {total}
         </Typography>
       </Toolbar>
+
+      {isSyncingAll ? <LinearProgress aria-label={SYNC_ALL_PROGRESS_LABEL} /> : null}
     </AppBar>
   );
 }

@@ -1,4 +1,11 @@
-import { API_PATH_SEPARATOR, APPLICATIONS_ENDPOINT } from '../constants/api.constants';
+import {
+  API_PATH_SEPARATOR,
+  APPLICATIONS_ENDPOINT,
+  SYNC_OPEN_PATH_SEGMENT,
+  SYNC_OPEN_REQUEST_TIMEOUT_MS,
+  SYNC_PATH_SEGMENT,
+  SYNC_REQUEST_TIMEOUT_MS,
+} from '../constants/api.constants';
 import { STATUS_FILTER } from '../constants/application.constants';
 import type {
   Application,
@@ -7,6 +14,7 @@ import type {
   ApplicationsQueryParams,
   ApplicationUpdate,
 } from '../types/application.interfaces';
+import type { SyncResult, SyncSummary } from '../types/sync.interfaces';
 import { apiClient } from './client';
 
 /**
@@ -67,4 +75,29 @@ export async function createApplication(payload: ApplicationCreate): Promise<App
 /** DELETE /api/applications/:id (§5.1, §7.5) — 204 без тела, response.data не читаем. */
 export async function deleteApplication(id: string): Promise<void> {
   await apiClient.delete(`${APPLICATIONS_ENDPOINT}${API_PATH_SEPARATOR}${id}`);
+}
+
+/**
+ * POST /api/applications/:id/sync (§5.2). Любой исход приходит с кодом 200 — это результат
+ * операции, а не ошибка. Таймаут поднят: один запрос к hh.ru — до 10 с, плюс два ретрая.
+ */
+export async function syncApplication(id: string): Promise<SyncResult> {
+  const response = await apiClient.post<SyncResult>(
+    `${APPLICATIONS_ENDPOINT}${API_PATH_SEPARATOR}${id}${API_PATH_SEPARATOR}${SYNC_PATH_SEGMENT}`,
+    undefined,
+    { timeout: SYNC_REQUEST_TIMEOUT_MS },
+  );
+
+  return response.data;
+}
+
+/** POST /api/applications/sync-open (§5.2). Операция синхронная, до 50 записей по 3 в параллель. */
+export async function syncOpenApplications(): Promise<SyncSummary> {
+  const response = await apiClient.post<SyncSummary>(
+    `${APPLICATIONS_ENDPOINT}${API_PATH_SEPARATOR}${SYNC_OPEN_PATH_SEGMENT}`,
+    undefined,
+    { timeout: SYNC_OPEN_REQUEST_TIMEOUT_MS },
+  );
+
+  return response.data;
 }
