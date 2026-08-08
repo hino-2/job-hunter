@@ -20,13 +20,19 @@ import type {
   ApplicationResult,
   ApplicationSortField,
   ApplicationStatus,
+  EditableField,
   IconComponent,
+  PendingTextValues,
   ResultChipColor,
   StatusFilter,
   SyncIconColor,
   SyncOutcome,
 } from '../types/application.type';
-import type { Application, ApplicationsFilters } from '../types/application.interfaces';
+import type {
+  Application,
+  ApplicationsFilters,
+  ApplicationUpdate,
+} from '../types/application.interfaces';
 
 /** §3.2 */
 export const APPLICATION_STATUS = {
@@ -52,6 +58,125 @@ export const SYNC_OUTCOME = {
   RATE_LIMITED: 'RATE_LIMITED',
   ERROR: 'ERROR',
 } as const;
+
+/** Порядок пунктов Select'а «Статус» (§7.2.2, ряд 1). */
+export const APPLICATION_STATUS_ORDER = [
+  APPLICATION_STATUS.OPEN,
+  APPLICATION_STATUS.CLOSED,
+] as const;
+
+/** Порядок пунктов Select'а «Результат» (§7.2.2, ряд 1) — как в §3.3. */
+export const APPLICATION_RESULT_ORDER = [
+  APPLICATION_RESULT.IN_PROGRESS,
+  APPLICATION_RESULT.OFFER,
+  APPLICATION_RESULT.REJECTED_BY_COMPANY,
+  APPLICATION_RESULT.DECLINED_BY_ME,
+  APPLICATION_RESULT.NO_RESPONSE,
+  APPLICATION_RESULT.VACANCY_WITHDRAWN,
+] as const;
+
+/**
+ * Поля §7.2.2, которые редактируются текстом: у них blur-сохранение плюс debounce-автосейв
+ * (§7.3). Остальные редактируемые поля (Select'ы и DateTimePicker'ы) сохраняются сразу
+ * по onChange, промежуточного состояния у них нет.
+ */
+export const EDITABLE_TEXT_FIELDS = [
+  'company',
+  'position',
+  'vacancyUrl',
+  'resumeUrl',
+  'employerContact',
+  'notes',
+] as const;
+
+/**
+ * Текстовые поля, которые API проверяет как URL (§5.1). Заведомо кривую ссылку
+ * не отправляем вовсе, иначе гарантированный 400 вместо подсказки на самом поле.
+ */
+export const URL_TEXT_FIELDS = ['vacancyUrl', 'resumeUrl'] as const;
+
+/** Все редактируемые поля раскрытого состояния (§7.2.2) — в порядке рядов 1–3. */
+export const EDITABLE_FIELDS = [
+  'company',
+  'position',
+  'status',
+  'result',
+  'vacancyUrl',
+  'resumeUrl',
+  'hrInterviewAt',
+  'techInterviewAt',
+  'employerContact',
+  'notes',
+] as const;
+
+/** Подписи полей раскрытого состояния (§7.2.2). */
+export const APPLICATION_FIELD_LABELS: Record<EditableField, string> = {
+  company: 'Компания',
+  position: 'Должность',
+  status: 'Статус',
+  result: 'Результат',
+  vacancyUrl: 'Ссылка на вакансию',
+  resumeUrl: 'Ссылка на резюме',
+  hrInterviewAt: 'HR-собес',
+  techInterviewAt: 'Тех-собес',
+  employerContact: 'Контакт работодателя',
+  notes: 'Заметки',
+};
+
+/**
+ * Сохранное чтение поля записи в патч. Record<EditableField, …> не даёт забыть поле
+ * при расширении списка, а прямая запись по union-ключу (previous[field] = …) невозможна:
+ * TS требует значение, присваиваемое пересечению типов всех полей, — здесь это never.
+ */
+export const APPLICATION_FIELD_PICKERS: Record<
+  EditableField,
+  (application: Application) => ApplicationUpdate
+> = {
+  company: (application) => ({ company: application.company }),
+  position: (application) => ({ position: application.position }),
+  status: (application) => ({ status: application.status }),
+  result: (application) => ({ result: application.result }),
+  vacancyUrl: (application) => ({ vacancyUrl: application.vacancyUrl }),
+  resumeUrl: (application) => ({ resumeUrl: application.resumeUrl }),
+  hrInterviewAt: (application) => ({ hrInterviewAt: application.hrInterviewAt }),
+  techInterviewAt: (application) => ({ techInterviewAt: application.techInterviewAt }),
+  employerContact: (application) => ({ employerContact: application.employerContact }),
+  notes: (application) => ({ notes: application.notes }),
+};
+
+/**
+ * Стабильная ссылка на «правок нет»: литерал {} в useState создавал бы новый объект
+ * на каждый рендер-цикл и ломал бы мемоизацию values.
+ */
+export const EMPTY_PENDING_TEXT_VALUES: PendingTextValues = {};
+
+/** Та же стабильная ссылка, но для «в этой записи ничего не подсвечено» (§7.3). */
+export const EMPTY_SAVED_FIELDS: ReadonlySet<EditableField> = new Set<EditableField>();
+
+/** Пустое текстовое поле в UI — '' , а не null: контролируемый input не принимает null. */
+export const EMPTY_TEXT_FIELD_VALUE = '';
+
+/** §5.1: company — обязательное поле, пустым его в PATCH не отправляем. */
+export const COMPANY_REQUIRED_MESSAGE = 'Компания обязательна';
+
+/** §5.1: значение не пройдёт @IsUrl на бэкенде, поэтому PATCH не отправляется. */
+export const INVALID_URL_MESSAGE = 'Некорректная ссылка';
+
+/** Текст Snackbar'а, когда сервер не объяснил причину (§5.5, §7.3). */
+export const SAVE_ERROR_FALLBACK_MESSAGE = 'Не удалось сохранить изменения';
+
+export const OPEN_LINK_LABEL = 'Открыть в новой вкладке';
+
+/**
+ * Ограничения длин — ручная копия backend/src/applications/applications.constants.ts:91,
+ * тем же приёмом, что и enum-ы (§3.4). Здесь они нужны как maxLength у полей ввода:
+ * обрезать лишнее на входе дешевле, чем ловить 400 от @MaxLength.
+ */
+export const COMPANY_MAX_LENGTH = 255;
+export const POSITION_MAX_LENGTH = 255;
+export const URL_MAX_LENGTH = 2048;
+export const EMPLOYER_CONTACT_MAX_LENGTH = 2000;
+export const NOTES_MAX_LENGTH = 10_000;
 
 /** Подписи §3.2. */
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {

@@ -22,3 +22,9 @@ export const APPLICATIONS_QUERY_KEY = ['applications'] as const;
  * должен ощущаться живым.
  */
 export const SEARCH_DEBOUNCE_MS = 300;
+
+/**
+ * Задержка автосейва текстового поля (§7.3). Заметно больше 300 мс поиска намеренно:
+ * поиск обязан ощущаться живым, а запись в БД на каждой паузе в наборе — нет.
+ */
+export const AUTOSAVE_DEBOUNCE_MS = 800;

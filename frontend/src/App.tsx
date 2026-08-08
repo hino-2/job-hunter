@@ -1,22 +1,25 @@
 import { Box, Container, Stack } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { AppHeader } from './components/AppHeader';
 import { ApplicationsList } from './components/ApplicationsList';
 import { FilterBar } from './components/FilterBar';
+import { NotificationSnackbar } from './components/NotificationSnackbar';
 import { DEFAULT_APPLICATION_FILTERS, EMPTY_APPLICATIONS } from './constants/application.constants';
 import { CONTAINER_PADDING_X, CONTAINER_PADDING_Y, FIELD_GAP } from './constants/layout.constants';
 import { SEARCH_DEBOUNCE_MS } from './constants/query.constants';
 import { useApplications, useApplicationsCounts } from './hooks/useApplications';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
 import { useExpandedIds } from './hooks/useExpandedIds';
+import { useInlineEdits } from './hooks/useInlineEdits';
+import { useNotification } from './hooks/useNotification';
 import type { ApplicationsFilters } from './types/application.interfaces';
 import { isFilterActive } from './utils/application.utils';
 
 /**
- * Единственный экран приложения (§7.1). Здесь живёт всё локальное состояние: фильтры
- * и раскрытость аккордеонов. Серверные данные — только в React Query, глобального
- * стора в проекте нет и не заводим (§2.2).
+ * Единственный экран приложения (§7.1). Здесь живёт всё локальное состояние: фильтры,
+ * раскрытость аккордеонов, несохранённые правки и уведомление. Серверные данные — только
+ * в React Query, глобального стора в проекте нет и не заводим (§2.2).
  */
 export function App() {
   const [filters, setFilters] = useState<ApplicationsFilters>(DEFAULT_APPLICATION_FILTERS);
@@ -32,13 +35,30 @@ export function App() {
   const applications = useApplications(effectiveFilters);
   const counts = useApplicationsCounts();
   const expanded = useExpandedIds();
+  const notification = useNotification();
+  const edits = useInlineEdits({ onError: notification.notifyError });
 
   const items = applications.data ?? EMPTY_APPLICATIONS;
   const ids = useMemo(() => items.map((item) => item.id), [items]);
   const isAllExpanded = expanded.areAllExpanded(ids);
 
+  // §13.10.7: несохранённая правка сначала отправляется и только потом сворачивается.
+  // Ссылка обработчика меняется вместе с expanded, то есть только на раскрытии
+  // и сворачивании; набор текста её не трогает, поэтому memo на аккордеонах работает.
+  const handleToggle = useCallback(
+    (id: string, isExpanded: boolean) => {
+      if (!isExpanded) {
+        edits.handlers.flush(id);
+      }
+
+      expanded.toggle(id, isExpanded);
+    },
+    [edits.handlers, expanded],
+  );
+
   const handleToggleExpandAll = () => {
     if (isAllExpanded) {
+      edits.handlers.flushAll();
       expanded.collapseAll();
     } else {
       expanded.expandAll(ids);
@@ -80,10 +100,18 @@ export function App() {
             onRetry={handleRetry}
             onResetFilters={handleResetFilters}
             isExpanded={expanded.isExpanded}
-            onToggle={expanded.toggle}
+            onToggle={handleToggle}
+            pendingById={edits.pendingById}
+            savedById={edits.savedById}
+            editHandlers={edits.handlers}
           />
         </Stack>
       </Container>
+
+      <NotificationSnackbar
+        notification={notification.notification}
+        onClose={notification.dismiss}
+      />
     </Box>
   );
 }

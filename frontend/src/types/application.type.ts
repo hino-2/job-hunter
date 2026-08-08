@@ -5,8 +5,11 @@ import type {
   APPLICATION_RESULT,
   APPLICATION_SORT_ORDER_LIST,
   APPLICATION_STATUS,
+  EDITABLE_FIELDS,
+  EDITABLE_TEXT_FIELDS,
   STATUS_FILTER,
   SYNC_OUTCOME,
+  URL_TEXT_FIELDS,
 } from '../constants/application.constants';
 
 /** §3.2 */
@@ -25,6 +28,30 @@ export type StatusFilter = (typeof STATUS_FILTER)[keyof typeof STATUS_FILTER];
 export type ApplicationSortField = (typeof APPLICATION_SORT_ORDER_LIST)[number];
 
 export type ApplicationOrder = (typeof APPLICATION_ORDER)[keyof typeof APPLICATION_ORDER];
+
+/** Поле §7.2.2 с текстовым вводом: blur + debounce-автосейв (§7.3). */
+export type EditableTextField = (typeof EDITABLE_TEXT_FIELDS)[number];
+
+/** Любое редактируемое поле раскрытого состояния (§7.2.2). */
+export type EditableField = (typeof EDITABLE_FIELDS)[number];
+
+/** Текстовое поле со ссылкой (§7.2.2, ряд 2): у него своя проверка перед отправкой. */
+export type UrlTextField = (typeof URL_TEXT_FIELDS)[number];
+
+/**
+ * Текстовые поля, которые API разрешает очищать в null (§5.1). Компания сюда не входит:
+ * она обязательна, и пустой её PATCH не принимает.
+ */
+export type NullableTextField = Exclude<EditableTextField, 'company'>;
+
+/** Патч одного очищаемого текстового поля — ровно то, что собирает buildTextPatch. */
+export type NullableTextPatch = Partial<Record<NullableTextField, string | null>>;
+
+/**
+ * Несохранённый ввод текстовых полей одной записи (§7.3). Поля здесь нет — значит,
+ * его не трогали, и показывается значение из кэша React Query.
+ */
+export type PendingTextValues = Partial<Record<EditableTextField, string>>;
 
 /**
  * Собственные литеральные union'ы, а не ChipProps['color'] / SvgIconProps['color']:

@@ -83,5 +83,30 @@ export const DATE_LOCALE = 'ru';
 /** Сколько скелетонов показывать во время загрузки списка. */
 export const LIST_SKELETON_COUNT = 4;
 
+export const MULTILINE_MIN_ROWS = 1;
 export const MULTILINE_MAX_ROWS_CONTACT = 3;
 export const MULTILINE_MAX_ROWS_NOTES = 4;
+
+/**
+ * Ячейка поля в раскрытом состоянии: без minWidth: 0 контрол не сжимается ниже
+ * своей flex-basis и на узком экране даёт горизонтальный скролл (§13.10.5).
+ */
+export const FIELD_CELL_MIN_WIDTH_PX = 0;
+
+/** Подсветка «сохранено» (§7.3): рамка вокруг ячейки на ~1 с, без спиннеров. */
+export const SAVED_FIELD_RING_WIDTH_PX = 2;
+export const SAVED_FIELD_RING_RADIUS = 1;
+export const SAVED_FIELD_TRANSITION = 'box-shadow 200ms ease-in-out';
+
+/** Кольцо рисуется одним spread'ом, смещения и размытие нулевые — отсюда «0 0 0». */
+export const SAVED_FIELD_RING_OFFSETS = '0 0 0';
+export const SAVED_FIELD_RING_NONE = 'none';
+
+/** Сколько держать подсветку сохранённого поля (§7.3: «~1 с»). */
+export const SAVED_FLASH_DURATION_MS = 1000;
+
+/** Сообщение об ошибке автосейва должно успеть прочитаться (§7.3). */
+export const SNACKBAR_AUTO_HIDE_MS = 6000;
+
+/** Снизу по центру: Snackbar не перекрывает ни шапку, ни панель фильтров. */
+export const SNACKBAR_ANCHOR_ORIGIN = { vertical: 'bottom', horizontal: 'center' } as const;

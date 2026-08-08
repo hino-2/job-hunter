@@ -1,5 +1,6 @@
 import { Alert, Button, Skeleton, Stack } from '@mui/material';
 
+import { EMPTY_PENDING_TEXT_VALUES, EMPTY_SAVED_FIELDS } from '../constants/application.constants';
 import {
   ACCORDION_GAP,
   LIST_SKELETON_COUNT,
@@ -19,6 +20,9 @@ export function ApplicationsList({
   onResetFilters,
   isExpanded,
   onToggle,
+  pendingById,
+  savedById,
+  editHandlers,
   onAdd,
   onSync,
   onDelete,
@@ -71,6 +75,12 @@ export function ApplicationsList({
         <ApplicationAccordion
           key={application.id}
           application={application}
+          // Именно срезы по id, а не словари целиком: иначе правка в одной записи
+          // меняла бы проп у всех и memo на аккордеоне ничего бы не спасал.
+          // ?? обязателен — в tsconfig включён noUncheckedIndexedAccess.
+          pending={pendingById[application.id] ?? EMPTY_PENDING_TEXT_VALUES}
+          savedFields={savedById[application.id] ?? EMPTY_SAVED_FIELDS}
+          handlers={editHandlers}
           expanded={isExpanded(application.id)}
           onToggle={onToggle}
           onSync={onSync}

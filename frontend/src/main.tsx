@@ -9,6 +9,7 @@ import 'dayjs/locale/ru';
 
 import { App } from './App';
 import { DATE_LOCALE } from './constants/layout.constants';
+import { PICKERS_LOCALE_TEXT } from './constants/pickers.constants';
 import { QUERY_CLIENT_OPTIONS } from './constants/query.constants';
 import { theme } from './theme';
 
@@ -24,7 +25,11 @@ createRoot(container).render(
   <StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={DATE_LOCALE}>
+      <LocalizationProvider
+        dateAdapter={AdapterDayjs}
+        adapterLocale={DATE_LOCALE}
+        localeText={PICKERS_LOCALE_TEXT}
+      >
         <QueryClientProvider client={queryClient}>
           <App />
         </QueryClientProvider>

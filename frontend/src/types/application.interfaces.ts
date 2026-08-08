@@ -35,6 +35,27 @@ export interface Application {
   updatedAt: string;
 }
 
+/**
+ * Тело PATCH /api/applications/:id (§5.1): все поля опциональны, отправляются только
+ * изменённые (§7.3). Явный null очищает nullable-поле; company очистить нельзя, поэтому
+ * её тип — string, а не string | null.
+ *
+ * Серверных полей (hhVacancyId, lastSync*, createdAt, …) здесь нет и быть не может:
+ * ValidationPipe на бэкенде включён с forbidNonWhitelisted (§5.6) и ответил бы 400.
+ */
+export interface ApplicationUpdate {
+  company?: string;
+  position?: string | null;
+  vacancyUrl?: string | null;
+  resumeUrl?: string | null;
+  status?: ApplicationStatus;
+  result?: ApplicationResult;
+  employerContact?: string | null;
+  hrInterviewAt?: string | null;
+  techInterviewAt?: string | null;
+  notes?: string | null;
+}
+
 /** Состояние панели фильтров (§7.1). search хранится «как введено», без trim. */
 export interface ApplicationsFilters {
   status: StatusFilter;

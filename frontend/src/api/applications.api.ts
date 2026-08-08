@@ -1,9 +1,10 @@
-import { APPLICATIONS_ENDPOINT } from '../constants/api.constants';
+import { API_PATH_SEPARATOR, APPLICATIONS_ENDPOINT } from '../constants/api.constants';
 import { STATUS_FILTER } from '../constants/application.constants';
 import type {
   Application,
   ApplicationsFilters,
   ApplicationsQueryParams,
+  ApplicationUpdate,
 } from '../types/application.interfaces';
 import { apiClient } from './client';
 
@@ -35,6 +36,22 @@ export function toApplicationsQueryParams(filters: ApplicationsFilters): Applica
 /** GET /api/applications (§5.1). Плоский массив без пагинации; клиент ничего не досортировывает. */
 export async function fetchApplications(params: ApplicationsQueryParams): Promise<Application[]> {
   const response = await apiClient.get<Application[]>(APPLICATIONS_ENDPOINT, { params });
+
+  return response.data;
+}
+
+/**
+ * PATCH /api/applications/:id (§5.1). Тело — только изменённые поля (§7.3); ответ —
+ * полная запись, поэтому докачивать её отдельным GET не нужно.
+ */
+export async function updateApplication(
+  id: string,
+  patch: ApplicationUpdate,
+): Promise<Application> {
+  const response = await apiClient.patch<Application>(
+    `${APPLICATIONS_ENDPOINT}${API_PATH_SEPARATOR}${id}`,
+    patch,
+  );
 
   return response.data;
 }
