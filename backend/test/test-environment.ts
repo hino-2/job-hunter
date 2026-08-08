@@ -94,7 +94,7 @@ export function applyTestEnvironment(): TestDatabaseSettings {
   // ходить в интернет — ни случайно, ни в будущих спеках синхронизации.
   // Значения тоже фиксируются принудительно, иначе ожидания в спеках зависели бы
   // от содержимого .env разработчика.
-  process.env.HH_API_BASE_URL = HH_STUB_BASE_URL;
+  process.env.HH_SITE_BASE_URL = HH_STUB_BASE_URL;
   process.env.HH_USER_AGENT = TEST_HH_USER_AGENT;
   process.env.HH_MAX_RETRIES = String(DEFAULT_HH_MAX_RETRIES);
   process.env.HH_SYNC_CONCURRENCY = String(TEST_HH_SYNC_CONCURRENCY);

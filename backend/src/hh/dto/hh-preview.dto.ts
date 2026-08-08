@@ -35,7 +35,9 @@ export class HhPreviewDto implements HhPreviewResponse {
     dto.company = vacancy.employerName;
     dto.position = vacancy.name;
     dto.archived = vacancy.archived;
-    dto.vacancyType = vacancy.typeId;
+    // §4.1: страница вакансии не содержит type.id — поле сохранено в контракте
+    // ответа (§5.3), но теперь всегда null.
+    dto.vacancyType = null;
 
     return dto;
   }

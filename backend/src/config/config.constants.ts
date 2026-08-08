@@ -18,7 +18,7 @@ export const DEFAULT_API_PORT = 3000;
 export const DEFAULT_WEB_PORT = 8080;
 export const DEFAULT_DATABASE_PORT = 5432;
 
-export const DEFAULT_HH_API_BASE_URL = 'https://api.hh.ru';
+export const DEFAULT_HH_SITE_BASE_URL = 'https://hh.ru';
 export const DEFAULT_HH_REQUEST_TIMEOUT_MS = 10_000;
 export const DEFAULT_HH_MAX_RETRIES = 2;
 export const DEFAULT_HH_SYNC_CONCURRENCY = 3;

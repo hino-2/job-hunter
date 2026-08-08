@@ -3,16 +3,17 @@ import type { ApplicationSyncPatch, SyncOutcome } from '../applications/applicat
 import type { HhFetchFailureOutcome, HhFetchResult } from './hh.type';
 
 /**
- * Провалидированный срез ответа hh.ru (§4.1). Только те поля, которые реально
- * используются; сырой JSON дальше hh-api.service не уходит.
+ * Провалидированный срез HTML-страницы вакансии hh.ru (§4.1). Только то, что реально
+ * используется; сырая страница дальше hh-api.service не уходит.
  *
- * name и employerName nullable: у анонимных вакансий работодателя в ответе может
- * не быть, а автозаполнение (§4.4) — необязательный сервис, а не условие успеха.
+ * archived обязателен: на нём построены правила §4.3, без него ответ бесполезен.
+ * name и employerName приходят из JSON-LD и nullable: страница может обойтись без
+ * блока ld+json или без организации в нём, а автозаполнение (§4.4) — необязательный
+ * сервис, а не условие успеха. type.id страница не содержит (снят вместе с JSON API).
  */
 export interface HhVacancy {
   name: string | null;
   archived: boolean;
-  typeId: string;
   employerName: string | null;
 }
 

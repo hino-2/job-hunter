@@ -1,15 +1,15 @@
 import { HttpStatus } from '@nestjs/common';
 
 import type { ErrorResponse } from '../src/common/common.interfaces';
+import { HH_ACCEPT_HEADER_VALUE } from '../src/hh/hh.constants';
 import type { HhPreviewResponse } from '../src/hh/hh.interfaces';
 import { createE2eTestContext } from './e2e-app.factory';
 import type { E2eTestContext, HhStubServer } from './e2e.interfaces';
-import { buildHhVacancyPayload } from './hh.fixtures';
+import { buildHhVacancyPage } from './hh.fixtures';
 import { startHhStubServer } from './hh-stub.server';
 import {
   HH_EXPECTED_ATTEMPTS,
   HH_PREVIEW_ENDPOINT,
-  JSON_CONTENT_TYPE,
   NON_HH_URL,
   TEST_AUTH_PASSWORD,
   TEST_AUTH_USER,
@@ -23,7 +23,7 @@ describe('HH preview (e2e)', () => {
   let stub: HhStubServer;
 
   beforeAll(async () => {
-    // HH_API_BASE_URL уже указывает на этот адрес: его прописывает applyTestEnvironment
+    // HH_SITE_BASE_URL уже указывает на этот адрес: его прописывает applyTestEnvironment
     // до импорта app.module (ConfigModule читает env именно там).
     stub = await startHhStubServer();
     ctx = await createE2eTestContext();
@@ -39,8 +39,8 @@ describe('HH preview (e2e)', () => {
   });
 
   describe('успешные сценарии', () => {
-    it('отдаёт данные вакансии и ходит на /vacancies/{id} с нужными заголовками', async () => {
-      stub.respondWith({ status: HttpStatus.OK, body: buildHhVacancyPayload() });
+    it('отдаёт данные вакансии и ходит на /vacancy/{id} без query и с нужными заголовками', async () => {
+      stub.respondWith({ status: HttpStatus.OK, body: buildHhVacancyPage() });
 
       const response = await ctx.api
         .post(HH_PREVIEW_ENDPOINT)
@@ -53,19 +53,20 @@ describe('HH preview (e2e)', () => {
         company: 'Acme',
         position: 'Node.js Developer',
         archived: false,
-        vacancyType: 'open',
+        vacancyType: null,
       });
 
       expect(stub.requests).toHaveLength(1);
       expect(stub.requests[0]?.path).toBe(TEST_VACANCY_PATH);
+      expect(stub.requests[0]?.path).not.toContain('?');
       expect(stub.requests[0]?.userAgent).toBe(TEST_HH_USER_AGENT);
-      expect(stub.requests[0]?.accept).toBe(JSON_CONTENT_TYPE);
+      expect(stub.requests[0]?.accept).toBe(HH_ACCEPT_HEADER_VALUE);
     });
 
     it('отдаёт признаки снятой вакансии', async () => {
       stub.respondWith({
         status: HttpStatus.OK,
-        body: buildHhVacancyPayload({ archived: true, type: { id: 'closed' } }),
+        body: buildHhVacancyPage({ archived: true }),
       });
 
       const response = await ctx.api
@@ -75,13 +76,13 @@ describe('HH preview (e2e)', () => {
       const body = response.body as HhPreviewResponse;
 
       expect(body.archived).toBe(true);
-      expect(body.vacancyType).toBe('closed');
+      expect(body.vacancyType).toBeNull();
     });
 
-    it('не считает ошибкой вакансию без работодателя', async () => {
+    it('не считает ошибкой вакансию без работодателя и без названия', async () => {
       stub.respondWith({
         status: HttpStatus.OK,
-        body: { archived: false, type: { id: 'anonymous' } },
+        body: buildHhVacancyPage({ title: null, employerName: null }),
       });
 
       const response = await ctx.api
@@ -93,6 +94,27 @@ describe('HH preview (e2e)', () => {
       expect(body.company).toBeNull();
       expect(body.position).toBeNull();
       expect(body.hhVacancyId).toBe('12345678');
+    });
+
+    it('страница без JSON-LD, но с признаком архивности — 200 с company/position null', async () => {
+      stub.respondWith({
+        status: HttpStatus.OK,
+        body: buildHhVacancyPage({ withJsonLd: false, archived: true }),
+      });
+
+      const response = await ctx.api
+        .post(HH_PREVIEW_ENDPOINT)
+        .send({ url: TEST_VACANCY_URL })
+        .expect(HttpStatus.OK);
+      const body = response.body as HhPreviewResponse;
+
+      expect(body).toEqual({
+        hhVacancyId: '12345678',
+        company: null,
+        position: null,
+        archived: true,
+        vacancyType: null,
+      });
     });
 
     it.each([
@@ -116,7 +138,7 @@ describe('HH preview (e2e)', () => {
 
   describe('ошибки hh.ru', () => {
     it('404 отдаёт 404 в формате §5.5 и не повторяет запрос', async () => {
-      stub.respondWith({ status: HttpStatus.NOT_FOUND, body: { description: 'Not Found' } });
+      stub.respondWith({ status: HttpStatus.NOT_FOUND, body: '' });
 
       const response = await ctx.api
         .post(HH_PREVIEW_ENDPOINT)
@@ -127,6 +149,19 @@ describe('HH preview (e2e)', () => {
       expect(body.statusCode).toBe(HttpStatus.NOT_FOUND);
       expect(body.error).toBe('Not Found');
       expect(typeof body.message).toBe('string');
+      expect(stub.requests).toHaveLength(1);
+    });
+
+    it('403 отдаёт 502 без ретраев', async () => {
+      stub.respondWith({ status: HttpStatus.FORBIDDEN, body: '' });
+
+      const response = await ctx.api
+        .post(HH_PREVIEW_ENDPOINT)
+        .send({ url: TEST_VACANCY_URL })
+        .expect(HttpStatus.BAD_GATEWAY);
+      const body = response.body as ErrorResponse;
+
+      expect(body.statusCode).toBe(HttpStatus.BAD_GATEWAY);
       expect(stub.requests).toHaveLength(1);
     });
 
@@ -143,8 +178,11 @@ describe('HH preview (e2e)', () => {
       expect(stub.requests).toHaveLength(HH_EXPECTED_ATTEMPTS);
     });
 
-    it('невалидный JSON отдаёт 502 без ретраев', async () => {
-      stub.respondWith({ status: HttpStatus.OK, body: 'это не json' });
+    it('страница без признака архивности отдаёт 502 без ретраев', async () => {
+      stub.respondWith({
+        status: HttpStatus.OK,
+        body: '<html><body>Проверка браузера</body></html>',
+      });
 
       await ctx.api
         .post(HH_PREVIEW_ENDPOINT)
@@ -155,7 +193,10 @@ describe('HH preview (e2e)', () => {
     });
 
     it('ответ без обязательных полей отдаёт 502', async () => {
-      stub.respondWith({ status: HttpStatus.OK, body: { name: 'Только название' } });
+      stub.respondWith({
+        status: HttpStatus.OK,
+        body: buildHhVacancyPage({ archivedTokens: 'none' }),
+      });
 
       await ctx.api
         .post(HH_PREVIEW_ENDPOINT)
@@ -173,7 +214,7 @@ describe('HH preview (e2e)', () => {
     });
 
     it('пускает с правильными кредами', async () => {
-      stub.respondWith({ status: HttpStatus.OK, body: buildHhVacancyPayload() });
+      stub.respondWith({ status: HttpStatus.OK, body: buildHhVacancyPage() });
 
       await ctx.anonymousApi
         .post(HH_PREVIEW_ENDPOINT)

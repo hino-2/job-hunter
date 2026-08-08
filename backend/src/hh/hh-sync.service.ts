@@ -22,7 +22,6 @@ import type {
 import { mapWithConcurrency } from '../common/async.helpers';
 import { HhApiService } from './hh-api.service';
 import {
-  HH_CLOSED_VACANCY_TYPE,
   HH_SKIPPED_NOT_HH_MESSAGE,
   HH_SYNC_CONCURRENCY_ENV_KEY,
   HH_SYNC_FINISHED_MESSAGE,
@@ -69,15 +68,18 @@ function buildFetchedDecision(fetched: HhFetchResult): HhSyncDecision {
     const { vacancy } = fetched;
     const patch: ApplicationSyncPatch = {
       hhArchived: vacancy.archived,
-      hhVacancyType: vacancy.typeId,
+      // §4.1: страница вакансии не содержит type.id (его отдавал только JSON API).
+      // null пишется явно, а не пропуском ключа: пропуск законсервировал бы в колонке
+      // значение, оставшееся от старого API.
+      hhVacancyType: null,
       lastSyncedAt: new Date(),
       lastSyncOutcome: SYNC_OUTCOME.OK,
       lastSyncError: null,
     };
 
-    // §4.3: снятая или закрытая вакансия закрывает и запись. Обратного перехода нет —
-    // в ветке живой вакансии status не появляется ни при каких условиях.
-    if (vacancy.archived || vacancy.typeId === HH_CLOSED_VACANCY_TYPE) {
+    // §4.3: снятая вакансия закрывает и запись. Обратного перехода нет — в ветке
+    // живой вакансии status не появляется ни при каких условиях.
+    if (vacancy.archived) {
       patch.status = APPLICATION_STATUS.CLOSED;
     }
 

@@ -13,9 +13,9 @@ import {
 import {
   DEFAULT_API_PORT,
   DEFAULT_DATABASE_PORT,
-  DEFAULT_HH_API_BASE_URL,
   DEFAULT_HH_MAX_RETRIES,
   DEFAULT_HH_REQUEST_TIMEOUT_MS,
+  DEFAULT_HH_SITE_BASE_URL,
   DEFAULT_HH_SYNC_CONCURRENCY,
   DEFAULT_HH_SYNC_MIN_DELAY_MS,
   DEFAULT_LOG_LEVEL,
@@ -81,7 +81,7 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  HH_API_BASE_URL: string = DEFAULT_HH_API_BASE_URL;
+  HH_SITE_BASE_URL: string = DEFAULT_HH_SITE_BASE_URL;
 
   @IsString()
   @IsNotEmpty({ message: 'HH_USER_AGENT обязателен: hh.ru отвечает 400 на запросы без него' })

@@ -8,7 +8,7 @@ import {
   APPLICATIONS_TABLE,
 } from '../src/applications/applications.constants';
 import { DEFAULT_HH_MAX_RETRIES } from '../src/config/config.constants';
-import { HH_PREVIEW_ROUTE, HH_ROUTE, HH_VACANCIES_PATH } from '../src/hh/hh.constants';
+import { HH_PREVIEW_ROUTE, HH_ROUTE, HH_VACANCY_PAGE_PATH } from '../src/hh/hh.constants';
 import type { HhStubReply } from './e2e.interfaces';
 
 /**
@@ -92,7 +92,7 @@ export const UPDATED_AT_DELAY_MS = 25;
 export const HH_PREVIEW_ENDPOINT = `/${API_GLOBAL_PREFIX}/${HH_ROUTE}/${HH_PREVIEW_ROUTE}`;
 
 /**
- * Адрес заглушки hh.ru. Порт фиксированный, а не «любой свободный»: HH_API_BASE_URL
+ * Адрес заглушки hh.ru. Порт фиксированный, а не «любой свободный»: HH_SITE_BASE_URL
  * обязан быть известен ДО импорта app.module — ConfigModule.forRoot() читает env в
  * момент вычисления декоратора @Module, то есть на импорте файла, а не на compile()
  * тестового модуля. Хост — только loopback, наружу заглушка не смотрит.
@@ -105,7 +105,7 @@ export const HH_STUB_BASE_URL = `http://${HH_STUB_HOST}:${HH_STUB_PORT}`;
 export const USER_AGENT_HEADER_NAME = 'user-agent';
 export const ACCEPT_HEADER_NAME = 'accept';
 export const CONTENT_TYPE_HEADER_NAME = 'Content-Type';
-export const JSON_CONTENT_TYPE = 'application/json';
+export const HTML_CONTENT_TYPE = 'text/html; charset=utf-8';
 
 /**
  * Ответ заглушки, пока тест не задал свой. Именно 418, а не 5xx: неожиданный
@@ -118,7 +118,7 @@ export const TEST_VACANCY_ID = '12345678';
 
 export const TEST_VACANCY_URL = `https://hh.ru/vacancy/${TEST_VACANCY_ID}`;
 
-export const TEST_VACANCY_PATH = `${HH_VACANCIES_PATH}/${TEST_VACANCY_ID}`;
+export const TEST_VACANCY_PATH = `${HH_VACANCY_PAGE_PATH}/${TEST_VACANCY_ID}`;
 
 export const NON_HH_URL = 'https://career.habr.com/vacancies/1000123456';
 

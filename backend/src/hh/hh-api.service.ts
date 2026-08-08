@@ -3,18 +3,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 
-import {
-  HH_VACANCY_TYPE_COLUMN_LENGTH,
-  SYNC_OUTCOME,
-} from '../applications/applications.constants';
+import { SYNC_OUTCOME } from '../applications/applications.constants';
 import { delay } from '../common/async.helpers';
 import { SERVER_ERROR_MIN_STATUS } from '../common/common.constants';
 import {
-  HH_INVALID_PAYLOAD_MESSAGE,
+  HH_FORBIDDEN_MESSAGE,
+  HH_FORBIDDEN_STATUS,
+  HH_JSON_LD_MISSING_MESSAGE,
   HH_MAX_RETRIES_ENV_KEY,
   HH_NOT_FOUND_MESSAGE,
   HH_NOT_FOUND_STATUS,
   HH_OK_STATUS,
+  HH_PAGE_UNPARSABLE_MESSAGE,
   HH_RATE_LIMITED_MESSAGE,
   HH_RATE_LIMITED_STATUS,
   HH_RETRY_BACKOFF_FACTOR,
@@ -22,64 +22,11 @@ import {
   HH_RETRY_MAX_DELAY_MS,
   HH_TRANSPORT_ERROR_MESSAGE,
   HH_UNEXPECTED_STATUS_MESSAGE,
-  HH_VACANCIES_PATH,
-  HH_VACANCY_FIELD,
+  HH_VACANCY_PAGE_PATH,
 } from './hh.constants';
-import type { HhRequestAttempt, HhVacancy } from './hh.interfaces';
+import { parseHhVacancyPage } from './hh-page.parser';
+import type { HhRequestAttempt } from './hh.interfaces';
 import type { HhFetchResult } from './hh.type';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function readString(source: Record<string, unknown>, key: string): string | null {
-  const value = source[key];
-
-  return typeof value === 'string' ? value : null;
-}
-
-/**
- * Сужение ответа hh.ru до полей, которые нам нужны (§4.1). Тип внешних данных
- * неизвестен, поэтому вход — unknown, а не интерфейс: интерфейс здесь был бы
- * обещанием, которого чужой сервис не давал.
- *
- * archived и type.id обязательны: именно на них построены правила §4.3, и без них
- * ответ бесполезен — такой случай считается «невалидным JSON» (§4.5, исход ERROR).
- * name и employer.name опциональны: они питают только автозаполнение (§4.4).
- */
-function toHhVacancy(payload: unknown): HhVacancy | null {
-  if (!isRecord(payload)) {
-    return null;
-  }
-
-  const archived = payload[HH_VACANCY_FIELD.ARCHIVED];
-  const type = payload[HH_VACANCY_FIELD.TYPE];
-
-  if (typeof archived !== 'boolean' || !isRecord(type)) {
-    return null;
-  }
-
-  const typeId = readString(type, HH_VACANCY_FIELD.ID);
-
-  if (typeId === null) {
-    return null;
-  }
-
-  const employer = payload[HH_VACANCY_FIELD.EMPLOYER];
-
-  return {
-    name: readString(payload, HH_VACANCY_FIELD.NAME),
-    archived,
-    // Длина ограничена шириной колонки hh_vacancy_type: значение целиком контролирует
-    // hh.ru, и более длинный type.id упал бы ошибкой драйвера при сохранении, то есть
-    // 500 вместо штатного исхода §5.2 (та же защита, что для hh_vacancy_id в
-    // hh-url.parser.ts). Именно усечение, а не отбраковка ответа: правила §4.3 от него
-    // не меняются (сравнение с 'closed' и флаг archived остаются в силе), тогда как
-    // отбраковка превратила бы рабочий ответ в ERROR и запись не закрылась бы.
-    typeId: typeId.slice(0, HH_VACANCY_TYPE_COLUMN_LENGTH),
-    employerName: isRecord(employer) ? readString(employer, HH_VACANCY_FIELD.NAME) : null,
-  };
-}
 
 /** §4.6: 500 мс, 1500 мс, далее с тем же множителем, но не дольше потолка. */
 function computeRetryDelay(attempt: number): number {
@@ -95,10 +42,14 @@ function describeTransportError(error: unknown): string {
 }
 
 /**
- * Единственная точка обращения к публичному API hh.ru (§4.1): таймаут, ретраи (§4.6)
- * и разбор ответа. Исключения наружу не выпускает — любой сбой превращается в исход
- * из §4.5, потому что вызывающему (preview в §5.3 и синхронизации в §5.2) нужно
- * различать «снята», «лимит», «ошибка», а не ловить разнородные ошибки axios.
+ * Единственная точка обращения к hh.ru (§4.1): загрузка HTML-страницы вакансии,
+ * таймаут, ретраи (§4.6) и разбор ответа через parseHhVacancyPage. Исключения наружу
+ * не выпускает — любой сбой превращается в исход из §4.5, потому что вызывающему
+ * (preview в §5.3 и синхронизации в §5.2) нужно различать «снята», «лимит», «ошибка»,
+ * а не ловить разнородные ошибки axios.
+ *
+ * Анонимный JSON API hh.ru отвечает 403 (поддержка для роли «соискатель» прекращена),
+ * поэтому единственный доступный источник — публичная HTML-страница вакансии.
  */
 @Injectable()
 export class HhApiService {
@@ -134,7 +85,8 @@ export class HhApiService {
   }
 
   private async requestVacancy(vacancyId: string): Promise<HhRequestAttempt> {
-    const path = `${HH_VACANCIES_PATH}/${encodeURIComponent(vacancyId)}`;
+    // Строго без query: robots.txt hh.ru запрещает `Disallow: *?*` для `User-agent: *`.
+    const path = `${HH_VACANCY_PAGE_PATH}/${encodeURIComponent(vacancyId)}`;
 
     try {
       const response = await firstValueFrom(this.http.get<unknown>(path));
@@ -153,15 +105,24 @@ export class HhApiService {
 
   private interpretResponse(status: number, payload: unknown): HhRequestAttempt {
     if (status === HH_OK_STATUS) {
-      const vacancy = toHhVacancy(payload);
+      const vacancy = parseHhVacancyPage(payload);
 
       if (vacancy === null) {
-        this.logger.warn(HH_INVALID_PAYLOAD_MESSAGE);
+        // Тело не логируем — только длину, чтобы не заносить в лог всю HTML-страницу.
+        const length = typeof payload === 'string' ? payload.length : 0;
+
+        this.logger.warn(`${HH_PAGE_UNPARSABLE_MESSAGE} (длина ответа: ${length})`);
 
         return {
-          result: { outcome: SYNC_OUTCOME.ERROR, message: HH_INVALID_PAYLOAD_MESSAGE },
+          result: { outcome: SYNC_OUTCOME.ERROR, message: HH_PAGE_UNPARSABLE_MESSAGE },
           retryable: false,
         };
+      }
+
+      // Автозаполнение (§4.4) деградировало, но синхронизация (§4.3) работает —
+      // archived уже подтверждён, поэтому это предупреждение, а не ошибка.
+      if (vacancy.name === null && vacancy.employerName === null) {
+        this.logger.warn(HH_JSON_LD_MISSING_MESSAGE);
       }
 
       return { result: { outcome: SYNC_OUTCOME.OK, vacancy }, retryable: false };
@@ -175,6 +136,14 @@ export class HhApiService {
       };
     }
 
+    if (status === HH_FORBIDDEN_STATUS) {
+      // Блокировка по User-Agent или IP: повтором не лечится.
+      return {
+        result: { outcome: SYNC_OUTCOME.ERROR, message: HH_FORBIDDEN_MESSAGE },
+        retryable: false,
+      };
+    }
+
     if (status === HH_RATE_LIMITED_STATUS) {
       return {
         result: { outcome: SYNC_OUTCOME.RATE_LIMITED, message: HH_RATE_LIMITED_MESSAGE },
@@ -184,7 +153,7 @@ export class HhApiService {
 
     const message = `${HH_UNEXPECTED_STATUS_MESSAGE} ${status}`;
 
-    // Ретраим только 5xx: прочие 4xx (400 без User-Agent, 403) повтором не лечатся.
+    // Ретраим только 5xx: прочие 4xx (400 без User-Agent) повтором не лечатся.
     return {
       result: { outcome: SYNC_OUTCOME.ERROR, message },
       retryable: status >= SERVER_ERROR_MIN_STATUS,

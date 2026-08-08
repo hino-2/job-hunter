@@ -6,23 +6,92 @@ import { of, throwError } from 'rxjs';
 
 import { SYNC_OUTCOME } from '../applications/applications.constants';
 import { HhApiService } from './hh-api.service';
-import { HH_MAX_RETRIES_ENV_KEY, HH_VACANCIES_PATH } from './hh.constants';
+import { HH_MAX_RETRIES_ENV_KEY, HH_VACANCY_PAGE_PATH } from './hh.constants';
 
 /** Мок HttpService: спеке нужен только get, а инстанс настоящего клиента — нет. */
 interface HttpServiceMock {
   get: jest.Mock;
 }
 
+/**
+ * Тест-локальный билдер HTML-страницы вакансии (jest.config.js: rootDir: 'src' —
+ * spec не может импортировать фикстуры из backend/test/, поэтому минимальная копия
+ * генератора живёт здесь же; правило §10 п.4 явно разрешает инлайновый тестовый
+ * тип в spec-файле, билдер — его прямое продолжение).
+ */
+interface PageOptions {
+  title?: string | null;
+  employerName?: string | null;
+  archived?: boolean;
+  withJsonLd?: boolean;
+  brokenJsonLd?: boolean;
+  archivedTokens?: 'both' | 'none' | 'conflicting';
+}
+
 const VACANCY_ID = '12345678';
 
-const VACANCY_PAYLOAD = {
-  id: VACANCY_ID,
-  name: 'Node.js Developer',
-  archived: false,
-  type: { id: 'open', name: 'Открытая' },
-  employer: { id: '1', name: 'Acme' },
-  description: 'игнорируется',
-};
+function jsonLdBlock(title: string | null, employerName: string | null): string {
+  const jobPosting: Record<string, unknown> = {
+    '@context': 'https://schema.org/',
+    '@type': 'JobPosting',
+  };
+
+  if (title !== null) {
+    jobPosting.title = title;
+  }
+
+  if (employerName !== null) {
+    jobPosting.hiringOrganization = { '@type': 'Organization', name: employerName };
+  }
+
+  return `<script type="application/ld+json">${JSON.stringify(jobPosting)}</script>`;
+}
+
+function archivedMarkup(mode: 'both' | 'none' | 'conflicting', archived: boolean): string {
+  if (mode === 'none') {
+    return '';
+  }
+
+  if (mode === 'conflicting') {
+    return (
+      `<div data-params='{"vacancyId":"${VACANCY_ID}","archived": "true"}'></div>` +
+      `<div data-state="{&#34;status&#34;:{&#34;archived&#34;:false}}"></div>`
+    );
+  }
+
+  const flag = archived ? 'true' : 'false';
+  const marker = archived
+    ? '<span data-qa="vacancy-title-archived-text">Вакансия в архиве</span>'
+    : '';
+
+  return (
+    `${marker}` +
+    `<div data-params='{"vacancyId":"${VACANCY_ID}","archived": "${flag}"}'></div>` +
+    `<div data-state="{&#34;status&#34;:{&#34;archived&#34;:${flag}}}"></div>`
+  );
+}
+
+function buildPage(options: PageOptions = {}): string {
+  const {
+    title = 'Node.js Developer',
+    employerName = 'Acme',
+    archived = false,
+    withJsonLd = true,
+    brokenJsonLd = false,
+    archivedTokens = 'both',
+  } = options;
+
+  const jsonLd = brokenJsonLd
+    ? '<script type="application/ld+json">{это не json,,,}</script>'
+    : withJsonLd
+      ? jsonLdBlock(title, employerName)
+      : '';
+
+  return (
+    `<!DOCTYPE html><html><head>${jsonLd}</head>` +
+    `<body>${archivedMarkup(archivedTokens, archived)}</body></html>`
+  );
+}
 
 /** Полный AxiosResponse не нужен: сервис читает только status и data. */
 function axiosResponse(status: number, data: unknown): AxiosResponse<unknown> {
@@ -73,23 +142,18 @@ describe('HhApiService', () => {
   });
 
   describe('успешный ответ', () => {
-    it('запрашивает /vacancies/{id} и возвращает разобранную вакансию', async () => {
+    it('запрашивает /vacancy/{id} и возвращает разобранную вакансию', async () => {
       const { service, http } = createService(2);
 
-      http.get.mockReturnValue(of(axiosResponse(HttpStatus.OK, VACANCY_PAYLOAD)));
+      http.get.mockReturnValue(of(axiosResponse(HttpStatus.OK, buildPage())));
 
       const result = await service.fetchVacancy(VACANCY_ID);
 
       expect(http.get).toHaveBeenCalledTimes(1);
-      expect(http.get).toHaveBeenCalledWith(`${HH_VACANCIES_PATH}/${VACANCY_ID}`);
+      expect(http.get).toHaveBeenCalledWith(`${HH_VACANCY_PAGE_PATH}/${VACANCY_ID}`);
       expect(result).toEqual({
         outcome: SYNC_OUTCOME.OK,
-        vacancy: {
-          name: 'Node.js Developer',
-          archived: false,
-          typeId: 'open',
-          employerName: 'Acme',
-        },
+        vacancy: { name: 'Node.js Developer', archived: false, employerName: 'Acme' },
       });
     });
 
@@ -97,26 +161,44 @@ describe('HhApiService', () => {
       const { service, http } = createService(2);
 
       http.get.mockReturnValue(
-        of(axiosResponse(HttpStatus.OK, { archived: true, type: { id: 'anonymous' } })),
+        of(axiosResponse(HttpStatus.OK, buildPage({ employerName: null, archived: true }))),
       );
 
       const result = await service.fetchVacancy(VACANCY_ID);
 
       expect(result).toEqual({
         outcome: SYNC_OUTCOME.OK,
-        vacancy: { name: null, archived: true, typeId: 'anonymous', employerName: null },
+        vacancy: { name: 'Node.js Developer', archived: true, employerName: null },
+      });
+    });
+
+    it('страница без JSON-LD, но с признаком архивности — OK с пустыми name/employerName', async () => {
+      const { service, http } = createService(2);
+
+      http.get.mockReturnValue(
+        of(axiosResponse(HttpStatus.OK, buildPage({ withJsonLd: false, archived: true }))),
+      );
+
+      const result = await service.fetchVacancy(VACANCY_ID);
+
+      expect(result).toEqual({
+        outcome: SYNC_OUTCOME.OK,
+        vacancy: { name: null, archived: true, employerName: null },
       });
     });
   });
 
   describe('невалидное тело ответа', () => {
     it.each([
-      ['не объект', 'строка вместо JSON'],
       ['null', null],
-      ['нет archived', { type: { id: 'open' } }],
-      ['archived не boolean', { archived: 'false', type: { id: 'open' } }],
-      ['нет type', { archived: false }],
-      ['type.id не строка', { archived: false, type: { id: 7 } }],
+      ['объект вместо строки', { archived: false }],
+      ['пустая строка', ''],
+      ['страница без токенов и маркера', buildPage({ archivedTokens: 'none' })],
+      ['страница с противоречивыми токенами', buildPage({ archivedTokens: 'conflicting' })],
+      [
+        'битый JSON-LD при отсутствующих токенах',
+        buildPage({ archivedTokens: 'none', brokenJsonLd: true }),
+      ],
     ])('отдаёт ERROR, если %s', async (_case, payload) => {
       const { service, http } = createService(2);
 
@@ -125,7 +207,7 @@ describe('HhApiService', () => {
       const result = await service.fetchVacancy(VACANCY_ID);
 
       expect(result.outcome).toBe(SYNC_OUTCOME.ERROR);
-      // Битый JSON повтором не лечится — запрос должен быть ровно один.
+      // Нераспознанная страница повтором не лечится — запрос должен быть ровно один.
       expect(http.get).toHaveBeenCalledTimes(1);
     });
   });
@@ -134,7 +216,7 @@ describe('HhApiService', () => {
     it('404 отдаёт NOT_FOUND без ретраев', async () => {
       const { service, http } = createService(2);
 
-      http.get.mockReturnValue(of(axiosResponse(HttpStatus.NOT_FOUND, {})));
+      http.get.mockReturnValue(of(axiosResponse(HttpStatus.NOT_FOUND, '')));
 
       const result = await service.fetchVacancy(VACANCY_ID);
 
@@ -145,11 +227,14 @@ describe('HhApiService', () => {
     it('403 отдаёт ERROR без ретраев', async () => {
       const { service, http } = createService(2);
 
-      http.get.mockReturnValue(of(axiosResponse(HttpStatus.FORBIDDEN, {})));
+      http.get.mockReturnValue(of(axiosResponse(HttpStatus.FORBIDDEN, '')));
 
       const result = await service.fetchVacancy(VACANCY_ID);
 
-      expect(result.outcome).toBe(SYNC_OUTCOME.ERROR);
+      expect(result).toEqual({
+        outcome: SYNC_OUTCOME.ERROR,
+        message: expect.stringContaining('403') as string,
+      });
       expect(http.get).toHaveBeenCalledTimes(1);
     });
 
@@ -157,7 +242,7 @@ describe('HhApiService', () => {
       const { service, http } = createService(2);
 
       jest.useFakeTimers();
-      http.get.mockReturnValue(of(axiosResponse(HttpStatus.TOO_MANY_REQUESTS, {})));
+      http.get.mockReturnValue(of(axiosResponse(HttpStatus.TOO_MANY_REQUESTS, '')));
 
       const result = await runWithRetries(service.fetchVacancy(VACANCY_ID));
 
@@ -172,7 +257,7 @@ describe('HhApiService', () => {
       const { service, http } = createService(2);
 
       jest.useFakeTimers();
-      http.get.mockReturnValue(of(axiosResponse(HttpStatus.SERVICE_UNAVAILABLE, {})));
+      http.get.mockReturnValue(of(axiosResponse(HttpStatus.SERVICE_UNAVAILABLE, '')));
 
       const result = (await runWithRetries(service.fetchVacancy(VACANCY_ID))) as {
         outcome: string;
@@ -187,8 +272,8 @@ describe('HhApiService', () => {
 
       jest.useFakeTimers();
       http.get
-        .mockReturnValueOnce(of(axiosResponse(HttpStatus.BAD_GATEWAY, {})))
-        .mockReturnValueOnce(of(axiosResponse(HttpStatus.OK, VACANCY_PAYLOAD)));
+        .mockReturnValueOnce(of(axiosResponse(HttpStatus.BAD_GATEWAY, '')))
+        .mockReturnValueOnce(of(axiosResponse(HttpStatus.OK, buildPage())));
 
       const result = (await runWithRetries(service.fetchVacancy(VACANCY_ID))) as {
         outcome: string;
@@ -201,7 +286,7 @@ describe('HhApiService', () => {
     it('не повторяет запрос при HH_MAX_RETRIES=0', async () => {
       const { service, http } = createService(0);
 
-      http.get.mockReturnValue(of(axiosResponse(HttpStatus.SERVICE_UNAVAILABLE, {})));
+      http.get.mockReturnValue(of(axiosResponse(HttpStatus.SERVICE_UNAVAILABLE, '')));
 
       const result = await service.fetchVacancy(VACANCY_ID);
 
