@@ -50,18 +50,18 @@
 
 ### 2.2 Frontend
 
-| Компонент        | Выбор                                                             | Примечание                               |
-| ---------------- | ----------------------------------------------------------------- | ---------------------------------------- |
-| Язык             | TypeScript **5.9.3** (strict)                                     | `verbatimModuleSyntax: true`             |
-| Framework        | React 19                                                          |                                          |
-| Сборка           | Vite **8**                                                        |                                          |
-| UI               | MUI **v9** (`@mui/material`) + Emotion                            | тема по умолчанию, light                 |
-| Иконки           | `@mui/icons-material` 9                                           |                                          |
-| Даты             | `@mui/x-date-pickers` **9** + `dayjs` (AdapterDayjs, локаль `ru`) | `DateTimePicker`                         |
-| Работа с API     | `axios` + TanStack Query v5                                       | серверное состояние только в React Query |
-| Глобальный state | **нет** (Redux/Zustand не использовать)                           | локальный `useState` + React Query кэш   |
-| Роутинг          | **нет** (single screen)                                           |                                          |
-| Тесты            | Vitest 4 + React Testing Library                                  | покрыть форму создания и автосейв        |
+| Компонент        | Выбор                                                             | Примечание                                                 |
+| ---------------- | ----------------------------------------------------------------- | ---------------------------------------------------------- |
+| Язык             | TypeScript **5.9.3** (strict)                                     | `verbatimModuleSyntax: true`                               |
+| Framework        | React 19                                                          |                                                            |
+| Сборка           | Vite **8**                                                        |                                                            |
+| UI               | MUI **v9** (`@mui/material`) + Emotion                            | тема по умолчанию, light                                   |
+| Иконки           | `@mui/icons-material` 9                                           |                                                            |
+| Даты             | `@mui/x-date-pickers` **9** + `dayjs` (AdapterDayjs, локаль `ru`) | `DateTimePicker`                                           |
+| Работа с API     | `axios` + TanStack Query v5                                       | серверное состояние только в React Query                   |
+| Глобальный state | **нет** (Redux/Zustand не использовать)                           | локальный `useState` + React Query кэш                     |
+| Роутинг          | **нет** (single screen)                                           |                                                            |
+| Тесты            | Vitest 4 + React Testing Library                                  | покрыть форму создания и автосейв — _отложено, см. §13.20_ |
 
 ### 2.3 Инфраструктура
 
@@ -442,7 +442,7 @@ Query-параметры (все опциональны):
 
 Общие правила:
 
-- Компонент: `Accordion` c `disableGutters`, `elevation={1}`, `TransitionProps={{ unmountOnExit: false }}` (чтобы не терять фокус/состояние полей).
+- Компонент: `Accordion` c `disableGutters`, `elevation={1}`, `slotProps={{ transition: { unmountOnExit: false } }}` (чтобы не терять фокус/состояние полей). Пропа `TransitionProps` в MUI v9 больше нет — те же опции задаются слотом `transition`.
 - Вертикальный зазор между аккордеонами — **8px** (`Stack spacing={1}`), без «прыжков» размера при раскрытии (за это отвечает `disableGutters`).
 - По умолчанию **все аккордеоны свёрнуты**. Раскрытие — независимое (не «одновременно только один»). Только что созданная запись открывается раскрытой.
 - Состояние раскрытости живёт в локальном стейте списка (`Set<string>` из id) и **не персистится** между перезагрузками.
@@ -729,27 +729,37 @@ job-hunter/
    ├─ eslint.config.mjs           ✅
    └─ src/
       ├─ main.tsx                 ✅ ThemeProvider + LocalizationProvider(ru) + QueryClientProvider
-      ├─ App.tsx                  ✅ каркас-заглушка, проверяет /api/health
+      ├─ App.tsx                  ✅ экран списка: фильтры, дебаунс поиска, раскрытость
       ├─ theme.ts                 ✅ size="small" по умолчанию
       ├─ vite-env.d.ts            ✅  test/setup.ts ✅
-      ├─ api/                     ✅ client.ts, health.api.ts
-      │                           ⬜ applications.api.ts, hh.api.ts
-      ├─ types/                   ✅ health.type.ts, health.interfaces.ts
-      │                           ⬜ application.type.ts, application.interfaces.ts, sync.type.ts
+      ├─ api/                     ✅ client.ts, applications.api.ts
+      │                           ⬜ hh.api.ts
+      ├─ types/                   ✅ application.type.ts, application.interfaces.ts
+      │                           ⬜ sync.type.ts
       ├─ constants/               ✅ api.constants.ts, query.constants.ts,
       │                           ✅ theme.constants.ts, layout.constants.ts (зазоры, flex-basis, 48h)
-      │                           ⬜ application.constants.ts (enum + ru-подписи)
-      ├─ hooks/                   ⬜ useApplications.ts, useUpdateApplication.ts,
-      │                           ⬜ useCreateApplication.ts, useDeleteApplication.ts,
-      │                           ⬜ useSyncApplication.ts, useSyncAllOpen.ts, useHhPreview.ts,
-      │                           ⬜ useExpandedIds.ts, useAutosaveField.ts
-      └─ components/              ✅ BackendStatus.tsx + backend-status.interfaces.ts
-                                  ⬜ AppHeader.tsx, FilterBar.tsx, ApplicationsList.tsx,
-                                  ⬜ ApplicationAccordion.tsx, ApplicationSummaryRow.tsx,
+      │                           ✅ application.constants.ts (enum + ru-подписи)
+      ├─ utils/                   ✅ date.utils.ts, application.utils.ts
+      ├─ hooks/                   ✅ useApplications.ts, useExpandedIds.ts
+      │                           ✅ (+ use-expanded-ids.interfaces.ts), useDebouncedValue.ts
+      │                           ⬜ useUpdateApplication.ts, useCreateApplication.ts,
+      │                           ⬜ useDeleteApplication.ts, useSyncApplication.ts,
+      │                           ⬜ useSyncAllOpen.ts, useHhPreview.ts, useAutosaveField.ts
+      └─ components/              ✅ AppHeader.tsx, FilterBar.tsx, ApplicationsList.tsx,
+                                  ✅ ApplicationAccordion.tsx, ApplicationSummaryRow.tsx,
+                                  ✅ SyncStatusIcon.tsx, EmptyState.tsx (+ парные *.interfaces.ts)
                                   ⬜ ApplicationFields.tsx, CreateApplicationDialog.tsx,
-                                  ⬜ ConfirmDeleteDialog.tsx, SyncStatusIcon.tsx,
-                                  ⬜ UrlField.tsx, EmptyState.tsx
+                                  ⬜ ConfirmDeleteDialog.tsx, UrlField.tsx
 ```
+
+Каталог `src/utils/` в исходном дереве не значился — добавлен на шаге 7. Чистые хелперы
+форматирования дат и выборки ближайшего собеседования не являются ни компонентом, ни хуком,
+ни api-функцией, а прятать их внутрь компонента нельзя: шаги 8 и 10 их переиспользуют.
+
+Каркас шага 1 (`BackendStatus.tsx`, `api/health.api.ts`, `types/health.*`) удалён вместе
+с приходом настоящего списка: §7.1 описывает содержимое `AppBar` исчерпывающе, индикатора
+здоровья там нет. Сам эндпоинт `GET /api/health` на бэкенде остаётся — он нужен
+docker-healthcheck (§5.4); убран только фронтовый зонд.
 
 Enum `SyncOutcome` (§4.5) объявлен в `applications/applications.constants.ts`, а не в `hh/`:
 колонка `last_sync_outcome` принадлежит таблице `applications`, а зависимость по модулям
@@ -805,7 +815,7 @@ Enum `SyncOutcome` (§4.5) объявлен в `applications/applications.consta
 
 **hh.ru** 11. В форме создания вставка `https://hh.ru/vacancy/{id}` действующей вакансии автоподставляет компанию и должность; уже введённые вручную значения не перетираются. 12. 🔄 на записи с действующей вакансией: `outcome = OK`, `status` остаётся `OPEN`, в tooltip иконки синхронизации появляется время. 13. 🔄 на записи со снятой вакансией (`archived = true`) или удалённой (404): `status` становится `CLOSED`, шапка приглушается, поле `result` **не меняется**. 14. 🔄 на записи с не-hh ссылкой или без ссылки: `outcome = SKIPPED_NOT_HH`, запись не изменяется, показывается info-уведомление. 15. «Обновить все открытые» обрабатывает только `OPEN`-записи, показывает прогресс и корректную сводку; одна упавшая запись не срывает остальные. 16. Ни один запрос к hh.ru не уходит без заголовка `User-Agent`; при 429 виден ретрай с backoff, затем `outcome = RATE_LIMITED`.
 
-**Качество кода** 17. `npm run lint` в `backend/` и `frontend/` — 0 ошибок; правило `padding-line-between-statements` включено и соблюдено. 18. `npm run build` (tsc) в обоих приложениях — без ошибок; в коде нет `any`. 19. Нет инлайновых объявлений типов/интерфейсов и модульных констант в имплементационных файлах (исключение — тестовые моки в spec). 20. Unit-тесты `hh-url.parser` покрывают все кейсы §4.2; тесты `hh-sync.service` покрывают правила §4.3 (включая «не открывать заново вручную закрытую»); e2e покрывают CRUD и `POST /:id/sync` с замоканным hh.ru. 21. `synchronize` в TypeORM выключен; схема создаётся только миграциями; повторный запуск миграций идемпотентен.
+**Качество кода** 17. `npm run lint` в `backend/` и `frontend/` — 0 ошибок; правило `padding-line-between-statements` включено и соблюдено. 18. `npm run build` (tsc) в обоих приложениях — без ошибок; в коде нет `any`. 19. Нет инлайновых объявлений типов/интерфейсов и модульных констант в имплементационных файлах (исключение — тестовые моки в spec). 20. Unit-тесты `hh-url.parser` покрывают все кейсы §4.2; e2e покрывают CRUD и `POST /api/hh/preview` с замоканным hh.ru. _Тесты `hh-sync.service` (правила §4.3, включая «не открывать заново вручную закрытую») и e2e на `POST /:id/sync` / `POST /sync-open` — **отложены по решению пользователя** (новые spec-файлы не заводим), см. отметку к шагу 6 в §14; критерием приёмки они не считаются, пока это решение в силе. Фронтовые тесты критериями §13 не являются: п. 20 перечисляет только бэкендовые. Соответственно и запись §2 «Vitest 4 + React Testing Library — покрыть форму создания и автосейв» приостановлена тем же решением пользователя (новые spec-файлы в проекте не заводим): начиная с шага 7 компонентных и хук-тестов нет, `npm run test` во фронте проходит за счёт `--passWithNoTests`. Вернуть покрытие — отдельным решением._ 21. `synchronize` в TypeORM выключен; схема создаётся только миграциями; повторный запуск миграций идемпотентен.
 
 ---
 
@@ -846,8 +856,65 @@ Enum `SyncOutcome` (§4.5) объявлен в `applications/applications.consta
    теперь вычисляется при создании и при каждом изменении `vacancy_url` (§4.2). e2e: локальная
    заглушка hh.ru (`test/hh-stub.server.ts`) на фиксированном порту — `HH_API_BASE_URL`
    подменяется в `applyTestEnvironment`, поэтому ни один e2e не ходит в интернет. _(backend)_
-6. **Синхронизация:** `POST /:id/sync`, `POST /sync-open`, правила применения, тесты. _(backend)_
-7. **Фронт: каркас** — тема, `layout.constants.ts`, axios-клиент, React Query, `AppHeader`, `FilterBar`, список аккордеонов с read-only шапками (§7.2.1), раскрытие/сворачивание. _(frontend)_
+6. ~~**Синхронизация:** `POST /:id/sync`, `POST /sync-open`, правила применения.~~
+   ✅ **Сделано** (кроме тестов, см. ниже). `hh/hh-sync.service.ts` — правила §4.3 в одном
+   месте: `company`, `position`
+   и `result` не пишутся никогда (патч типизирован `ApplicationSyncPatch`), при живой вакансии
+   `status` не меняется (вручную закрытая запись не открывается заново), `archived === true`,
+   `type.id === 'closed'` и 404 закрывают запись, `last_synced_at` обновляется только при
+   реально полученном ответе (`OK`/`NOT_FOUND`). Массовый прогон — `common/async.helpers.ts`
+   (`mapWithConcurrency`): не более `HH_SYNC_CONCURRENCY` одновременных запросов и не менее
+   `HH_SYNC_MIN_DELAY_MS` между их стартами; прогон не срывается ни на одной записи. Сбой
+   hh.ru фиксируется в её `last_sync_outcome`/`last_sync_error`, а вот сбой самой записи в БД
+   (отказ `save()`) в БД, разумеется, не попадает: такая запись остаётся нетронутой, `ERROR`
+   виден только в ответе и в логе, а сущность откатывается по снимку, чтобы в `applications[]`
+   не уехало несохранённое состояние. Эндпоинты §5.2 живут на
+   `ApplicationsController` (`sync-open` объявлен выше `:id`), оба отвечают `200`: неуспешный
+   `outcome` — результат операции, а не ошибка HTTP; `404` только за отсутствующую запись.
+   Зависимость модулей — `ApplicationsModule → HhModule` (без `forwardRef`), поэтому
+   `HhSyncService` работает с репозиторием записей напрямую. Схема БД не менялась: новых
+   миграций нет.
+   **Тесты шага сознательно отложены** по решению пользователя (новые spec-файлы в проекте
+   не заводим): unit-тестов `hh-sync.service` и e2e на `POST /:id/sync` / `POST /sync-open`
+   нет, поведение проверено вручную прогоном по всем исходам §4.3 против локальной заглушки
+   hh.ru. Существующие 49 unit- и 50 e2e-тестов зелёные. Пункт §13.20 в этой части
+   не выполнен. _(backend)_
+7. ~~**Фронт: каркас** — тема, `layout.constants.ts`, axios-клиент, React Query, `AppHeader`,
+   `FilterBar`, список аккордеонов с read-only шапками (§7.2.1), раскрытие/сворачивание.~~
+   ✅ **Сделано** (кроме тестов, см. ниже). Экран собран как один контейнер-владелец состояния
+   (`App.tsx`) плюс плоское дерево презентационных компонентов: серверные данные живут только
+   в React Query, фильтры и раскрытость — в локальном `useState`. Фильтрация, поиск и сортировка
+   **серверные** (§5.1): клиентская фильтрация обошла бы ILIKE-поиск по трём полям и `NULLS LAST`.
+   Поиск дебаунсится на 300 мс, опустошение строки применяется сразу: иначе после «Сбросить
+   фильтры» ключ запроса ещё 300 мс содержал бы устаревшую строку поиска — то есть уходил бы
+   лишний GET, а список на это время показывал бы скелетоны вместо готовых данных из кэша.
+   Счётчик «Открытых: N / M» (§7.8) считает
+   по нефильтрованному списку через отдельный observer с ключом списка в дефолтном состоянии:
+   при дефолтных фильтрах React Query схлопывает оба observer'а в один запрос, а при активном
+   фильтре счётчик не врёт (по видимым записям при фильтре «Закрытые» он всегда показывал бы 0).
+   Раскрытость — `Set<string>` в `useExpandedIds`, стартует пустым (отсюда «при загрузке всё
+   свёрнуто» без единого эффекта) и не персистится (§12). Кнопки шагов 9–10 (🔄, 🗑, «+ Добавить»,
+   «Обновить все открытые») свёрстаны с необязательными колбэками и **без** `disabled`-заглушки:
+   MUI ставит отключённому `IconButton` `pointer-events: none`, и клик проваливался бы в шапку
+   аккордеона, ломая §13.10.3. Вместо этого обработчик существует всегда и начинается со
+   `stopPropagation()`. `AccordionSummary` рендерится как `component="div"` — по умолчанию это
+   `<button>`, а внутри у нас ещё две кнопки. Опции перехода задаются слотом
+   `slotProps={{ transition: { unmountOnExit: false } }}`: пропа `TransitionProps` в MUI v9 больше
+   нет. Enum-ы §3.2/§3.3/§4.5 продублированы вручную (§3.4) в `constants/application.constants.ts`;
+   все карты подписей, цветов и иконок типизированы `Record<Union, T>`, поэтому добавление значения
+   без подписи роняет `tsc`. Каркас-заглушка шага 1 (`BackendStatus`, `api/health.api.ts`,
+   `types/health.*`) удалена. **Тесты шага сознательно отложены** по решению пользователя (новые
+   spec-файлы в проекте не заводим): компонентных и хук-тестов нет, `npm run test` на фронте
+   проходит за счёт `--passWithNoTests`. Вместо них выполнен прогон критериев §13.10.1–10.4,
+   §13.10.6, части §13.10.5 про отсутствие горизонтального скролла и §7.8
+   в headless-браузере против локальной заглушки API: 14 аккордеонов и ноль таблиц, при загрузке
+   раскрытых нет, клики по шапкам раскрывают независимо (несколько сразу), клики по 🔄/🗑
+   раскрытость не меняют, высота свёрнутой шапки ровно 48px (14 записей в окне 1080), горизонтального
+   скролла нет при 1920/900/600px, все четыре фильтра доезжают до query-параметров, счётчик от
+   фильтра не зависит, скелетоны/`Alert`+«Повторить»/оба пустых состояния отрабатывают. Первая
+   половина §13.10.5 (раскрытые ряды 1 и 2 на экране ≥1600px занимают по одной строке каждый)
+   на этом шаге непроверяема: полей из §7.2.2 ещё нет, в `AccordionDetails` стоит заглушка —
+   критерий относится к шагу 8. _(frontend)_
 8. **Фронт: поля в `AccordionDetails`** (§7.2.2) + inline-редактирование с автосейвом, оптимистичными апдейтами и откатом. _(frontend)_
 9. **Фронт: диалоги** создания (с hh-preview) и удаления. _(frontend)_
 10. **Фронт: синхронизация** — кнопка в строке, кнопка «все открытые», прогресс, сводка, колонка «Синхр.». _(frontend)_

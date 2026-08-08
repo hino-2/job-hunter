@@ -26,7 +26,23 @@ export const theme = createTheme({
     MuiSelect: {
       defaultProps: { size: 'small' },
     },
+    // Без него подпись Select'а не ужимается под size="small" самого Select'а.
+    MuiFormControl: {
+      defaultProps: { size: 'small' },
+    },
     MuiChip: {
+      defaultProps: { size: 'small' },
+    },
+    MuiIconButton: {
+      defaultProps: { size: 'small' },
+    },
+    MuiButton: {
+      defaultProps: { size: 'small' },
+    },
+    MuiToggleButton: {
+      defaultProps: { size: 'small' },
+    },
+    MuiToggleButtonGroup: {
       defaultProps: { size: 'small' },
     },
   },
