@@ -3,7 +3,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 
-import { SYNC_OUTCOME } from '../applications/applications.constants';
+import {
+  HH_VACANCY_TYPE_COLUMN_LENGTH,
+  SYNC_OUTCOME,
+} from '../applications/applications.constants';
 import { delay } from '../common/async.helpers';
 import { SERVER_ERROR_MIN_STATUS } from '../common/common.constants';
 import {
@@ -67,7 +70,13 @@ function toHhVacancy(payload: unknown): HhVacancy | null {
   return {
     name: readString(payload, HH_VACANCY_FIELD.NAME),
     archived,
-    typeId,
+    // Длина ограничена шириной колонки hh_vacancy_type: значение целиком контролирует
+    // hh.ru, и более длинный type.id упал бы ошибкой драйвера при сохранении, то есть
+    // 500 вместо штатного исхода §5.2 (та же защита, что для hh_vacancy_id в
+    // hh-url.parser.ts). Именно усечение, а не отбраковка ответа: правила §4.3 от него
+    // не меняются (сравнение с 'closed' и флаг archived остаются в силе), тогда как
+    // отбраковка превратила бы рабочий ответ в ERROR и запись не закрылась бы.
+    typeId: typeId.slice(0, HH_VACANCY_TYPE_COLUMN_LENGTH),
     employerName: isRecord(employer) ? readString(employer, HH_VACANCY_FIELD.NAME) : null,
   };
 }

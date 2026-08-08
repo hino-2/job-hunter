@@ -124,3 +124,12 @@ export const NON_HH_URL = 'https://career.habr.com/vacancies/1000123456';
 
 /** §4.6: одна попытка плюс два повтора. */
 export const HH_EXPECTED_ATTEMPTS = DEFAULT_HH_MAX_RETRIES + 1;
+
+/**
+ * Параметры массового прогона для e2e (§4.6). Конкурентность как в проде, а пауза
+ * между стартами укорочена: проверяем логику синхронизации, а не бережное отношение
+ * к чужому API — заглушка hh.ru локальная. Значения фиксируются принудительно,
+ * иначе длительность прогона зависела бы от .env разработчика.
+ */
+export const TEST_HH_SYNC_CONCURRENCY = 3;
+export const TEST_HH_SYNC_MIN_DELAY_MS = 10;

@@ -1,4 +1,10 @@
-import type { ApplicationResult, ApplicationStatus, SyncOutcome } from './applications.type';
+import type { Application } from './application.entity';
+import type {
+  ApplicationResult,
+  ApplicationStatus,
+  SyncOutcome,
+  SyncOutcomeCounts,
+} from './applications.type';
 
 /**
  * Поля записи, которыми владеет пользователь (§5.1). Типы — как в сущности,
@@ -53,4 +59,60 @@ export interface ApplicationResponse {
   lastSyncError: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Колонки, которые вправе писать синхронизация (§4.3). company, position и result
+ * сюда не входят намеренно: ими владеет только пользователь, и патч синхронизации
+ * не должен иметь возможности их затронуть.
+ */
+export interface ApplicationSyncFields {
+  status: ApplicationStatus;
+  hhArchived: boolean | null;
+  hhVacancyType: string | null;
+  lastSyncedAt: Date | null;
+  lastSyncOutcome: SyncOutcome;
+  lastSyncError: string | null;
+}
+
+/** Результат синхронизации одной записи: сущность в нём уже обновлена и сохранена. */
+export interface ApplicationSyncResult {
+  application: Application;
+  outcome: SyncOutcome;
+  /** null при OK; иначе текст, записанный в last_sync_error. */
+  message: string | null;
+  /** Запись перешла OPEN → CLOSED именно в этом прогоне (питает поле closed сводки, §5.2). */
+  closed: boolean;
+}
+
+/** Итог массового прогона (§5.2). */
+export interface ApplicationsSyncSummary {
+  total: number;
+  counts: SyncOutcomeCounts;
+  closed: number;
+  results: ApplicationSyncResult[];
+}
+
+/** Тело ответа POST /api/applications/:id/sync (§5.2). Реализуется SyncResultDto. */
+export interface SyncResultResponse {
+  outcome: SyncOutcome;
+  message: string | null;
+  application: ApplicationResponse;
+}
+
+/** Элемент items в сводке (§5.2). */
+export interface SyncSummaryItemResponse {
+  id: string;
+  company: string;
+  outcome: SyncOutcome;
+  message: string | null;
+}
+
+/** Тело ответа POST /api/applications/sync-open (§5.2). Реализуется SyncSummaryDto. */
+export interface SyncSummaryResponse {
+  total: number;
+  counts: SyncOutcomeCounts;
+  closed: number;
+  items: SyncSummaryItemResponse[];
+  applications: ApplicationResponse[];
 }

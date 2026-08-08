@@ -16,6 +16,8 @@ export const HH_API_BASE_URL_ENV_KEY = 'HH_API_BASE_URL';
 export const HH_USER_AGENT_ENV_KEY = 'HH_USER_AGENT';
 export const HH_REQUEST_TIMEOUT_MS_ENV_KEY = 'HH_REQUEST_TIMEOUT_MS';
 export const HH_MAX_RETRIES_ENV_KEY = 'HH_MAX_RETRIES';
+export const HH_SYNC_CONCURRENCY_ENV_KEY = 'HH_SYNC_CONCURRENCY';
+export const HH_SYNC_MIN_DELAY_MS_ENV_KEY = 'HH_SYNC_MIN_DELAY_MS';
 
 export const USER_AGENT_HEADER = 'User-Agent';
 export const ACCEPT_HEADER = 'Accept';
@@ -81,3 +83,19 @@ export const HH_UPSTREAM_FAILED_MESSAGE = 'Не удалось получить 
 export const HH_UNEXPECTED_STATUS_MESSAGE = 'hh.ru ответил статусом';
 
 export const HH_TRANSPORT_ERROR_MESSAGE = 'Запрос к hh.ru не выполнен';
+
+/** §4.3: type.id === 'closed' закрывает запись наравне с archived === true. */
+export const HH_CLOSED_VACANCY_TYPE = 'closed';
+
+export const HH_SKIPPED_NOT_HH_MESSAGE =
+  'В ссылке на вакансию нет распознаваемого идентификатора hh.ru';
+
+/**
+ * Сбой уже на нашей стороне (например, отказ БД при сохранении записи). Прогон он
+ * не срывает: запись получает исход ERROR, остальные обрабатываются дальше (§4.6).
+ */
+export const HH_SYNC_UNEXPECTED_ERROR_MESSAGE = 'Не удалось применить результат синхронизации';
+
+export const HH_SYNC_STARTED_MESSAGE = 'Массовая синхронизация, записей к обработке';
+
+export const HH_SYNC_FINISHED_MESSAGE = 'Массовая синхронизация завершена';

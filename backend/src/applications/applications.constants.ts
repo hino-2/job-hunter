@@ -14,6 +14,14 @@ export const APPLICATION_ID_PARAM = 'id';
 
 export const APPLICATION_BY_ID_ROUTE = ':id';
 
+/**
+ * §5.2. Оба маршрута синхронизации объявляются в контроллере ВЫШЕ методов с ':id',
+ * иначе Express сматчит 'sync-open' как значение параметра :id.
+ */
+export const APPLICATIONS_SYNC_OPEN_ROUTE = 'sync-open';
+
+export const APPLICATION_SYNC_ROUTE = `${APPLICATION_BY_ID_ROUTE}/sync`;
+
 export const APPLICATIONS_TABLE = 'applications';
 
 export const APPLICATIONS_ALIAS = 'application';

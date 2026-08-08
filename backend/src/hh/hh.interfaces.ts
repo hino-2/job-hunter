@@ -1,4 +1,5 @@
 import type { SYNC_OUTCOME } from '../applications/applications.constants';
+import type { ApplicationSyncPatch, SyncOutcome } from '../applications/applications.type';
 import type { HhFetchFailureOutcome, HhFetchResult } from './hh.type';
 
 /**
@@ -34,6 +35,21 @@ export interface HhFetchFailure {
 export interface HhRequestAttempt {
   result: HhFetchResult;
   retryable: boolean;
+}
+
+/**
+ * Решение по одной записи до её сохранения (§4.3): какие колонки записать и что
+ * показать пользователю.
+ *
+ * outcome и message живут рядом с патчем, а не выводятся из него: в ApplicationSyncPatch
+ * все поля опциональны, поэтому patch.lastSyncOutcome имел бы тип SyncOutcome | undefined,
+ * тогда как исход операции известен всегда.
+ */
+export interface HhSyncDecision {
+  patch: ApplicationSyncPatch;
+  outcome: SyncOutcome;
+  /** null только при OK; иначе тот же текст, что уходит в last_sync_error. */
+  message: string | null;
 }
 
 /** Тело ответа POST /api/hh/preview (§5.3). Реализуется HhPreviewDto. */

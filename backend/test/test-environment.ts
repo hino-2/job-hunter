@@ -15,6 +15,8 @@ import {
   TEST_DATABASE_NAME_PATTERN,
   TEST_ENV_APPLIED_FLAG,
   TEST_ENV_APPLIED_VALUE,
+  TEST_HH_SYNC_CONCURRENCY,
+  TEST_HH_SYNC_MIN_DELAY_MS,
   TEST_HH_USER_AGENT,
   TEST_NODE_ENV,
 } from './test.constants';
@@ -95,6 +97,8 @@ export function applyTestEnvironment(): TestDatabaseSettings {
   process.env.HH_API_BASE_URL = HH_STUB_BASE_URL;
   process.env.HH_USER_AGENT = TEST_HH_USER_AGENT;
   process.env.HH_MAX_RETRIES = String(DEFAULT_HH_MAX_RETRIES);
+  process.env.HH_SYNC_CONCURRENCY = String(TEST_HH_SYNC_CONCURRENCY);
+  process.env.HH_SYNC_MIN_DELAY_MS = String(TEST_HH_SYNC_MIN_DELAY_MS);
   process.env[TEST_ENV_APPLIED_FLAG] = TEST_ENV_APPLIED_VALUE;
 
   return { host, port, name };

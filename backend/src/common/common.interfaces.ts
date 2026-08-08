@@ -7,3 +7,12 @@ export interface ErrorResponse {
   message: string | string[];
   error: string;
 }
+
+/**
+ * Параметры массового прогона (§4.6): потолок одновременно работающих задач и
+ * минимальная пауза между их стартами.
+ */
+export interface ConcurrencyOptions {
+  concurrency: number;
+  minStartDelayMs: number;
+}
