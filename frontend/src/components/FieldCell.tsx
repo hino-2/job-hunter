@@ -17,11 +17,12 @@ import type { FieldCellProps } from './field-cell.interfaces';
  * у Select и DateTimePicker адорнмент уже занят собственной кнопкой, а кольцо выглядит
  * одинаково у всех трёх контролов.
  */
-export function FieldCell({ flex, isSaved, children }: FieldCellProps) {
+export function FieldCell({ flex, maxWidth, isSaved, children }: FieldCellProps) {
   return (
     <Box
       sx={{
         flex,
+        maxWidth,
         minWidth: FIELD_CELL_MIN_WIDTH_PX,
         borderRadius: SAVED_FIELD_RING_RADIUS,
         transition: SAVED_FIELD_TRANSITION,

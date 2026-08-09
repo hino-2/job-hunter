@@ -62,6 +62,9 @@ export class Application implements ApplicationWritableFields, ApplicationDerive
   @Column({ type: COLUMN_TYPE.TEXT, name: APPLICATION_COLUMN.RESUME_URL, nullable: true })
   resumeUrl!: string | null;
 
+  @Column({ type: COLUMN_TYPE.TEXT, name: APPLICATION_COLUMN.INTERVIEW_URL, nullable: true })
+  interviewUrl!: string | null;
+
   @Index(APPLICATION_INDEX.STATUS)
   @Column({
     type: COLUMN_TYPE.VARCHAR,

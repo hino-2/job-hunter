@@ -23,6 +23,7 @@ export class ApplicationDto implements ApplicationResponse {
   position!: string | null;
   vacancyUrl!: string | null;
   resumeUrl!: string | null;
+  interviewUrl!: string | null;
   status!: ApplicationStatus;
   result!: ApplicationResult;
   employerContact!: string | null;
@@ -46,6 +47,7 @@ export class ApplicationDto implements ApplicationResponse {
     dto.position = entity.position;
     dto.vacancyUrl = entity.vacancyUrl;
     dto.resumeUrl = entity.resumeUrl;
+    dto.interviewUrl = entity.interviewUrl;
     dto.status = entity.status;
     dto.result = entity.result;
     dto.employerContact = entity.employerContact;

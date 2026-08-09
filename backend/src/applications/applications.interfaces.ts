@@ -16,6 +16,7 @@ export interface ApplicationWritableFields {
   position: string | null;
   vacancyUrl: string | null;
   resumeUrl: string | null;
+  interviewUrl: string | null;
   status: ApplicationStatus;
   result: ApplicationResult;
   employerContact: string | null;
@@ -45,6 +46,7 @@ export interface ApplicationResponse {
   position: string | null;
   vacancyUrl: string | null;
   resumeUrl: string | null;
+  interviewUrl: string | null;
   status: ApplicationStatus;
   result: ApplicationResult;
   employerContact: string | null;

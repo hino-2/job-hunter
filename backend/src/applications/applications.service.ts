@@ -160,6 +160,7 @@ export class ApplicationsService {
       vacancyUrl: dto.vacancyUrl ?? null,
       hhVacancyId: parseHhVacancyId(dto.vacancyUrl),
       resumeUrl: dto.resumeUrl ?? null,
+      interviewUrl: dto.interviewUrl ?? null,
       status: dto.status ?? DEFAULT_APPLICATION_STATUS,
       result: dto.result ?? DEFAULT_APPLICATION_RESULT,
       employerContact: dto.employerContact ?? null,
@@ -194,6 +195,10 @@ export class ApplicationsService {
 
     if (dto.resumeUrl !== undefined) {
       patch.resumeUrl = dto.resumeUrl;
+    }
+
+    if (dto.interviewUrl !== undefined) {
+      patch.interviewUrl = dto.interviewUrl;
     }
 
     if (dto.status !== undefined) {

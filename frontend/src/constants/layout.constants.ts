@@ -60,14 +60,31 @@ export const EMPTY_STATE_PADDING_Y = 6;
 export const FIELD_FLEX = {
   company: '1 1 240px',
   position: '1 1 240px',
-  status: '0 0 150px',
-  result: '0 0 190px',
   vacancyUrl: '1 1 280px',
   resumeUrl: '1 1 280px',
+  status: '0 0 150px',
+  result: '0 0 190px',
   hrInterviewAt: '0 0 210px',
   techInterviewAt: '0 0 210px',
   employerContact: '1 1 320px',
+  interviewUrl: '1 1 280px',
   notes: '2 1 480px',
+} as const;
+
+/**
+ * Потолок ширины ячейки (§7.2.2) — только для полей, где flex-basis резиновый
+ * (`1 1 …`) и без потолка растянулся бы на всю ультраширокую строку. Проценты,
+ * а не px: потолок считается от ширины ряда, а не от вьюпорта, и включается
+ * только когда ряд достаточно широк — на узком экране поля переносятся раньше,
+ * чем упрутся в процентный предел. Частичная карта, а не Record<EditableField, …>:
+ * у полей с `flex: 0 0 …` потолок не нужен, а значение 'none' пришлось бы выдумывать.
+ */
+export const FIELD_MAX_WIDTH = {
+  company: '19%',
+  position: '19%',
+  vacancyUrl: '15%',
+  resumeUrl: '15%',
+  interviewUrl: '19%',
 } as const;
 
 /** Собеседование в пределах этого окна выделяется как ближайшее. */

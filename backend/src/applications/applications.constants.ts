@@ -33,6 +33,7 @@ export const APPLICATION_COLUMN = {
   POSITION: 'position',
   VACANCY_URL: 'vacancy_url',
   RESUME_URL: 'resume_url',
+  INTERVIEW_URL: 'interview_url',
   STATUS: 'status',
   RESULT: 'result',
   EMPLOYER_CONTACT: 'employer_contact',
@@ -177,7 +178,7 @@ export const INVALID_DATE_MESSAGE =
  *
  * Без `as const`: @IsUrl ждёт `protocols?: string[]`, а readonly-кортеж из `as const`
  * ему не подходит. Взамен Object.freeze, потому что константа экспортируется и
- * используется четырьмя полями DTO.
+ * используется шестью полями DTO (vacancyUrl, resumeUrl, interviewUrl — в create и update).
  *
  * ВАЖНО: передавать в @IsUrl только КОПИЮ (`{ ...URL_VALIDATION_OPTIONS }`).
  * validator внутри isURL вызывает merge(options, defaults), а тот дописывает

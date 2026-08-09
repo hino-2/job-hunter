@@ -87,6 +87,7 @@ export const EDITABLE_TEXT_FIELDS = [
   'vacancyUrl',
   'resumeUrl',
   'employerContact',
+  'interviewUrl',
   'notes',
 ] as const;
 
@@ -94,19 +95,20 @@ export const EDITABLE_TEXT_FIELDS = [
  * Текстовые поля, которые API проверяет как URL (§5.1). Заведомо кривую ссылку
  * не отправляем вовсе, иначе гарантированный 400 вместо подсказки на самом поле.
  */
-export const URL_TEXT_FIELDS = ['vacancyUrl', 'resumeUrl'] as const;
+export const URL_TEXT_FIELDS = ['vacancyUrl', 'resumeUrl', 'interviewUrl'] as const;
 
-/** Все редактируемые поля раскрытого состояния (§7.2.2) — в порядке рядов 1–3. */
+/** Все редактируемые поля раскрытого состояния (§7.2.2) — в порядке рядов 1–2. */
 export const EDITABLE_FIELDS = [
   'company',
   'position',
-  'status',
-  'result',
   'vacancyUrl',
   'resumeUrl',
+  'status',
+  'result',
   'hrInterviewAt',
   'techInterviewAt',
   'employerContact',
+  'interviewUrl',
   'notes',
 ] as const;
 
@@ -121,6 +123,7 @@ export const APPLICATION_FIELD_LABELS: Record<EditableField, string> = {
   hrInterviewAt: 'HR-собес',
   techInterviewAt: 'Тех-собес',
   employerContact: 'Контакт работодателя',
+  interviewUrl: 'Где собес',
   notes: 'Заметки',
 };
 
@@ -142,6 +145,7 @@ export const APPLICATION_FIELD_PICKERS: Record<
   hrInterviewAt: (application) => ({ hrInterviewAt: application.hrInterviewAt }),
   techInterviewAt: (application) => ({ techInterviewAt: application.techInterviewAt }),
   employerContact: (application) => ({ employerContact: application.employerContact }),
+  interviewUrl: (application) => ({ interviewUrl: application.interviewUrl }),
   notes: (application) => ({ notes: application.notes }),
 };
 

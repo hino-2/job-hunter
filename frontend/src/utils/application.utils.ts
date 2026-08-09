@@ -165,6 +165,8 @@ export function buildTextFieldPatch(
       return isSavableUrl(trimmed) ? { resumeUrl: nullable } : null;
     case 'employerContact':
       return { employerContact: nullable };
+    case 'interviewUrl':
+      return isSavableUrl(trimmed) ? { interviewUrl: nullable } : null;
     case 'notes':
       return { notes: nullable };
   }

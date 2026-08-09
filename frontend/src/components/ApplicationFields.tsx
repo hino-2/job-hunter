@@ -22,6 +22,7 @@ import {
   DATE_TIME_DISPLAY_FORMAT,
   FIELD_FLEX,
   FIELD_GAP,
+  FIELD_MAX_WIDTH,
   MULTILINE_MAX_ROWS_CONTACT,
   MULTILINE_MAX_ROWS_NOTES,
   MULTILINE_MIN_ROWS,
@@ -45,7 +46,7 @@ import { FieldCell } from './FieldCell';
 import { UrlField } from './UrlField';
 
 /**
- * Содержимое AccordionDetails — ряды 1–3 полей §7.2.2 с автосейвом §7.3.
+ * Содержимое AccordionDetails — ряды 1–2 полей §7.2.2 с автосейвом §7.3.
  *
  * Собственного состояния у компонента нет вовсе: показываемое значение приходит уже
  * смерженным с черновиком, а весь ввод уходит в handlers. Иначе правку пришлось бы
@@ -105,7 +106,11 @@ export function ApplicationFields({ application, savedFields, handlers }: Applic
   return (
     <Stack spacing={FIELD_GAP}>
       <Box sx={ROW_SX}>
-        <FieldCell flex={FIELD_FLEX.company} isSaved={savedFields.has('company')}>
+        <FieldCell
+          flex={FIELD_FLEX.company}
+          maxWidth={FIELD_MAX_WIDTH.company}
+          isSaved={savedFields.has('company')}
+        >
           <TextField
             required
             fullWidth
@@ -119,7 +124,11 @@ export function ApplicationFields({ application, savedFields, handlers }: Applic
           />
         </FieldCell>
 
-        <FieldCell flex={FIELD_FLEX.position} isSaved={savedFields.has('position')}>
+        <FieldCell
+          flex={FIELD_FLEX.position}
+          maxWidth={FIELD_MAX_WIDTH.position}
+          isSaved={savedFields.has('position')}
+        >
           <TextField
             fullWidth
             label={APPLICATION_FIELD_LABELS.position}
@@ -127,6 +136,34 @@ export function ApplicationFields({ application, savedFields, handlers }: Applic
             onChange={changeText('position')}
             onBlur={blurText('position')}
             slotProps={{ htmlInput: { maxLength: POSITION_MAX_LENGTH } }}
+          />
+        </FieldCell>
+
+        <FieldCell
+          flex={FIELD_FLEX.vacancyUrl}
+          maxWidth={FIELD_MAX_WIDTH.vacancyUrl}
+          isSaved={savedFields.has('vacancyUrl')}
+        >
+          <UrlField
+            label={APPLICATION_FIELD_LABELS.vacancyUrl}
+            value={readTextFieldValue(application, 'vacancyUrl')}
+            maxLength={URL_MAX_LENGTH}
+            onValueChange={changeUrl('vacancyUrl')}
+            onBlur={blurText('vacancyUrl')}
+          />
+        </FieldCell>
+
+        <FieldCell
+          flex={FIELD_FLEX.resumeUrl}
+          maxWidth={FIELD_MAX_WIDTH.resumeUrl}
+          isSaved={savedFields.has('resumeUrl')}
+        >
+          <UrlField
+            label={APPLICATION_FIELD_LABELS.resumeUrl}
+            value={readTextFieldValue(application, 'resumeUrl')}
+            maxLength={URL_MAX_LENGTH}
+            onValueChange={changeUrl('resumeUrl')}
+            onBlur={blurText('resumeUrl')}
           />
         </FieldCell>
 
@@ -164,28 +201,6 @@ export function ApplicationFields({ application, savedFields, handlers }: Applic
               ))}
             </Select>
           </FormControl>
-        </FieldCell>
-      </Box>
-
-      <Box sx={ROW_SX}>
-        <FieldCell flex={FIELD_FLEX.vacancyUrl} isSaved={savedFields.has('vacancyUrl')}>
-          <UrlField
-            label={APPLICATION_FIELD_LABELS.vacancyUrl}
-            value={readTextFieldValue(application, 'vacancyUrl')}
-            maxLength={URL_MAX_LENGTH}
-            onValueChange={changeUrl('vacancyUrl')}
-            onBlur={blurText('vacancyUrl')}
-          />
-        </FieldCell>
-
-        <FieldCell flex={FIELD_FLEX.resumeUrl} isSaved={savedFields.has('resumeUrl')}>
-          <UrlField
-            label={APPLICATION_FIELD_LABELS.resumeUrl}
-            value={readTextFieldValue(application, 'resumeUrl')}
-            maxLength={URL_MAX_LENGTH}
-            onValueChange={changeUrl('resumeUrl')}
-            onBlur={blurText('resumeUrl')}
-          />
         </FieldCell>
 
         <FieldCell flex={FIELD_FLEX.hrInterviewAt} isSaved={savedFields.has('hrInterviewAt')}>
@@ -229,6 +244,20 @@ export function ApplicationFields({ application, savedFields, handlers }: Applic
             onChange={changeText('employerContact')}
             onBlur={blurText('employerContact')}
             slotProps={{ htmlInput: { maxLength: EMPLOYER_CONTACT_MAX_LENGTH } }}
+          />
+        </FieldCell>
+
+        <FieldCell
+          flex={FIELD_FLEX.interviewUrl}
+          maxWidth={FIELD_MAX_WIDTH.interviewUrl}
+          isSaved={savedFields.has('interviewUrl')}
+        >
+          <UrlField
+            label={APPLICATION_FIELD_LABELS.interviewUrl}
+            value={readTextFieldValue(application, 'interviewUrl')}
+            maxLength={URL_MAX_LENGTH}
+            onValueChange={changeUrl('interviewUrl')}
+            onBlur={blurText('interviewUrl')}
           />
         </FieldCell>
 

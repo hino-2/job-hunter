@@ -67,6 +67,13 @@ export class UpdateApplicationDto {
   @EmptyTextToNull()
   resumeUrl?: string | null;
 
+  @IsOptional()
+  @IsUrl({ ...URL_VALIDATION_OPTIONS })
+  @MaxLength(URL_MAX_LENGTH)
+  @TrimText()
+  @EmptyTextToNull()
+  interviewUrl?: string | null;
+
   @SkipIfUndefined()
   @IsEnum(APPLICATION_STATUS)
   status?: ApplicationStatus;
