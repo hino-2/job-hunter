@@ -50,8 +50,8 @@ export type SyncOutcomeCounts = Record<SyncOutcome, number>;
 /**
  * Патч синхронизации (§4.3): присутствие ключа означает «колонку надо записать»,
  * его отсутствие — «не трогать». Отдельный тип от ApplicationPatch, потому что
- * синхронизации нельзя дать даже теоретическую возможность записать company,
- * position или result.
+ * синхронизации нельзя дать даже теоретическую возможность записать company
+ * или result.
  */
 export type ApplicationSyncPatch = Partial<ApplicationSyncFields>;
 

@@ -52,7 +52,7 @@ export function useSyncApplication(options: SyncApplicationOptions): SyncApplica
     onSuccess: (result: SyncResult, id) => {
       const cached = readApplicationFromCaches(client, id);
 
-      patchApplicationInCaches(client, id, buildSyncEchoPatch(result.application, cached));
+      patchApplicationInCaches(client, id, buildSyncEchoPatch(result, cached));
 
       // Инвалидируем только на смену статуса — она меняет состав отфильтрованного списка
       // и счётчик «Открытых: N / M» (§7.8), то же правило, что у useUpdateApplication.

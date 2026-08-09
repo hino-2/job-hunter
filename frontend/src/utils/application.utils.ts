@@ -7,6 +7,7 @@ import {
   EDITABLE_TEXT_FIELDS,
   EMPTY_TEXT_FIELD_VALUE,
   STATUS_FILTER,
+  SYNC_OUTCOME,
   URL_TEXT_FIELDS,
 } from '../constants/application.constants';
 import { UPCOMING_INTERVIEW_HIGHLIGHT_HOURS } from '../constants/layout.constants';
@@ -25,6 +26,7 @@ import type {
   PendingTextValues,
   UrlTextField,
 } from '../types/application.type';
+import type { SyncResult } from '../types/sync.interfaces';
 import { isSavableUrl } from './url.utils';
 
 /** Счётчик шапки «Открытых: N / M» (§7.8). Передаётся в select React Query по ссылке. */
@@ -233,23 +235,33 @@ export function buildServerEchoPatch(
 
 /**
  * Что из ответа /sync (§5.2) переносится в кэш. Ровно колонки, которыми владеет
- * синхронизация (§4.3): company/position/result/ссылки/даты/notes не переносятся вовсе —
+ * синхронизация (§4.3): company/result/ссылки/даты/notes не переносятся вовсе —
  * ответ мог быть сформирован до того, как долетел параллельный автосейв, и затёр бы
  * оптимистичное значение поля, которое правят прямо сейчас (то же правило, что у
  * buildServerEchoPatch). vacancySource/vacancyExternalId тоже не переносятся:
  * синхронизация их не меняет, а PATCH vacancyUrl мог уже уйти вперёд.
+ *
+ * position с §4.3 в новой редакции — тоже колонка синхронизации, но переносится
+ * только при исходе OK и только непустой: при прочих исходах бэкенд должность
+ * не писал, и перенос откатил бы оптимистичное значение параллельного автосейва.
+ * Поэтому на вход идёт весь SyncResult, а не одна сущность.
  */
 export function buildSyncEchoPatch(
-  saved: Application,
+  result: SyncResult,
   cached: Application | undefined,
 ): Partial<Application> {
-  const patch: Partial<Application> = {
+  const saved = result.application;
+  let patch: Partial<Application> = {
     status: saved.status,
     vacancyArchived: saved.vacancyArchived,
     lastSyncedAt: saved.lastSyncedAt,
     lastSyncOutcome: saved.lastSyncOutcome,
     lastSyncError: saved.lastSyncError,
   };
+
+  if (result.outcome === SYNC_OUTCOME.OK && saved.position !== null) {
+    patch = { ...patch, position: saved.position };
+  }
 
   if (cached === undefined || saved.updatedAt > cached.updatedAt) {
     return { ...patch, updatedAt: saved.updatedAt };

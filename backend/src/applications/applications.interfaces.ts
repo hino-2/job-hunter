@@ -66,11 +66,13 @@ export interface ApplicationResponse {
 }
 
 /**
- * Колонки, которые вправе писать синхронизация (§4.3). company, position и result
- * сюда не входят намеренно: ими владеет только пользователь, и патч синхронизации
- * не должен иметь возможности их затронуть.
+ * Колонки, которыми синхронизация вправе управлять (§4.3 п.5, новая редакция):
+ * position теперь принадлежит ей наравне со status/vacancyArchived/last_sync_*,
+ * потому что при OK заголовок вакансии перезаписывает ручную правку пользователя.
+ * company и result по-прежнему принадлежат только пользователю и сюда не входят.
  */
 export interface ApplicationSyncFields {
+  position: string | null;
   status: ApplicationStatus;
   vacancyArchived: boolean | null;
   lastSyncedAt: Date | null;

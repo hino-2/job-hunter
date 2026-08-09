@@ -20,6 +20,7 @@ import type {
   SyncOutcomeCounts,
 } from '../applications/applications.type';
 import { mapWithConcurrency } from '../common/async.helpers';
+import { normalizeVacancyPosition } from './vacancy-position.helpers';
 import { VacancyProviderRegistry } from './vacancy-provider.registry';
 import {
   SYNC_CONCURRENCY_ENV_KEY,
@@ -62,10 +63,12 @@ function buildSkippedDecision(message: string): VacancySyncDecision {
 /**
  * Правила §4.3 в чистом виде — единственное место, где решается, что писать в запись.
  *
- * Ключевые инварианты: company, position и result не участвуют вовсе; при живой
- * вакансии status не трогается (вручную закрытая запись не открывается заново);
- * last_synced_at обновляется только когда ответ от источника реально получен (OK и
- * NOT_FOUND), а при RATE_LIMITED/ERROR остаётся временем последней успешной синхронизации.
+ * Ключевые инварианты: company и result не участвуют вовсе; position перезаписывается
+ * только при OK и только непустым нормализованным заголовком источника — пустой или
+ * отсутствующий заголовок ручную правку пользователя не трогает; при живой вакансии
+ * status не трогается (вручную закрытая запись не открывается заново); last_synced_at
+ * обновляется только когда ответ от источника реально получен (OK и NOT_FOUND),
+ * а при RATE_LIMITED/ERROR остаётся временем последней успешной синхронизации.
  */
 function buildFetchedDecision(fetched: VacancyFetchResult): VacancySyncDecision {
   if (fetched.outcome === SYNC_OUTCOME.OK) {
@@ -81,6 +84,14 @@ function buildFetchedDecision(fetched: VacancyFetchResult): VacancySyncDecision 
     // живой вакансии status не появляется ни при каких условиях.
     if (vacancy.archived) {
       patch.status = APPLICATION_STATUS.CLOSED;
+    }
+
+    const position = normalizeVacancyPosition(vacancy.name);
+
+    // Условный ключ, а не безусловная запись: null в патче означал бы «записать
+    // NULL» и затёр бы должность, введённую пользователем вручную.
+    if (position !== null) {
+      patch.position = position;
     }
 
     return { patch, outcome: SYNC_OUTCOME.OK, message: null };
@@ -141,6 +152,7 @@ function describeErrorReason(error: unknown): string {
  */
 function takeSyncSnapshot(application: Application): ApplicationSyncSnapshot {
   return {
+    position: application.position,
     status: application.status,
     vacancyArchived: application.vacancyArchived,
     lastSyncedAt: application.lastSyncedAt,

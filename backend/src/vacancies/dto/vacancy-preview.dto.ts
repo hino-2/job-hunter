@@ -1,4 +1,5 @@
 import type { VacancySource } from '../../applications/applications.type';
+import { normalizeVacancyPosition } from '../vacancy-position.helpers';
 import type { Vacancy, VacancyPreviewResponse, VacancyRef } from '../vacancies.interfaces';
 
 /**
@@ -35,7 +36,10 @@ export class VacancyPreviewDto implements VacancyPreviewResponse {
     dto.source = ref.source;
     dto.vacancyExternalId = ref.externalId;
     dto.company = vacancy.employerName;
-    dto.position = vacancy.name;
+    // Та же нормализация, что и при синхронизации (§4.3 п.5): без среза по ширине
+    // колонки форма получила бы значение, которое @MaxLength(POSITION_MAX_LENGTH)
+    // отобьёт 400 при попытке сохранить запись как есть.
+    dto.position = normalizeVacancyPosition(vacancy.name);
     dto.archived = vacancy.archived;
 
     return dto;
