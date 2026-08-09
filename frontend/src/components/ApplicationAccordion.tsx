@@ -15,6 +15,7 @@ import {
   SUMMARY_TEXT_MIN_WIDTH_PX,
 } from '../constants/layout.constants';
 import { mergeApplicationWithPending } from '../utils/application.utils';
+import { ACCORDION_SLOT_PROPS } from './application-accordion.constants';
 import type { ApplicationAccordionProps } from './application-accordion.interfaces';
 import { ApplicationFields } from './ApplicationFields';
 import { ApplicationSummaryRow } from './ApplicationSummaryRow';
@@ -53,8 +54,8 @@ export const ApplicationAccordion = memo(function ApplicationAccordion({
       expanded={expanded}
       onChange={handleChange}
       // В MUI v9 пропа TransitionProps больше нет — те же опции задаются слотом transition.
-      // unmountOnExit выключен, чтобы не терять фокус и несохранённый ввод (§7.2).
-      slotProps={{ transition: { unmountOnExit: false } }}
+      // mountOnEnter + unmountOnExit: false — см. доккомментарий ACCORDION_SLOT_PROPS.
+      slotProps={ACCORDION_SLOT_PROPS}
       sx={{ width: '100%' }}
     >
       <AccordionSummary

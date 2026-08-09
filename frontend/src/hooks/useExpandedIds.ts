@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import type { ExpandedIdsController } from './use-expanded-ids.interfaces';
+import type { ExpandedIdsActions, ExpandedIdsController } from './use-expanded-ids.interfaces';
 
 /**
  * Раскрытость аккордеонов (§7.2): множество id вместо одного «текущего», потому что
@@ -12,11 +12,14 @@ import type { ExpandedIdsController } from './use-expanded-ids.interfaces';
  * Персистентности нет и быть не должно: §12 прямо запрещает сохранять раскрытость
  * между сессиями. id уже удалённых записей из множества не вычищаются — они безвредны,
  * потому что без записи нет и аккордеона.
+ *
+ * Множество отдаётся данными, а не предикатом: предикат замкнут на состояние и менял бы
+ * идентичность всего, что от него зависит, на каждый toggle. Проекция «есть ли id
+ * в множестве» делается в списке, чтобы в memo-аккордеон уходил boolean-срез — тот же
+ * приём, что уже применён для `syncingIds`.
  */
 export function useExpandedIds(): ExpandedIdsController {
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set<string>());
-
-  const isExpanded = useCallback((id: string) => expandedIds.has(id), [expandedIds]);
 
   // Каждый мутатор создаёт новое множество: мутация состояния на месте невидима для React
   // и запрещена правилами React Compiler.
@@ -56,13 +59,12 @@ export function useExpandedIds(): ExpandedIdsController {
     setExpandedIds(new Set<string>());
   }, []);
 
-  const areAllExpanded = useCallback(
-    (ids: readonly string[]) => ids.length > 0 && ids.every((id) => expandedIds.has(id)),
-    [expandedIds],
+  // Все четыре мутатора имеют пустые deps, поэтому actions держит постоянную идентичность
+  // на всё время жизни экрана (см. доккомментарий к ExpandedIdsActions).
+  const actions = useMemo<ExpandedIdsActions>(
+    () => ({ toggle, expand, expandAll, collapseAll }),
+    [toggle, expand, expandAll, collapseAll],
   );
 
-  return useMemo(
-    () => ({ isExpanded, toggle, expand, expandAll, collapseAll, areAllExpanded }),
-    [isExpanded, toggle, expand, expandAll, collapseAll, areAllExpanded],
-  );
+  return useMemo<ExpandedIdsController>(() => ({ expandedIds, actions }), [expandedIds, actions]);
 }

@@ -2,6 +2,7 @@ import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EventIcon from '@mui/icons-material/Event';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { Box, Chip, CircularProgress, IconButton, Tooltip, Typography } from '@mui/material';
+import { memo } from 'react';
 import type { MouseEvent } from 'react';
 
 import {
@@ -28,8 +29,12 @@ import { SyncStatusIcon } from './SyncStatusIcon';
  * Содержимое AccordionSummary — восемь элементов свёрнутой шапки (§7.2.1), только чтение
  * плюс две кнопки действий. Полей ввода здесь нет: клик по шапке обязан переключать
  * раскрытие, а не попадать в инпут.
+ *
+ * memo обязателен: шапка не зависит от `expanded` (поворот стрелки делает CSS-класс
+ * на AccordionSummary, а не проп этого компонента), поэтому при переключении раскрытости
+ * она обязана отбиваться memo, а не перерисовываться вместе с родительским Accordion.
  */
-export function ApplicationSummaryRow({
+export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
   application,
   isSyncing,
   onSync,
@@ -154,4 +159,4 @@ export function ApplicationSummaryRow({
       </Tooltip>
     </Box>
   );
-}
+});

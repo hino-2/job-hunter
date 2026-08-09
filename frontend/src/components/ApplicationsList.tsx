@@ -18,7 +18,7 @@ export function ApplicationsList({
   isFilterActive,
   onRetry,
   onResetFilters,
-  isExpanded,
+  expandedIds,
   onToggle,
   pendingById,
   savedById,
@@ -82,7 +82,7 @@ export function ApplicationsList({
           pending={pendingById[application.id] ?? EMPTY_PENDING_TEXT_VALUES}
           savedFields={savedById[application.id] ?? EMPTY_SAVED_FIELDS}
           handlers={editHandlers}
-          expanded={isExpanded(application.id)}
+          expanded={expandedIds.has(application.id)}
           onToggle={onToggle}
           isSyncing={syncingIds.has(application.id)}
           onSync={onSync}

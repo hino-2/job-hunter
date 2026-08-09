@@ -43,6 +43,7 @@ import type {
 } from './types/application.interfaces';
 import type { SyncResult, SyncSummary } from './types/sync.interfaces';
 import { isFilterActive } from './utils/application.utils';
+import { areAllExpanded } from './utils/expanded-ids.utils';
 import { extractApiErrorMessage, extractApiErrorStatus } from './utils/error.utils';
 
 /**
@@ -72,32 +73,36 @@ export function App() {
 
   const items = applications.data ?? EMPTY_APPLICATIONS;
   const ids = useMemo(() => items.map((item) => item.id), [items]);
-  const isAllExpanded = expanded.areAllExpanded(ids);
+  const isAllExpanded = useMemo(
+    () => areAllExpanded(expanded.expandedIds, ids),
+    [expanded.expandedIds, ids],
+  );
   const deleteTarget = useMemo(
     () => items.find((item) => item.id === deleteTargetId) ?? null,
     [items, deleteTargetId],
   );
 
   // §13.10.7: несохранённая правка сначала отправляется и только потом сворачивается.
-  // Ссылка обработчика меняется вместе с expanded, то есть только на раскрытии
-  // и сворачивании; набор текста её не трогает, поэтому memo на аккордеонах работает.
+  // Обе зависимости стабильны на всё время жизни экрана (edits.handlers и expanded.actions
+  // не меняют идентичность), поэтому onToggle не пробивает memo аккордеонов; раскрытость
+  // едет в список данными (expandedIds), а не колбэком.
   const handleToggle = useCallback(
     (id: string, isExpanded: boolean) => {
       if (!isExpanded) {
         edits.handlers.flush(id);
       }
 
-      expanded.toggle(id, isExpanded);
+      expanded.actions.toggle(id, isExpanded);
     },
-    [edits.handlers, expanded],
+    [edits.handlers, expanded.actions],
   );
 
   const handleToggleExpandAll = () => {
     if (isAllExpanded) {
       edits.handlers.flushAll();
-      expanded.collapseAll();
+      expanded.actions.collapseAll();
     } else {
-      expanded.expandAll(ids);
+      expanded.actions.expandAll(ids);
     }
   };
 
@@ -129,10 +134,10 @@ export function App() {
   const handleCreated = useCallback(
     (created: Application) => {
       setCreateOpen(false);
-      expanded.expand(created.id); // §13.5 «появляется сверху списка раскрытой»
+      expanded.actions.expand(created.id); // §13.5 «появляется сверху списка раскрытой»
       notification.notify(CREATE_SUCCESS_MESSAGE, NOTIFICATION_SEVERITY.SUCCESS);
     },
-    [expanded, notification],
+    [expanded.actions, notification],
   );
 
   const handleCreateFailed = useCallback(
@@ -257,7 +262,7 @@ export function App() {
             isFilterActive={isFilterActive(effectiveFilters)}
             onRetry={handleRetry}
             onResetFilters={handleResetFilters}
-            isExpanded={expanded.isExpanded}
+            expandedIds={expanded.expandedIds}
             onToggle={handleToggle}
             pendingById={edits.pendingById}
             savedById={edits.savedById}

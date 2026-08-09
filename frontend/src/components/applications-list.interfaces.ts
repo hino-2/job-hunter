@@ -10,7 +10,8 @@ export interface ApplicationsListProps {
   isFilterActive: boolean;
   onRetry: () => void;
   onResetFilters: () => void;
-  isExpanded: (id: string) => boolean;
+  /** Множество раскрытых id целиком — в аккордеон уходит boolean-срез по конкретному id (§7.2). */
+  expandedIds: ReadonlySet<string>;
   onToggle: (id: string, expanded: boolean) => void;
   /** Словари целиком: в аккордеон уходит только срез по его id (§7.3). */
   pendingById: PendingById;

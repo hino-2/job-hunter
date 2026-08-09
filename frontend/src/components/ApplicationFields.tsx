@@ -3,6 +3,7 @@ import type { SelectChangeEvent } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import type { DateTimeValidationError, PickerChangeHandlerContext } from '@mui/x-date-pickers';
 import type { Dayjs } from 'dayjs';
+import { memo } from 'react';
 import type { ChangeEvent } from 'react';
 
 import {
@@ -52,8 +53,18 @@ import { UrlField } from './UrlField';
  * смерженным с черновиком, а весь ввод уходит в handlers. Иначе правку пришлось бы
  * синхронизировать с пропами через useEffect (запрещает react-hooks/set-state-in-effect),
  * и она терялась бы при сворачивании аккордеона (§13.10.7).
+ *
+ * memo здесь не микрооптимизация, а защита от повторных layout-измерений: у TextareaAutosize
+ * (два multiline-поля ниже) layout-эффект syncHeight выполняется после каждого рендера
+ * без массива зависимостей и форсирует синхронный пересчёт layout всего документа. Свёрнутый
+ * Collapse скрывает содержимое через visibility: hidden, а не display: none, поэтому без memo
+ * измерение шло бы и у свёрнутых записей на каждый чужой ре-рендер списка.
  */
-export function ApplicationFields({ application, savedFields, handlers }: ApplicationFieldsProps) {
+export const ApplicationFields = memo(function ApplicationFields({
+  application,
+  savedFields,
+  handlers,
+}: ApplicationFieldsProps) {
   const { id } = application;
   const statusLabelId = `${id}${STATUS_LABEL_ID_SUFFIX}`;
   const resultLabelId = `${id}${RESULT_LABEL_ID_SUFFIX}`;
@@ -277,4 +288,4 @@ export function ApplicationFields({ application, savedFields, handlers }: Applic
       </Box>
     </Stack>
   );
-}
+});
