@@ -1,3 +1,4 @@
+import type { Vacancy } from '../vacancies/vacancies.interfaces';
 import {
   HH_ARCHIVED_FLAG_GROUP,
   HH_ARCHIVED_FLAG_PATTERN,
@@ -8,7 +9,6 @@ import {
   JSON_LD_JOB_POSTING_TYPE,
   JSON_LD_SCRIPT_PATTERN,
 } from './hh.constants';
-import type { HhVacancy } from './hh.interfaces';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -130,7 +130,7 @@ function findJobPosting(entries: unknown[]): Record<string, unknown> | null {
  *
  * Никогда не бросает: любой мусор на входе — это null, а не исключение.
  */
-export function parseHhVacancyPage(html: unknown): HhVacancy | null {
+export function parseHhVacancyPage(html: unknown): Vacancy | null {
   if (typeof html !== 'string' || html.length === 0) {
     return null;
   }

@@ -22,8 +22,8 @@ export interface E2eTestContext {
   close(): Promise<void>;
 }
 
-/** Что заглушка hh.ru запомнила о полученном запросе. */
-export interface HhStubRequest {
+/** Что заглушка источника вакансии запомнила о полученном запросе. */
+export interface VacancyStubRequest {
   path: string;
   userAgent: string | undefined;
   accept: string | undefined;
@@ -34,16 +34,16 @@ export interface HhStubRequest {
  * на страницу без признака архивности; любое другое значение сериализуется в JSON
  * (в тестах страницы всегда приходят уже готовой HTML-строкой).
  */
-export interface HhStubReply {
+export interface VacancyStubReply {
   status: number;
   body?: unknown;
 }
 
-export interface HhStubServer {
-  /** Значение для HH_SITE_BASE_URL: http://127.0.0.1:<фиксированный порт>. */
+export interface VacancyStubServer {
+  /** Значение для HH_SITE_BASE_URL/GETMATCH_SITE_BASE_URL: http://127.0.0.1:<порт>. */
   baseUrl: string;
-  requests: HhStubRequest[];
-  respondWith(reply: HhStubReply): void;
+  requests: VacancyStubRequest[];
+  respondWith(reply: VacancyStubReply): void;
   reset(): void;
   close(): Promise<void>;
 }
@@ -66,4 +66,20 @@ export interface HhPageFixtureOptions {
   brokenJsonLd?: boolean;
   /** Управляет консенсусом токенов archived: обычный случай, отсутствие, противоречие. */
   archivedTokens?: 'both' | 'none' | 'conflicting';
+}
+
+/**
+ * Параметры генератора минимальной HTML-страницы вакансии getmatch.ru
+ * (buildGetmatchVacancyPage, §4.9). `initialVacancy` управляет тремя состояниями
+ * разбора: `'object'` — вакансия найдена, `'null'` — снята/не существует (HTTP 200,
+ * но payload несёт null), `'missing'` — ключа initialVacancy в payload нет вовсе
+ * (страница не распознана). `chunks` — сколько тегов self.__next_f.push сгенерировать;
+ * фикстура всегда режет сам JSON-фрагмент с ключом initialVacancy по границе чанков.
+ */
+export interface GetmatchPageFixtureOptions {
+  position?: string;
+  companyName?: string;
+  isActive?: boolean;
+  initialVacancy?: 'object' | 'null' | 'missing';
+  chunks?: number;
 }

@@ -5,6 +5,7 @@ import type {
   ApplicationStatus,
   StatusFilter,
   SyncOutcome,
+  VacancySource,
 } from './application.type';
 
 /**
@@ -26,9 +27,9 @@ export interface Application {
   hrInterviewAt: string | null;
   techInterviewAt: string | null;
   notes: string | null;
-  hhVacancyId: string | null;
-  hhArchived: boolean | null;
-  hhVacancyType: string | null;
+  vacancySource: VacancySource | null;
+  vacancyExternalId: string | null;
+  vacancyArchived: boolean | null;
   lastSyncedAt: string | null;
   lastSyncOutcome: SyncOutcome | null;
   lastSyncError: string | null;
@@ -41,7 +42,8 @@ export interface Application {
  * изменённые (§7.3). Явный null очищает nullable-поле; company очистить нельзя, поэтому
  * её тип — string, а не string | null.
  *
- * Серверных полей (hhVacancyId, lastSync*, createdAt, …) здесь нет и быть не может:
+ * Серверных полей (vacancySource, vacancyExternalId, lastSync*, createdAt, …) здесь нет
+ * и быть не может:
  * ValidationPipe на бэкенде включён с forbidNonWhitelisted (§5.6) и ответил бы 400.
  */
 export interface ApplicationUpdate {
@@ -86,8 +88,9 @@ export interface ApplicationCounts {
 
 /**
  * Тело POST /api/applications (§5.1). status здесь нет и не будет: §7.4 — новая запись
- * всегда создаётся открытой, это дефолт бэкенда. hhVacancyId тоже нет — его вычисляет
- * бэкенд из vacancyUrl (§4.2), а forbidNonWhitelisted ответил бы 400 на попытку прислать.
+ * всегда создаётся открытой, это дефолт бэкенда. vacancySource/vacancyExternalId тоже
+ * нет — их вычисляет бэкенд из vacancyUrl (§4.2), а forbidNonWhitelisted ответил бы 400
+ * на попытку прислать.
  */
 export interface ApplicationCreate {
   company: string;

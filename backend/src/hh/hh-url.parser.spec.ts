@@ -1,4 +1,4 @@
-import { HH_VACANCY_ID_COLUMN_LENGTH } from '../applications/applications.constants';
+import { VACANCY_EXTERNAL_ID_COLUMN_LENGTH } from '../applications/applications.constants';
 import { parseHhVacancyId } from './hh-url.parser';
 
 describe('parseHhVacancyId', () => {
@@ -43,19 +43,20 @@ describe('parseHhVacancyId', () => {
       ['неподдерживаемая схема', 'mailto:hh.ru/vacancy/12345678'],
       ['javascript-схема', 'javascript:alert(1)'],
       ['ftp', 'ftp://hh.ru/vacancy/12345678'],
+      ['ссылка на getmatch.ru', 'https://getmatch.ru/vacancies/35683-middle-fullstack'],
     ])('для случая «%s»', (_case, url) => {
       expect(parseHhVacancyId(url)).toBeNull();
     });
 
-    it('для id длиннее колонки hh_vacancy_id', () => {
-      const tooLongId = '1'.repeat(HH_VACANCY_ID_COLUMN_LENGTH + 1);
+    it('для id длиннее колонки vacancy_external_id', () => {
+      const tooLongId = '1'.repeat(VACANCY_EXTERNAL_ID_COLUMN_LENGTH + 1);
 
       expect(parseHhVacancyId(`https://hh.ru/vacancy/${tooLongId}`)).toBeNull();
     });
   });
 
-  it('принимает id ровно по ширине колонки hh_vacancy_id', () => {
-    const maxLengthId = '1'.repeat(HH_VACANCY_ID_COLUMN_LENGTH);
+  it('принимает id ровно по ширине колонки vacancy_external_id', () => {
+    const maxLengthId = '1'.repeat(VACANCY_EXTERNAL_ID_COLUMN_LENGTH);
 
     expect(parseHhVacancyId(`https://hh.ru/vacancy/${maxLengthId}`)).toBe(maxLengthId);
   });

@@ -21,11 +21,29 @@ export const DEFAULT_DATABASE_PORT = 5432;
 export const DEFAULT_HH_SITE_BASE_URL = 'https://hh.ru';
 export const DEFAULT_HH_REQUEST_TIMEOUT_MS = 10_000;
 export const DEFAULT_HH_MAX_RETRIES = 2;
-export const DEFAULT_HH_SYNC_CONCURRENCY = 3;
-export const DEFAULT_HH_SYNC_MIN_DELAY_MS = 200;
 
-export const HH_REQUEST_TIMEOUT_MIN_MS = 1_000;
-export const HH_REQUEST_TIMEOUT_MAX_MS = 60_000;
-export const HH_MAX_RETRIES_MAX = 10;
-export const HH_SYNC_CONCURRENCY_MAX = 10;
-export const HH_SYNC_MIN_DELAY_MAX_MS = 10_000;
+/**
+ * §4.9. Разведка не обнаружила у getmatch.ru отдельных требований к User-Agent
+ * (403 не наблюдался с обычным браузерным заголовком), поэтому в отличие от
+ * HH_USER_AGENT (обязателен, дефолта нет) у getmatch есть безопасный дефолт.
+ */
+export const DEFAULT_GETMATCH_SITE_BASE_URL = 'https://getmatch.ru';
+export const DEFAULT_GETMATCH_USER_AGENT = 'job-hunter/1.0';
+export const DEFAULT_GETMATCH_REQUEST_TIMEOUT_MS = 10_000;
+export const DEFAULT_GETMATCH_MAX_RETRIES = 2;
+
+/** Общий параметр массового прогона (§4.6): один прогон может смешивать источники. */
+export const DEFAULT_SYNC_CONCURRENCY = 3;
+export const DEFAULT_SYNC_MIN_DELAY_MS = 200;
+
+/**
+ * Границы валидации таймаута и числа ретраев — общие для всех источников вакансий:
+ * их значения проверяют и HH_REQUEST_TIMEOUT_MS/HH_MAX_RETRIES, и
+ * GETMATCH_REQUEST_TIMEOUT_MS/GETMATCH_MAX_RETRIES (без префикса HH_, потому что
+ * смысл границы не привязан к конкретному источнику).
+ */
+export const REQUEST_TIMEOUT_MIN_MS = 1_000;
+export const REQUEST_TIMEOUT_MAX_MS = 60_000;
+export const MAX_RETRIES_MAX = 10;
+export const SYNC_CONCURRENCY_MAX = 10;
+export const SYNC_MIN_DELAY_MAX_MS = 10_000;

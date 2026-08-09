@@ -79,7 +79,7 @@ export async function deleteApplication(id: string): Promise<void> {
 
 /**
  * POST /api/applications/:id/sync (§5.2). Любой исход приходит с кодом 200 — это результат
- * операции, а не ошибка. Таймаут поднят: один запрос к hh.ru — до 10 с, плюс два ретрая.
+ * операции, а не ошибка. Таймаут поднят: один запрос к источнику — до 10 с, плюс два ретрая.
  */
 export async function syncApplication(id: string): Promise<SyncResult> {
   const response = await apiClient.post<SyncResult>(

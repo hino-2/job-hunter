@@ -1,7 +1,7 @@
-import type { HhPreview } from '../types/hh.interfaces';
+import type { VacancyPreview } from '../types/vacancy.interfaces';
 
-export interface HhPreviewOptions {
+export interface VacancyPreviewOptions {
   /** url — ровно то, что уходило в запрос: вызывающий сам решает, не протух ли ответ. */
-  onLoaded: (preview: HhPreview, url: string) => void;
+  onLoaded: (preview: VacancyPreview, url: string) => void;
   onFailed: (error: Error) => void;
 }

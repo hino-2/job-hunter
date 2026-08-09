@@ -31,8 +31,8 @@ import type { ApplicationResult, ApplicationStatus } from '../applications.type'
 /**
  * Тело POST /api/applications (§5.1).
  *
- * hhVacancyId здесь намеренно нет: его вычисляет бэкенд из vacancyUrl (§4.2),
- * а forbidNonWhitelisted превращает попытку его прислать в 400.
+ * vacancySource/vacancyExternalId здесь намеренно нет: их вычисляет бэкенд из
+ * vacancyUrl (§4.2), а forbidNonWhitelisted превращает попытку прислать их в 400.
  *
  * Порядок декораторов важен: трансформеры (@TrimText/@EmptyTextToNull) выполняются
  * сверху вниз и до валидаторов, поэтому '  ' сначала станет '', затем null,

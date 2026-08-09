@@ -1,25 +1,21 @@
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { Application } from '../applications/application.entity';
 import { HhApiService } from './hh-api.service';
 import { buildHhHttpOptions } from './hh-http-options.factory';
-import { HhSyncService } from './hh-sync.service';
-import { HhController } from './hh.controller';
 
 /**
- * Модуль интеграции с hh.ru (§4): preview (§5.3) и применение результатов
- * синхронизации к записям (§4.3).
+ * Модуль интеграции с hh.ru (§4.1, §4.2): HhApiService реализует VacancySourceProvider
+ * и провайдится/экспортируется, чтобы VacanciesModule мог собрать из него запись реестра.
  *
- * ApplicationsModule сюда НЕ импортируется: зависимость идёт ровно в одну сторону,
- * ApplicationsModule → HhModule (эндпоинты синхронизации по §5.2 принадлежат
- * контроллеру applications). Поэтому HhSyncService получает репозиторий записей
- * напрямую через forFeature, а не через ApplicationsService — иначе получился бы
- * цикл модулей и forwardRef.
+ * Ни контроллера, ни TypeOrmModule.forFeature здесь больше нет — preview (§5.3) и
+ * применение результатов синхронизации (§4.3) переехали в vacancies/ (шаг B2):
+ * они общие для всех источников, а не специфичны для hh.
  *
- * Парсер URL сюда не подключён провайдером намеренно — см. комментарий в hh-url.parser.ts.
+ * HttpModule.registerAsync зарегистрирован внутри этого модуля намеренно (а не в
+ * vacancies/): у каждого источника свой baseURL, поэтому HttpService должен быть
+ * module-scoped — второй источник (getmatch) регистрирует свой клиент в своём модуле.
  */
 @Module({
   imports: [
@@ -27,10 +23,8 @@ import { HhController } from './hh.controller';
       inject: [ConfigService],
       useFactory: buildHhHttpOptions,
     }),
-    TypeOrmModule.forFeature([Application]),
   ],
-  controllers: [HhController],
-  providers: [HhApiService, HhSyncService],
-  exports: [HhApiService, HhSyncService],
+  providers: [HhApiService],
+  exports: [HhApiService],
 })
 export class HhModule {}

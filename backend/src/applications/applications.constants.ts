@@ -40,9 +40,9 @@ export const APPLICATION_COLUMN = {
   HR_INTERVIEW_AT: 'hr_interview_at',
   TECH_INTERVIEW_AT: 'tech_interview_at',
   NOTES: 'notes',
-  HH_VACANCY_ID: 'hh_vacancy_id',
-  HH_ARCHIVED: 'hh_archived',
-  HH_VACANCY_TYPE: 'hh_vacancy_type',
+  VACANCY_EXTERNAL_ID: 'vacancy_external_id',
+  VACANCY_ARCHIVED: 'vacancy_archived',
+  VACANCY_SOURCE: 'vacancy_source',
   LAST_SYNCED_AT: 'last_synced_at',
   LAST_SYNC_OUTCOME: 'last_sync_outcome',
   LAST_SYNC_ERROR: 'last_sync_error',
@@ -73,16 +73,25 @@ export const APPLICATION_RESULT = {
 } as const;
 
 /**
- * §4.5. Живёт здесь, а не в модуле hh: колонка last_sync_outcome принадлежит
- * таблице applications, а зависимость по модулям идёт hh → applications.
+ * §4.5. Живёт здесь, а не в модуле источников: колонка last_sync_outcome принадлежит
+ * таблице applications, а зависимость по модулям идёт vacancies/hh/getmatch → applications.
  * Обратная ссылка дала бы цикл.
  */
 export const SYNC_OUTCOME = {
   OK: 'OK',
   NOT_FOUND: 'NOT_FOUND',
-  SKIPPED_NOT_HH: 'SKIPPED_NOT_HH',
+  SKIPPED_UNSUPPORTED: 'SKIPPED_UNSUPPORTED',
   RATE_LIMITED: 'RATE_LIMITED',
   ERROR: 'ERROR',
+} as const;
+
+/**
+ * §4.8. Живёт здесь по тому же правилу, что SYNC_OUTCOME: это значение колонки
+ * vacancy_source таблицы applications, а не абстракция модуля vacancies.
+ */
+export const VACANCY_SOURCE = {
+  HH: 'HH',
+  GETMATCH: 'GETMATCH',
 } as const;
 
 export const DEFAULT_APPLICATION_STATUS = APPLICATION_STATUS.OPEN;
@@ -98,8 +107,8 @@ export const SEARCH_MAX_LENGTH = 255;
 
 export const STATUS_COLUMN_LENGTH = 16;
 export const RESULT_COLUMN_LENGTH = 32;
-export const HH_VACANCY_ID_COLUMN_LENGTH = 32;
-export const HH_VACANCY_TYPE_COLUMN_LENGTH = 32;
+export const VACANCY_EXTERNAL_ID_COLUMN_LENGTH = 32;
+export const VACANCY_SOURCE_COLUMN_LENGTH = 16;
 export const SYNC_OUTCOME_COLUMN_LENGTH = 32;
 
 /** §5.1: допустимые значения query-параметра sort. */

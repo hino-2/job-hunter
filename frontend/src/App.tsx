@@ -162,7 +162,7 @@ export function App() {
   const handlePreviewFailed = useCallback(
     (error: Error) => {
       // 404 — штатный исход §4.3/§5.3 (ссылка распознана, но вакансия не найдена),
-      // а не сбой похода в hh.ru.
+      // а не сбой похода к источнику.
       const severity =
         extractApiErrorStatus(error) === HTTP_STATUS_NOT_FOUND
           ? NOTIFICATION_SEVERITY.INFO

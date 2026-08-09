@@ -7,9 +7,11 @@ import {
   APPLICATIONS_ROUTE,
   APPLICATIONS_TABLE,
 } from '../src/applications/applications.constants';
-import { DEFAULT_HH_MAX_RETRIES } from '../src/config/config.constants';
-import { HH_PREVIEW_ROUTE, HH_ROUTE, HH_VACANCY_PAGE_PATH } from '../src/hh/hh.constants';
-import type { HhStubReply } from './e2e.interfaces';
+import { DEFAULT_GETMATCH_MAX_RETRIES, DEFAULT_HH_MAX_RETRIES } from '../src/config/config.constants';
+import { GETMATCH_VACANCY_PAGE_PATH } from '../src/getmatch/getmatch.constants';
+import { HH_VACANCY_PAGE_PATH } from '../src/hh/hh.constants';
+import { VACANCIES_ROUTE, VACANCY_PREVIEW_ROUTE } from '../src/vacancies/vacancies.constants';
+import type { VacancyStubReply } from './e2e.interfaces';
 
 /**
  * Константы e2e-окружения. Креды Basic Auth фиксированы: когда шаг 3 включит
@@ -21,6 +23,7 @@ export const TEST_NODE_ENV = 'test';
 export const TEST_AUTH_USER = 'e2e';
 export const TEST_AUTH_PASSWORD = 'e2e-password';
 export const TEST_HH_USER_AGENT = 'job-hunter-e2e/1.0';
+export const TEST_GETMATCH_USER_AGENT = 'job-hunter-e2e-getmatch/1.0';
 
 export const DEFAULT_TEST_DATABASE_HOST = '127.0.0.1';
 export const DEFAULT_TEST_DATABASE_NAME = 'jobhunter_test';
@@ -89,17 +92,21 @@ export const EXPECTED_RESULT_VALUES_MESSAGE =
 /** Пауза перед PATCH: updated_at пишет ORM с точностью до миллисекунды. */
 export const UPDATED_AT_DELAY_MS = 25;
 
-export const HH_PREVIEW_ENDPOINT = `/${API_GLOBAL_PREFIX}/${HH_ROUTE}/${HH_PREVIEW_ROUTE}`;
+export const VACANCY_PREVIEW_ENDPOINT =
+  `/${API_GLOBAL_PREFIX}/${VACANCIES_ROUTE}/${VACANCY_PREVIEW_ROUTE}`;
 
 /**
- * Адрес заглушки hh.ru. Порт фиксированный, а не «любой свободный»: HH_SITE_BASE_URL
- * обязан быть известен ДО импорта app.module — ConfigModule.forRoot() читает env в
- * момент вычисления декоратора @Module, то есть на импорте файла, а не на compile()
- * тестового модуля. Хост — только loopback, наружу заглушка не смотрит.
+ * Хост заглушек источников вакансий — только loopback, наружу они не смотрят.
+ * Порт у каждого источника свой и фиксированный, а не «любой свободный»:
+ * *_SITE_BASE_URL обязан быть известен ДО импорта app.module — ConfigModule.forRoot()
+ * читает env в момент вычисления декоратора @Module, то есть на импорте файла,
+ * а не на compile() тестового модуля.
  */
-export const HH_STUB_HOST = '127.0.0.1';
+export const VACANCY_STUB_HOST = '127.0.0.1';
 export const HH_STUB_PORT = 34599;
-export const HH_STUB_BASE_URL = `http://${HH_STUB_HOST}:${HH_STUB_PORT}`;
+export const HH_STUB_BASE_URL = `http://${VACANCY_STUB_HOST}:${HH_STUB_PORT}`;
+export const GETMATCH_STUB_PORT = 34600;
+export const GETMATCH_STUB_BASE_URL = `http://${VACANCY_STUB_HOST}:${GETMATCH_STUB_PORT}`;
 
 /** Node отдаёт имена входящих заголовков в нижнем регистре. */
 export const USER_AGENT_HEADER_NAME = 'user-agent';
@@ -112,7 +119,7 @@ export const HTML_CONTENT_TYPE = 'text/html; charset=utf-8';
  * ответ должен сразу проваливать тест, а не уходить в ретраи (§4.6) и выглядеть
  * как медленный, но осмысленный сценарий.
  */
-export const HH_STUB_DEFAULT_REPLY: HhStubReply = { status: HttpStatus.I_AM_A_TEAPOT };
+export const VACANCY_STUB_DEFAULT_REPLY: VacancyStubReply = { status: HttpStatus.I_AM_A_TEAPOT };
 
 export const TEST_VACANCY_ID = '12345678';
 
@@ -120,16 +127,27 @@ export const TEST_VACANCY_URL = `https://hh.ru/vacancy/${TEST_VACANCY_ID}`;
 
 export const TEST_VACANCY_PATH = `${HH_VACANCY_PAGE_PATH}/${TEST_VACANCY_ID}`;
 
-export const NON_HH_URL = 'https://career.habr.com/vacancies/1000123456';
+/** §4.9: разведка снимала разметку с реального vacancy_id=35683 — тот же ID здесь. */
+export const TEST_GETMATCH_VACANCY_ID = '35683';
+
+export const TEST_GETMATCH_VACANCY_URL = `https://getmatch.ru/vacancies/${TEST_GETMATCH_VACANCY_ID}`;
+
+export const TEST_GETMATCH_VACANCY_PATH =
+  `${GETMATCH_VACANCY_PAGE_PATH}/${TEST_GETMATCH_VACANCY_ID}`;
+
+/** Ссылка без распознаваемого источника (§4.2): ни hh.ru, ни getmatch.ru. */
+export const UNSUPPORTED_VACANCY_URL = 'https://career.habr.com/vacancies/1000123456';
 
 /** §4.6: одна попытка плюс два повтора. */
 export const HH_EXPECTED_ATTEMPTS = DEFAULT_HH_MAX_RETRIES + 1;
 
+export const GETMATCH_EXPECTED_ATTEMPTS = DEFAULT_GETMATCH_MAX_RETRIES + 1;
+
 /**
  * Параметры массового прогона для e2e (§4.6). Конкурентность как в проде, а пауза
  * между стартами укорочена: проверяем логику синхронизации, а не бережное отношение
- * к чужому API — заглушка hh.ru локальная. Значения фиксируются принудительно,
+ * к чужому API — заглушки источников локальные. Значения фиксируются принудительно,
  * иначе длительность прогона зависела бы от .env разработчика.
  */
-export const TEST_HH_SYNC_CONCURRENCY = 3;
-export const TEST_HH_SYNC_MIN_DELAY_MS = 10;
+export const TEST_SYNC_CONCURRENCY = 3;
+export const TEST_SYNC_MIN_DELAY_MS = 10;

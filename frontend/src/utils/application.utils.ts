@@ -205,8 +205,9 @@ export function isNoopPatch(application: Application, patch: ApplicationUpdate):
  *
  * Пользовательские поля не переносятся вовсе: они уже лежат в кэше оптимистично, а ответ
  * «догоняющего» PATCH'а мог бы затереть параллельную правку соседнего поля. Переносим
- * только вычисляемое бэкендом: hhVacancyId (пересчитывается при каждой записи vacancyUrl,
- * §4.2) и заведомо более свежий updatedAt.
+ * только вычисляемое бэкендом: vacancySource и vacancyExternalId — оба пересчитываются
+ * при каждой записи vacancyUrl (§4.2) и обязаны меняться вместе, иначе в кэше окажется
+ * источник от старой ссылки с ID от новой, — и заведомо более свежий updatedAt.
  */
 export function buildServerEchoPatch(
   saved: Application,
@@ -216,7 +217,11 @@ export function buildServerEchoPatch(
   let echo: Partial<Application> = {};
 
   if (patch.vacancyUrl !== undefined) {
-    echo = { ...echo, hhVacancyId: saved.hhVacancyId };
+    echo = {
+      ...echo,
+      vacancySource: saved.vacancySource,
+      vacancyExternalId: saved.vacancyExternalId,
+    };
   }
 
   if (cached === undefined || saved.updatedAt > cached.updatedAt) {
@@ -231,8 +236,8 @@ export function buildServerEchoPatch(
  * синхронизация (§4.3): company/position/result/ссылки/даты/notes не переносятся вовсе —
  * ответ мог быть сформирован до того, как долетел параллельный автосейв, и затёр бы
  * оптимистичное значение поля, которое правят прямо сейчас (то же правило, что у
- * buildServerEchoPatch). hhVacancyId тоже не переносится: синхронизация его не меняет,
- * а PATCH vacancyUrl мог уже уйти вперёд.
+ * buildServerEchoPatch). vacancySource/vacancyExternalId тоже не переносятся:
+ * синхронизация их не меняет, а PATCH vacancyUrl мог уже уйти вперёд.
  */
 export function buildSyncEchoPatch(
   saved: Application,
@@ -240,8 +245,7 @@ export function buildSyncEchoPatch(
 ): Partial<Application> {
   const patch: Partial<Application> = {
     status: saved.status,
-    hhArchived: saved.hhArchived,
-    hhVacancyType: saved.hhVacancyType,
+    vacancyArchived: saved.vacancyArchived,
     lastSyncedAt: saved.lastSyncedAt,
     lastSyncOutcome: saved.lastSyncOutcome,
     lastSyncError: saved.lastSyncError,

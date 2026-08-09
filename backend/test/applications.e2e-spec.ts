@@ -17,7 +17,9 @@ import {
   ISO_UTC_PATTERN,
   MALFORMED_UUID,
   MISSING_UUID,
-  NON_HH_URL,
+  TEST_GETMATCH_VACANCY_ID,
+  TEST_GETMATCH_VACANCY_URL,
+  UNSUPPORTED_VACANCY_URL,
   UPDATED_AT_DELAY_MS,
   UUID_PATTERN,
 } from './test.constants';
@@ -63,9 +65,9 @@ describe('Applications (e2e)', () => {
       expect(body.hrInterviewAt).toBeNull();
       expect(body.techInterviewAt).toBeNull();
       expect(body.notes).toBeNull();
-      expect(body.hhVacancyId).toBeNull();
-      expect(body.hhArchived).toBeNull();
-      expect(body.hhVacancyType).toBeNull();
+      expect(body.vacancySource).toBeNull();
+      expect(body.vacancyExternalId).toBeNull();
+      expect(body.vacancyArchived).toBeNull();
       expect(body.lastSyncedAt).toBeNull();
       expect(body.lastSyncOutcome).toBeNull();
       expect(body.lastSyncError).toBeNull();
@@ -98,27 +100,40 @@ describe('Applications (e2e)', () => {
       expect(created.hrInterviewAt).toBe('2026-08-10T09:00:00.000Z');
       expect(created.techInterviewAt).toBe('2026-08-11T09:00:00.000Z');
       expect(created.notes).toBe('Просили тестовое');
-      // §4.2: id вакансии вычисляет бэкенд из vacancyUrl.
-      expect(created.hhVacancyId).toBe('12345678');
+      // §4.2: источник и внешний ID вычисляет бэкенд из vacancyUrl.
+      expect(created.vacancySource).toBe('HH');
+      expect(created.vacancyExternalId).toBe('12345678');
     });
 
-    it('вычисляет hhVacancyId из ссылки без схемы и с query', async () => {
+    it('вычисляет vacancyExternalId из ссылки без схемы и с query', async () => {
       const created = await seedApplication(
         ctx.api,
         buildCreatePayload({ vacancyUrl: 'spb.hh.ru/vacancy/87654321?from=vacancy_search_list' }),
       );
 
-      expect(created.hhVacancyId).toBe('87654321');
+      expect(created.vacancySource).toBe('HH');
+      expect(created.vacancyExternalId).toBe('87654321');
     });
 
-    it('оставляет hhVacancyId пустым для ссылки не на вакансию hh.ru', async () => {
+    it('вычисляет vacancySource и vacancyExternalId для ссылки getmatch.ru (§4.9)', async () => {
       const created = await seedApplication(
         ctx.api,
-        buildCreatePayload({ vacancyUrl: NON_HH_URL }),
+        buildCreatePayload({ vacancyUrl: TEST_GETMATCH_VACANCY_URL }),
       );
 
-      expect(created.vacancyUrl).toBe(NON_HH_URL);
-      expect(created.hhVacancyId).toBeNull();
+      expect(created.vacancySource).toBe('GETMATCH');
+      expect(created.vacancyExternalId).toBe(TEST_GETMATCH_VACANCY_ID);
+    });
+
+    it('оставляет источник и внешний ID пустыми для ссылки не на вакансию hh.ru', async () => {
+      const created = await seedApplication(
+        ctx.api,
+        buildCreatePayload({ vacancyUrl: UNSUPPORTED_VACANCY_URL }),
+      );
+
+      expect(created.vacancyUrl).toBe(UNSUPPORTED_VACANCY_URL);
+      expect(created.vacancySource).toBeNull();
+      expect(created.vacancyExternalId).toBeNull();
     });
 
     it('обрезает пробелы у строк и превращает пустую строку в null', async () => {
@@ -176,14 +191,14 @@ describe('Applications (e2e)', () => {
       expect(body.message).toContain('property bogus should not exist');
     });
 
-    it('отклоняет попытку прислать hhVacancyId — его считает бэкенд', async () => {
+    it('отклоняет попытку прислать vacancyExternalId — его считает бэкенд', async () => {
       const response = await ctx.api
         .post(APPLICATIONS_ENDPOINT)
-        .send({ company: 'Acme', hhVacancyId: '12345678' })
+        .send({ company: 'Acme', vacancyExternalId: '12345678' })
         .expect(HttpStatus.BAD_REQUEST);
       const body = response.body as ErrorResponse;
 
-      expect(body.message).toContain('property hhVacancyId should not exist');
+      expect(body.message).toContain('property vacancyExternalId should not exist');
     });
 
     it('перечисляет в ошибке ровно допустимые значения status', async () => {
@@ -437,13 +452,14 @@ describe('Applications (e2e)', () => {
         .expect(HttpStatus.BAD_REQUEST);
     });
 
-    it('пересчитывает hhVacancyId при смене vacancyUrl', async () => {
+    it('пересчитывает vacancyExternalId при смене vacancyUrl', async () => {
       const created = await seedApplication(
         ctx.api,
         buildCreatePayload({ vacancyUrl: 'https://hh.ru/vacancy/11111111' }),
       );
 
-      expect(created.hhVacancyId).toBe('11111111');
+      expect(created.vacancySource).toBe('HH');
+      expect(created.vacancyExternalId).toBe('11111111');
 
       const response = await ctx.api
         .patch(applicationEndpoint(created.id))
@@ -451,20 +467,22 @@ describe('Applications (e2e)', () => {
         .expect(HttpStatus.OK);
       const body = response.body as ApplicationResponse;
 
-      expect(body.hhVacancyId).toBe('22222222');
+      expect(body.vacancySource).toBe('HH');
+      expect(body.vacancyExternalId).toBe('22222222');
     });
 
-    it('сбрасывает hhVacancyId, если ссылку заменили на постороннюю или очистили', async () => {
+    it('сбрасывает источник и внешний ID, если ссылку заменили на постороннюю или очистили', async () => {
       const created = await seedApplication(
         ctx.api,
         buildCreatePayload({ vacancyUrl: 'https://hh.ru/vacancy/11111111' }),
       );
       const replaced = await ctx.api
         .patch(applicationEndpoint(created.id))
-        .send({ vacancyUrl: NON_HH_URL })
+        .send({ vacancyUrl: UNSUPPORTED_VACANCY_URL })
         .expect(HttpStatus.OK);
 
-      expect((replaced.body as ApplicationResponse).hhVacancyId).toBeNull();
+      expect((replaced.body as ApplicationResponse).vacancySource).toBeNull();
+      expect((replaced.body as ApplicationResponse).vacancyExternalId).toBeNull();
 
       const cleared = await ctx.api
         .patch(applicationEndpoint(created.id))
@@ -472,10 +490,11 @@ describe('Applications (e2e)', () => {
         .expect(HttpStatus.OK);
 
       expect((cleared.body as ApplicationResponse).vacancyUrl).toBeNull();
-      expect((cleared.body as ApplicationResponse).hhVacancyId).toBeNull();
+      expect((cleared.body as ApplicationResponse).vacancySource).toBeNull();
+      expect((cleared.body as ApplicationResponse).vacancyExternalId).toBeNull();
     });
 
-    it('не трогает hhVacancyId, если vacancyUrl не присылали', async () => {
+    it('не трогает источник и внешний ID, если vacancyUrl не присылали', async () => {
       const created = await seedApplication(
         ctx.api,
         buildCreatePayload({ vacancyUrl: 'https://hh.ru/vacancy/11111111' }),
@@ -486,7 +505,8 @@ describe('Applications (e2e)', () => {
         .expect(HttpStatus.OK);
       const body = response.body as ApplicationResponse;
 
-      expect(body.hhVacancyId).toBe('11111111');
+      expect(body.vacancySource).toBe('HH');
+      expect(body.vacancyExternalId).toBe('11111111');
     });
 
     it('отдаёт 404 для несуществующего id', async () => {

@@ -1,6 +1,11 @@
 import type { Application } from '../application.entity';
 import type { ApplicationResponse } from '../applications.interfaces';
-import type { ApplicationResult, ApplicationStatus, SyncOutcome } from '../applications.type';
+import type {
+  ApplicationResult,
+  ApplicationStatus,
+  SyncOutcome,
+  VacancySource,
+} from '../applications.type';
 
 function toIsoOrNull(value: Date | null): string | null {
   if (value === null) {
@@ -30,9 +35,9 @@ export class ApplicationDto implements ApplicationResponse {
   hrInterviewAt!: string | null;
   techInterviewAt!: string | null;
   notes!: string | null;
-  hhVacancyId!: string | null;
-  hhArchived!: boolean | null;
-  hhVacancyType!: string | null;
+  vacancySource!: VacancySource | null;
+  vacancyExternalId!: string | null;
+  vacancyArchived!: boolean | null;
   lastSyncedAt!: string | null;
   lastSyncOutcome!: SyncOutcome | null;
   lastSyncError!: string | null;
@@ -54,9 +59,9 @@ export class ApplicationDto implements ApplicationResponse {
     dto.hrInterviewAt = toIsoOrNull(entity.hrInterviewAt);
     dto.techInterviewAt = toIsoOrNull(entity.techInterviewAt);
     dto.notes = entity.notes;
-    dto.hhVacancyId = entity.hhVacancyId;
-    dto.hhArchived = entity.hhArchived;
-    dto.hhVacancyType = entity.hhVacancyType;
+    dto.vacancySource = entity.vacancySource;
+    dto.vacancyExternalId = entity.vacancyExternalId;
+    dto.vacancyArchived = entity.vacancyArchived;
     dto.lastSyncedAt = toIsoOrNull(entity.lastSyncedAt);
     dto.lastSyncOutcome = entity.lastSyncOutcome;
     dto.lastSyncError = entity.lastSyncError;

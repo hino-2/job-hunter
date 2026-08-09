@@ -10,6 +10,7 @@ import type {
   STATUS_FILTER,
   SYNC_OUTCOME,
   URL_TEXT_FIELDS,
+  VACANCY_SOURCE,
 } from '../constants/application.constants';
 
 /** §3.2 */
@@ -20,6 +21,9 @@ export type ApplicationResult = (typeof APPLICATION_RESULT)[keyof typeof APPLICA
 
 /** §4.5 */
 export type SyncOutcome = (typeof SYNC_OUTCOME)[keyof typeof SYNC_OUTCOME];
+
+/** §4.8 */
+export type VacancySource = (typeof VACANCY_SOURCE)[keyof typeof VACANCY_SOURCE];
 
 /** Значение переключателя «Все / Открытые / Закрытые» (§7.1): ALL параметром не уходит. */
 export type StatusFilter = (typeof STATUS_FILTER)[keyof typeof STATUS_FILTER];

@@ -4,6 +4,7 @@ import type {
   APPLICATION_SORT_FIELDS,
   APPLICATION_STATUS,
   SYNC_OUTCOME,
+  VACANCY_SOURCE,
 } from './applications.constants';
 import type { Application } from './application.entity';
 import type {
@@ -21,6 +22,9 @@ export type ApplicationResult = (typeof APPLICATION_RESULT)[keyof typeof APPLICA
 /** §4.5 */
 export type SyncOutcome = (typeof SYNC_OUTCOME)[keyof typeof SYNC_OUTCOME];
 
+/** §4.8 */
+export type VacancySource = (typeof VACANCY_SOURCE)[keyof typeof VACANCY_SOURCE];
+
 export type ApplicationSortField = (typeof APPLICATION_SORT_FIELDS)[number];
 
 export type ApplicationOrder = (typeof APPLICATION_ORDERS)[number];
@@ -32,8 +36,8 @@ export type ApplicationCreatePayload = ApplicationWritableFields & ApplicationDe
  * Патч для частичного обновления: присутствие ключа означает «поле надо записать»,
  * его отсутствие — «поле не трогать». Значение null пишется в колонку как null.
  *
- * Включает и вычисляемые поля: hhVacancyId попадает в патч не из тела запроса,
- * а вместе с изменением vacancyUrl (§4.2).
+ * Включает и вычисляемые поля: vacancySource/vacancyExternalId попадают в патч
+ * не из тела запроса, а вместе с изменением vacancyUrl (§4.2).
  */
 export type ApplicationPatch = Partial<ApplicationCreatePayload>;
 

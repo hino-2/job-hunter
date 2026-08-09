@@ -15,18 +15,23 @@ import {
   COMPANY_MAX_LENGTH,
   DEFAULT_APPLICATION_RESULT,
   DEFAULT_APPLICATION_STATUS,
-  HH_VACANCY_ID_COLUMN_LENGTH,
-  HH_VACANCY_TYPE_COLUMN_LENGTH,
   POSITION_MAX_LENGTH,
   RESULT_COLUMN_LENGTH,
   STATUS_COLUMN_LENGTH,
   SYNC_OUTCOME_COLUMN_LENGTH,
+  VACANCY_EXTERNAL_ID_COLUMN_LENGTH,
+  VACANCY_SOURCE_COLUMN_LENGTH,
 } from './applications.constants';
 import type {
   ApplicationDerivedFields,
   ApplicationWritableFields,
 } from './applications.interfaces';
-import type { ApplicationResult, ApplicationStatus, SyncOutcome } from './applications.type';
+import type {
+  ApplicationResult,
+  ApplicationStatus,
+  SyncOutcome,
+  VacancySource,
+} from './applications.type';
 
 /**
  * Таблица applications (§3.1). Схема создаётся миграциями, synchronize выключен —
@@ -104,23 +109,22 @@ export class Application implements ApplicationWritableFields, ApplicationDerive
 
   @Column({
     type: COLUMN_TYPE.VARCHAR,
-    name: APPLICATION_COLUMN.HH_VACANCY_ID,
-    length: HH_VACANCY_ID_COLUMN_LENGTH,
+    name: APPLICATION_COLUMN.VACANCY_SOURCE,
+    length: VACANCY_SOURCE_COLUMN_LENGTH,
     nullable: true,
   })
-  hhVacancyId!: string | null;
+  vacancySource!: VacancySource | null;
 
-  @Column({ type: COLUMN_TYPE.BOOLEAN, name: APPLICATION_COLUMN.HH_ARCHIVED, nullable: true })
-  hhArchived!: boolean | null;
-
-  /** Намеренно string, а не union: hh.ru может завести новое значение type.id. */
   @Column({
     type: COLUMN_TYPE.VARCHAR,
-    name: APPLICATION_COLUMN.HH_VACANCY_TYPE,
-    length: HH_VACANCY_TYPE_COLUMN_LENGTH,
+    name: APPLICATION_COLUMN.VACANCY_EXTERNAL_ID,
+    length: VACANCY_EXTERNAL_ID_COLUMN_LENGTH,
     nullable: true,
   })
-  hhVacancyType!: string | null;
+  vacancyExternalId!: string | null;
+
+  @Column({ type: COLUMN_TYPE.BOOLEAN, name: APPLICATION_COLUMN.VACANCY_ARCHIVED, nullable: true })
+  vacancyArchived!: boolean | null;
 
   @Column({
     type: COLUMN_TYPE.TIMESTAMPTZ,

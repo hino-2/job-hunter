@@ -4,6 +4,7 @@ import type {
   ApplicationStatus,
   SyncOutcome,
   SyncOutcomeCounts,
+  VacancySource,
 } from './applications.type';
 
 /**
@@ -27,13 +28,14 @@ export interface ApplicationWritableFields {
 
 /**
  * Поля, которые бэкенд вычисляет сам и которые пользователь прислать не может (§4.2):
- * hh_vacancy_id выводится из vacancy_url при каждой его записи.
+ * источник и внешний ID выводятся из vacancy_url при каждой его записи.
  *
  * Вынесены отдельно от ApplicationWritableFields, чтобы в DTO ничего подобного не
  * появилось по недосмотру: whitelist ValidationPipe отбивает такие поля в 400.
  */
 export interface ApplicationDerivedFields {
-  hhVacancyId: string | null;
+  vacancySource: VacancySource | null;
+  vacancyExternalId: string | null;
 }
 
 /**
@@ -53,9 +55,9 @@ export interface ApplicationResponse {
   hrInterviewAt: string | null;
   techInterviewAt: string | null;
   notes: string | null;
-  hhVacancyId: string | null;
-  hhArchived: boolean | null;
-  hhVacancyType: string | null;
+  vacancySource: VacancySource | null;
+  vacancyExternalId: string | null;
+  vacancyArchived: boolean | null;
   lastSyncedAt: string | null;
   lastSyncOutcome: SyncOutcome | null;
   lastSyncError: string | null;
@@ -70,8 +72,7 @@ export interface ApplicationResponse {
  */
 export interface ApplicationSyncFields {
   status: ApplicationStatus;
-  hhArchived: boolean | null;
-  hhVacancyType: string | null;
+  vacancyArchived: boolean | null;
   lastSyncedAt: Date | null;
   lastSyncOutcome: SyncOutcome;
   lastSyncError: string | null;

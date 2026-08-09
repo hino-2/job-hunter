@@ -57,5 +57,16 @@ export const EXCEPTION_FILTER_CONTEXT = 'ExceptionFilter';
 export const CLIENT_ERROR_MIN_STATUS: number = HttpStatus.BAD_REQUEST;
 export const SERVER_ERROR_MIN_STATUS: number = HttpStatus.INTERNAL_SERVER_ERROR;
 
+/**
+ * Статусы, общие для всех источников вакансий (§4.1, §4.5): интерпретация ответа
+ * axios у hh.ru и getmatch.ru построена на одном и том же наборе кодов. Тип сужен
+ * до number по той же причине, что и выше — сравнение number с членом enum
+ * запрещено правилом no-unsafe-enum-comparison.
+ */
+export const OK_STATUS: number = HttpStatus.OK;
+export const NOT_FOUND_STATUS: number = HttpStatus.NOT_FOUND;
+export const FORBIDDEN_STATUS: number = HttpStatus.FORBIDDEN;
+export const RATE_LIMITED_STATUS: number = HttpStatus.TOO_MANY_REQUESTS;
+
 /** Отправка ответа уже началась — тело §5.5 доставить невозможно, только закрыть соединение. */
 export const HEADERS_ALREADY_SENT_MESSAGE = 'Ответ уже отправляется, тело ошибки не заменить';

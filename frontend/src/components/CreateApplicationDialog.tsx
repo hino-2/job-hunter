@@ -46,10 +46,10 @@ import {
   PICKER_FIELD_SLOT_PROPS,
   PICKER_TEXT_FIELD_SLOT_PROPS,
 } from '../constants/pickers.constants';
-import { useHhPreview } from '../hooks/useHhPreview';
+import { useVacancyPreview } from '../hooks/useVacancyPreview';
 import type { CreateApplicationFormValues } from '../types/application.interfaces';
 import type { ApplicationResult } from '../types/application.type';
-import type { HhPreview } from '../types/hh.interfaces';
+import type { VacancyPreview } from '../types/vacancy.interfaces';
 import { buildCreateApplicationPayload } from '../utils/application.utils';
 import { isCommittableDate, toDayjsOrNull, toIsoOrNull } from '../utils/date.utils';
 import { isSavableUrl } from '../utils/url.utils';
@@ -93,14 +93,14 @@ export function CreateApplicationDialog({
     writeValues({ ...valuesRef.current, ...patch });
   };
 
-  const handlePreviewLoaded = (data: HhPreview, url: string) => {
+  const handlePreviewLoaded = (data: VacancyPreview, url: string) => {
     // Ответ протух: пока запрос летел, ссылку успели изменить ещё раз.
     if (url !== valuesRef.current.vacancyUrl.trim()) {
       return;
     }
 
-    // Не вакансия hh.ru — молча ничего не делаем (§4.4).
-    if (data.hhVacancyId === null) {
+    // Источник не распознан — молча ничего не делаем (§4.4).
+    if (data.source === null) {
       return;
     }
 
@@ -128,7 +128,10 @@ export function CreateApplicationDialog({
     onPreviewFailed(error);
   };
 
-  const preview = useHhPreview({ onLoaded: handlePreviewLoaded, onFailed: handlePreviewFailed });
+  const preview = useVacancyPreview({
+    onLoaded: handlePreviewLoaded,
+    onFailed: handlePreviewFailed,
+  });
 
   const handleVacancyUrlBlur = () => {
     const url = valuesRef.current.vacancyUrl.trim();

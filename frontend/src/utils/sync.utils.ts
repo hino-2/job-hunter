@@ -27,16 +27,16 @@ export function selectSyncProblemItems(summary: SyncSummary): SyncSummaryItem[] 
 }
 
 /**
- * «Проверено 12 · закрыто 1 · ошибок 0 · не hh.ru 2» (§7.7). NOT_FOUND отдельной цифрой
- * не выводится намеренно: sync-open обрабатывает только OPEN, а NOT_FOUND по §4.3 всегда
- * закрывает запись — эти записи уже посчитаны в «закрыто».
+ * «Проверено 12 · закрыто 1 · ошибок 0 · без источника 2» (§7.7). NOT_FOUND отдельной
+ * цифрой не выводится намеренно: sync-open обрабатывает только OPEN, а NOT_FOUND по §4.3
+ * всегда закрывает запись — эти записи уже посчитаны в «закрыто».
  */
 export function formatSyncSummaryText(summary: SyncSummary): string {
   const parts = [
     `${SYNC_SUMMARY_CHECKED_LABEL}${SYNC_SUMMARY_VALUE_SEPARATOR}${summary.total}`,
     `${SYNC_SUMMARY_CLOSED_LABEL}${SYNC_SUMMARY_VALUE_SEPARATOR}${summary.closed}`,
     `${SYNC_SUMMARY_ERRORS_LABEL}${SYNC_SUMMARY_VALUE_SEPARATOR}${countSyncErrors(summary)}`,
-    `${SYNC_SUMMARY_SKIPPED_LABEL}${SYNC_SUMMARY_VALUE_SEPARATOR}${summary.counts.SKIPPED_NOT_HH}`,
+    `${SYNC_SUMMARY_SKIPPED_LABEL}${SYNC_SUMMARY_VALUE_SEPARATOR}${summary.counts.SKIPPED_UNSUPPORTED}`,
   ];
 
   return parts.join(SYNC_SUMMARY_SEPARATOR);

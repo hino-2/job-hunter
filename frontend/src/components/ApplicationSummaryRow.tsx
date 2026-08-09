@@ -133,6 +133,7 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
           outcome={application.lastSyncOutcome}
           lastSyncedAt={application.lastSyncedAt}
           lastSyncError={application.lastSyncError}
+          source={application.vacancySource}
         />
       </Box>
 

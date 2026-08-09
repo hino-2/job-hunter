@@ -12,7 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { HhSyncService } from '../hh/hh-sync.service';
+import { VacancySyncService } from '../vacancies/vacancy-sync.service';
 import {
   APPLICATION_BY_ID_ROUTE,
   APPLICATION_ID_PARAM,
@@ -38,7 +38,7 @@ import { UpdateApplicationDto } from './dto/update-application.dto';
 export class ApplicationsController {
   constructor(
     private readonly applicationsService: ApplicationsService,
-    private readonly hhSyncService: HhSyncService,
+    private readonly vacancySyncService: VacancySyncService,
   ) {}
 
   @Get()
@@ -63,7 +63,7 @@ export class ApplicationsController {
   @Post(APPLICATIONS_SYNC_OPEN_ROUTE)
   @HttpCode(HttpStatus.OK)
   async syncOpen(): Promise<SyncSummaryDto> {
-    const summary = await this.hhSyncService.syncOpen();
+    const summary = await this.vacancySyncService.syncOpen();
 
     return SyncSummaryDto.fromSummary(summary);
   }
@@ -71,14 +71,15 @@ export class ApplicationsController {
   /**
    * POST /api/applications/:id/sync (§5.2) — синхронизация одной записи.
    *
-   * В отличие от HhController, неуспешный исход в HTTP-ошибку здесь НЕ отображается:
-   * §5.2 требует отдавать любой outcome (включая ERROR и RATE_LIMITED) с кодом 200 —
-   * это результат операции, а не сбой запроса. 404 бывает ровно один: записи нет в БД.
+   * В отличие от VacanciesController, неуспешный исход в HTTP-ошибку здесь НЕ
+   * отображается: §5.2 требует отдавать любой outcome (включая ERROR и RATE_LIMITED)
+   * с кодом 200 — это результат операции, а не сбой запроса. 404 бывает ровно один:
+   * записи нет в БД.
    */
   @Post(APPLICATION_SYNC_ROUTE)
   @HttpCode(HttpStatus.OK)
   async syncOne(@Param(APPLICATION_ID_PARAM, ParseUUIDPipe) id: string): Promise<SyncResultDto> {
-    const result = await this.hhSyncService.syncById(id);
+    const result = await this.vacancySyncService.syncById(id);
 
     return SyncResultDto.fromResult(result);
   }

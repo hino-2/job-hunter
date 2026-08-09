@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { SelectQueryBuilder } from 'typeorm';
 
-import { parseHhVacancyId } from '../hh/hh-url.parser';
+import { VacancyProviderRegistry } from '../vacancies/vacancy-provider.registry';
 import { Application } from './application.entity';
 import {
   APPLICATION_NOT_FOUND_MESSAGE,
@@ -24,6 +24,7 @@ import {
   LIKE_ESCAPE_REPLACEMENT,
   LIKE_WILDCARD,
 } from './applications.constants';
+import type { ApplicationDerivedFields } from './applications.interfaces';
 import type { ApplicationCreatePayload, ApplicationPatch } from './applications.type';
 import type { CreateApplicationDto } from './dto/create-application.dto';
 import type { FindApplicationsQueryDto } from './dto/find-applications.query.dto';
@@ -57,10 +58,10 @@ function buildSearchPattern(term: string): string {
 
 /**
  * CRUD над applications. Возвращает сущности, а не DTO: в маппинг их превращает
- * контроллер, а сервис в шаге 6 переиспользует hh-sync.service.
+ * контроллер, а сервис переиспользует правила синхронизации (vacancy-sync.service.ts).
  *
- * Repository и Application импортируются как значения — этого требует
- * emitDecoratorMetadata для DI (§2.4 п.4).
+ * Repository, Application и VacancyProviderRegistry импортируются как значения —
+ * этого требует emitDecoratorMetadata для DI (§2.4 п.4).
  */
 @Injectable()
 export class ApplicationsService {
@@ -69,7 +70,24 @@ export class ApplicationsService {
   constructor(
     @InjectRepository(Application)
     private readonly applications: Repository<Application>,
+    private readonly registry: VacancyProviderRegistry,
   ) {}
+
+  /**
+   * §4.2: источник и внешний ID вычисляются вместе, при каждой записи vacancy_url,
+   * перебором всех провайдеров через реестр (единственная точка диспетчеризации,
+   * §3 блюпринта — вторая «чистая» точка разбора URL рядом с реестром гарантированно
+   * разошлась бы с ним).
+   */
+  private resolveVacancyRef(vacancyUrl: string | null | undefined): ApplicationDerivedFields {
+    const resolution = this.registry.resolveByUrl(vacancyUrl);
+
+    if (resolution === null) {
+      return { vacancySource: null, vacancyExternalId: null };
+    }
+
+    return { vacancySource: resolution.ref.source, vacancyExternalId: resolution.ref.externalId };
+  }
 
   findAll(query: FindApplicationsQueryDto): Promise<Application[]> {
     return this.buildFindQuery(query).getMany();
@@ -91,7 +109,7 @@ export class ApplicationsService {
 
     this.logger.log(`Создана запись ${saved.id} (${saved.company})`);
 
-    // Перечитываем: колонки, которые мы не писали (hh_*, last_sync_*), иначе
+    // Перечитываем: колонки, которые мы не писали (last_sync_*), иначе
     // остались бы undefined в объекте, хотя в БД они null.
     return this.findOneOrFail(saved.id);
   }
@@ -158,7 +176,7 @@ export class ApplicationsService {
       company: dto.company,
       position: dto.position ?? null,
       vacancyUrl: dto.vacancyUrl ?? null,
-      hhVacancyId: parseHhVacancyId(dto.vacancyUrl),
+      ...this.resolveVacancyRef(dto.vacancyUrl),
       resumeUrl: dto.resumeUrl ?? null,
       interviewUrl: dto.interviewUrl ?? null,
       status: dto.status ?? DEFAULT_APPLICATION_STATUS,
@@ -186,11 +204,11 @@ export class ApplicationsService {
       patch.position = dto.position;
     }
 
-    // §4.2: hh_vacancy_id пересчитывается при КАЖДОЙ записи vacancy_url, в том числе
-    // при его очистке (null → null) и при замене hh-ссылки на постороннюю.
+    // §4.2: источник и внешний ID пересчитываются при КАЖДОЙ записи vacancy_url,
+    // в том числе при его очистке (null → null) и при замене ссылки на постороннюю.
     if (dto.vacancyUrl !== undefined) {
       patch.vacancyUrl = dto.vacancyUrl;
-      patch.hhVacancyId = parseHhVacancyId(dto.vacancyUrl);
+      Object.assign(patch, this.resolveVacancyRef(dto.vacancyUrl));
     }
 
     if (dto.resumeUrl !== undefined) {

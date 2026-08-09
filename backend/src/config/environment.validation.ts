@@ -13,20 +13,24 @@ import {
 import {
   DEFAULT_API_PORT,
   DEFAULT_DATABASE_PORT,
+  DEFAULT_GETMATCH_MAX_RETRIES,
+  DEFAULT_GETMATCH_REQUEST_TIMEOUT_MS,
+  DEFAULT_GETMATCH_SITE_BASE_URL,
+  DEFAULT_GETMATCH_USER_AGENT,
   DEFAULT_HH_MAX_RETRIES,
   DEFAULT_HH_REQUEST_TIMEOUT_MS,
   DEFAULT_HH_SITE_BASE_URL,
-  DEFAULT_HH_SYNC_CONCURRENCY,
-  DEFAULT_HH_SYNC_MIN_DELAY_MS,
   DEFAULT_LOG_LEVEL,
   DEFAULT_NODE_ENV,
-  HH_MAX_RETRIES_MAX,
-  HH_REQUEST_TIMEOUT_MAX_MS,
-  HH_REQUEST_TIMEOUT_MIN_MS,
-  HH_SYNC_CONCURRENCY_MAX,
-  HH_SYNC_MIN_DELAY_MAX_MS,
+  DEFAULT_SYNC_CONCURRENCY,
+  DEFAULT_SYNC_MIN_DELAY_MS,
   LOG_LEVELS,
+  MAX_RETRIES_MAX,
   NODE_ENVS,
+  REQUEST_TIMEOUT_MAX_MS,
+  REQUEST_TIMEOUT_MIN_MS,
+  SYNC_CONCURRENCY_MAX,
+  SYNC_MIN_DELAY_MAX_MS,
   TCP_PORT_MAX,
   TCP_PORT_MIN,
 } from './config.constants';
@@ -90,30 +94,59 @@ export class EnvironmentVariables {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(HH_REQUEST_TIMEOUT_MIN_MS)
-  @Max(HH_REQUEST_TIMEOUT_MAX_MS)
+  @Min(REQUEST_TIMEOUT_MIN_MS)
+  @Max(REQUEST_TIMEOUT_MAX_MS)
   HH_REQUEST_TIMEOUT_MS: number = DEFAULT_HH_REQUEST_TIMEOUT_MS;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  @Max(HH_MAX_RETRIES_MAX)
+  @Max(MAX_RETRIES_MAX)
   HH_MAX_RETRIES: number = DEFAULT_HH_MAX_RETRIES;
+
+  /**
+   * §4.9: в отличие от HH_USER_AGENT (обязателен) — все четыре ключа getmatch
+   * опциональны с безопасными дефолтами, разведка не обнаружила у getmatch.ru
+   * требований к конкретному User-Agent.
+   */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  GETMATCH_SITE_BASE_URL: string = DEFAULT_GETMATCH_SITE_BASE_URL;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  GETMATCH_USER_AGENT: string = DEFAULT_GETMATCH_USER_AGENT;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1)
-  @Max(HH_SYNC_CONCURRENCY_MAX)
-  HH_SYNC_CONCURRENCY: number = DEFAULT_HH_SYNC_CONCURRENCY;
+  @Min(REQUEST_TIMEOUT_MIN_MS)
+  @Max(REQUEST_TIMEOUT_MAX_MS)
+  GETMATCH_REQUEST_TIMEOUT_MS: number = DEFAULT_GETMATCH_REQUEST_TIMEOUT_MS;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  @Max(HH_SYNC_MIN_DELAY_MAX_MS)
-  HH_SYNC_MIN_DELAY_MS: number = DEFAULT_HH_SYNC_MIN_DELAY_MS;
+  @Max(MAX_RETRIES_MAX)
+  GETMATCH_MAX_RETRIES: number = DEFAULT_GETMATCH_MAX_RETRIES;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(SYNC_CONCURRENCY_MAX)
+  SYNC_CONCURRENCY: number = DEFAULT_SYNC_CONCURRENCY;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(SYNC_MIN_DELAY_MAX_MS)
+  SYNC_MIN_DELAY_MS: number = DEFAULT_SYNC_MIN_DELAY_MS;
 
   @IsOptional()
   @Type(() => Number)

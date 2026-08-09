@@ -15,12 +15,12 @@ export const SYNC_ALL_ERROR_FALLBACK_MESSAGE = 'Не удалось обнови
 
 /**
  * §7.6. Умышленно НЕ совпадает с SYNC_OUTCOME_ICON_COLORS (application.constants.ts):
- * там NOT_FOUND/SKIPPED_NOT_HH окрашены как warning, а здесь это info-исходы.
+ * там NOT_FOUND/SKIPPED_UNSUPPORTED окрашены как warning, а здесь это info-исходы.
  */
 export const SYNC_OUTCOME_NOTIFICATION_SEVERITY: Record<SyncOutcome, NotificationSeverity> = {
   OK: NOTIFICATION_SEVERITY.SUCCESS,
   NOT_FOUND: NOTIFICATION_SEVERITY.INFO,
-  SKIPPED_NOT_HH: NOTIFICATION_SEVERITY.INFO,
+  SKIPPED_UNSUPPORTED: NOTIFICATION_SEVERITY.INFO,
   RATE_LIMITED: NOTIFICATION_SEVERITY.ERROR,
   ERROR: NOTIFICATION_SEVERITY.ERROR,
 };
@@ -33,7 +33,7 @@ export const SYNC_SUMMARY_VALUE_SEPARATOR = ' ';
 export const SYNC_SUMMARY_CHECKED_LABEL = 'Проверено';
 export const SYNC_SUMMARY_CLOSED_LABEL = 'закрыто';
 export const SYNC_SUMMARY_ERRORS_LABEL = 'ошибок';
-export const SYNC_SUMMARY_SKIPPED_LABEL = 'не hh.ru';
+export const SYNC_SUMMARY_SKIPPED_LABEL = 'без источника';
 export const SYNC_SUMMARY_SHOW_PROBLEMS_LABEL = 'Проблемные записи';
 export const SYNC_SUMMARY_HIDE_PROBLEMS_LABEL = 'Скрыть';
 export const SYNC_SUMMARY_DISMISS_LABEL = 'Скрыть сводку';

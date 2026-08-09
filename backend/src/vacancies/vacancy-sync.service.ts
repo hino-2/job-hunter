@@ -20,38 +20,42 @@ import type {
   SyncOutcomeCounts,
 } from '../applications/applications.type';
 import { mapWithConcurrency } from '../common/async.helpers';
-import { HhApiService } from './hh-api.service';
+import { VacancyProviderRegistry } from './vacancy-provider.registry';
 import {
-  HH_SKIPPED_NOT_HH_MESSAGE,
-  HH_SYNC_CONCURRENCY_ENV_KEY,
-  HH_SYNC_FINISHED_MESSAGE,
-  HH_SYNC_MIN_DELAY_MS_ENV_KEY,
-  HH_SYNC_STARTED_MESSAGE,
-  HH_SYNC_UNEXPECTED_ERROR_MESSAGE,
-} from './hh.constants';
-import type { HhSyncDecision } from './hh.interfaces';
-import type { HhFetchResult } from './hh.type';
+  SYNC_CONCURRENCY_ENV_KEY,
+  SYNC_FINISHED_MESSAGE,
+  SYNC_MIN_DELAY_MS_ENV_KEY,
+  SYNC_STARTED_MESSAGE,
+  SYNC_UNEXPECTED_ERROR_MESSAGE,
+  VACANCY_SKIPPED_UNSUPPORTED_MESSAGE,
+  VACANCY_UNKNOWN_SOURCE_MESSAGE,
+} from './vacancies.constants';
+import type { VacancySyncDecision } from './vacancies.interfaces';
+import type { VacancyFetchResult } from './vacancies.type';
 
 /** Нули по всем пяти исходам §4.5: сводка обязана содержать каждый ключ, даже пустой. */
 function createEmptyCounts(): SyncOutcomeCounts {
   return {
     [SYNC_OUTCOME.OK]: 0,
     [SYNC_OUTCOME.NOT_FOUND]: 0,
-    [SYNC_OUTCOME.SKIPPED_NOT_HH]: 0,
+    [SYNC_OUTCOME.SKIPPED_UNSUPPORTED]: 0,
     [SYNC_OUTCOME.RATE_LIMITED]: 0,
     [SYNC_OUTCOME.ERROR]: 0,
   };
 }
 
-/** В vacancy_url нет hh-идентификатора: запрос не делаем, доменные поля не трогаем (§4.5). */
-function buildSkippedDecision(): HhSyncDecision {
+/**
+ * У записи нет источника/внешнего ID, либо источник неизвестен этой версии кода:
+ * запрос не делаем, доменные поля не трогаем (§4.5).
+ */
+function buildSkippedDecision(message: string): VacancySyncDecision {
   return {
     patch: {
-      lastSyncOutcome: SYNC_OUTCOME.SKIPPED_NOT_HH,
-      lastSyncError: HH_SKIPPED_NOT_HH_MESSAGE,
+      lastSyncOutcome: SYNC_OUTCOME.SKIPPED_UNSUPPORTED,
+      lastSyncError: message,
     },
-    outcome: SYNC_OUTCOME.SKIPPED_NOT_HH,
-    message: HH_SKIPPED_NOT_HH_MESSAGE,
+    outcome: SYNC_OUTCOME.SKIPPED_UNSUPPORTED,
+    message,
   };
 }
 
@@ -60,18 +64,14 @@ function buildSkippedDecision(): HhSyncDecision {
  *
  * Ключевые инварианты: company, position и result не участвуют вовсе; при живой
  * вакансии status не трогается (вручную закрытая запись не открывается заново);
- * last_synced_at обновляется только когда ответ от hh.ru реально получен (OK и 404),
- * а при RATE_LIMITED/ERROR остаётся временем последней успешной синхронизации.
+ * last_synced_at обновляется только когда ответ от источника реально получен (OK и
+ * NOT_FOUND), а при RATE_LIMITED/ERROR остаётся временем последней успешной синхронизации.
  */
-function buildFetchedDecision(fetched: HhFetchResult): HhSyncDecision {
+function buildFetchedDecision(fetched: VacancyFetchResult): VacancySyncDecision {
   if (fetched.outcome === SYNC_OUTCOME.OK) {
     const { vacancy } = fetched;
     const patch: ApplicationSyncPatch = {
-      hhArchived: vacancy.archived,
-      // §4.1: страница вакансии не содержит type.id (его отдавал только JSON API).
-      // null пишется явно, а не пропуском ключа: пропуск законсервировал бы в колонке
-      // значение, оставшееся от старого API.
-      hhVacancyType: null,
+      vacancyArchived: vacancy.archived,
       lastSyncedAt: new Date(),
       lastSyncOutcome: SYNC_OUTCOME.OK,
       lastSyncError: null,
@@ -87,8 +87,8 @@ function buildFetchedDecision(fetched: HhFetchResult): HhSyncDecision {
   }
 
   if (fetched.outcome === SYNC_OUTCOME.NOT_FOUND) {
-    // §4.3: вакансию сняли или удалили — штатный исход. hh_archived и hh_vacancy_type
-    // не трогаем: данных о вакансии hh.ru нам не отдал.
+    // §4.3: вакансию сняли или удалили — штатный исход. vacancy_archived не трогаем:
+    // данных о вакансии источник нам не отдал.
     return {
       patch: {
         status: APPLICATION_STATUS.CLOSED,
@@ -142,8 +142,7 @@ function describeErrorReason(error: unknown): string {
 function takeSyncSnapshot(application: Application): ApplicationSyncSnapshot {
   return {
     status: application.status,
-    hhArchived: application.hhArchived,
-    hhVacancyType: application.hhVacancyType,
+    vacancyArchived: application.vacancyArchived,
     lastSyncedAt: application.lastSyncedAt,
     lastSyncOutcome: application.lastSyncOutcome,
     lastSyncError: application.lastSyncError,
@@ -151,31 +150,35 @@ function takeSyncSnapshot(application: Application): ApplicationSyncSnapshot {
 }
 
 /**
- * Применение результатов hh.ru к записям (§4.3) и массовый прогон по §4.6.
- * Единственное место, где вычисляются колонки last_sync_*.
+ * Применение результатов источника вакансии к записям (§4.3) и массовый прогон
+ * по §4.6. Единственное место, где вычисляются колонки last_sync_*.
  *
- * Репозиторием сервис владеет сам, а не ходит в ApplicationsService: иначе HhModule
- * пришлось бы импортировать ApplicationsModule, который сам импортирует HhModule ради
- * этого сервиса, — то есть цикл модулей и forwardRef. Цена — дублирование findOneBy
- * с NotFoundException; она принята сознательно.
+ * Переезд hh/hh-sync.service.ts (шаг B2): диспетчеризация по source теперь идёт
+ * через VacancyProviderRegistry, а не напрямую через HhApiService.
  *
- * Repository, Application, HhApiService и ConfigService импортируются как значения:
- * этого требует emitDecoratorMetadata для DI (§2.4 п.4).
+ * Репозиторием сервис владеет сам, а не ходит в ApplicationsService: иначе
+ * VacanciesModule пришлось бы импортировать ApplicationsModule, который сам
+ * импортирует VacanciesModule ради этого сервиса, — то есть цикл модулей и
+ * forwardRef. Цена — дублирование findOneBy с NotFoundException; она принята
+ * сознательно (наследуется от прежнего решения для hh-sync.service.ts).
+ *
+ * Repository, Application и ConfigService импортируются как значения: этого
+ * требует emitDecoratorMetadata для DI (§2.4 п.4).
  */
 @Injectable()
-export class HhSyncService {
-  private readonly logger = new Logger(HhSyncService.name);
+export class VacancySyncService {
+  private readonly logger = new Logger(VacancySyncService.name);
   private readonly concurrency: number;
   private readonly minStartDelayMs: number;
 
   constructor(
     @InjectRepository(Application)
     private readonly applications: Repository<Application>,
-    private readonly hhApiService: HhApiService,
+    private readonly registry: VacancyProviderRegistry,
     configService: ConfigService,
   ) {
-    this.concurrency = configService.getOrThrow<number>(HH_SYNC_CONCURRENCY_ENV_KEY);
-    this.minStartDelayMs = configService.getOrThrow<number>(HH_SYNC_MIN_DELAY_MS_ENV_KEY);
+    this.concurrency = configService.getOrThrow<number>(SYNC_CONCURRENCY_ENV_KEY);
+    this.minStartDelayMs = configService.getOrThrow<number>(SYNC_MIN_DELAY_MS_ENV_KEY);
   }
 
   /** §5.2 POST /api/applications/:id/sync. Единственное исключение наружу — 404 «нет записи». */
@@ -203,7 +206,7 @@ export class HhSyncService {
       return summarize([]);
     }
 
-    this.logger.log(`${HH_SYNC_STARTED_MESSAGE}: ${applications.length}`);
+    this.logger.log(`${SYNC_STARTED_MESSAGE}: ${applications.length}`);
 
     const results = await mapWithConcurrency(
       applications,
@@ -213,7 +216,7 @@ export class HhSyncService {
     const summary = summarize(results);
 
     this.logger.log(
-      `${HH_SYNC_FINISHED_MESSAGE}: обработано ${summary.total},` +
+      `${SYNC_FINISHED_MESSAGE}: обработано ${summary.total},` +
         ` закрыто ${summary.closed}, исходы ${describeCounts(summary.counts)}`,
     );
 
@@ -238,13 +241,13 @@ export class HhSyncService {
     } catch (error) {
       this.logger.warn(
         `Запись ${application.id} (${application.company}):` +
-          ` ${HH_SYNC_UNEXPECTED_ERROR_MESSAGE} — ${describeErrorReason(error)}`,
+          ` ${SYNC_UNEXPECTED_ERROR_MESSAGE} — ${describeErrorReason(error)}`,
       );
 
       return {
         application,
         outcome: SYNC_OUTCOME.ERROR,
-        message: HH_SYNC_UNEXPECTED_ERROR_MESSAGE,
+        message: SYNC_UNEXPECTED_ERROR_MESSAGE,
         closed: false,
       };
     }
@@ -272,7 +275,7 @@ export class HhSyncService {
 
     const closed = wasOpen && application.status === APPLICATION_STATUS.CLOSED;
 
-    // Логируем только сбои: OK, NOT_FOUND и SKIPPED_NOT_HH — штатные исходы (§4.5).
+    // Логируем только сбои: OK, NOT_FOUND и SKIPPED_UNSUPPORTED — штатные исходы (§4.5).
     // RATE_LIMITED и ERROR всегда приходят с текстом, но проверка на null нужна ещё и
     // затем, чтобы сузить тип message для шаблона.
     if (
@@ -288,13 +291,19 @@ export class HhSyncService {
     return { application, outcome: decision.outcome, message: decision.message, closed };
   }
 
-  private async decide(application: Application): Promise<HhSyncDecision> {
-    const vacancyId = application.hhVacancyId;
+  private async decide(application: Application): Promise<VacancySyncDecision> {
+    const { vacancySource, vacancyExternalId } = application;
 
-    if (vacancyId === null) {
-      return buildSkippedDecision();
+    if (vacancySource === null || vacancyExternalId === null) {
+      return buildSkippedDecision(VACANCY_SKIPPED_UNSUPPORTED_MESSAGE);
     }
 
-    return buildFetchedDecision(await this.hhApiService.fetchVacancy(vacancyId));
+    const provider = this.registry.find(vacancySource);
+
+    if (provider === null) {
+      return buildSkippedDecision(VACANCY_UNKNOWN_SOURCE_MESSAGE);
+    }
+
+    return buildFetchedDecision(await provider.fetchVacancy(vacancyExternalId));
   }
 }

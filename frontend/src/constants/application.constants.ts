@@ -1,5 +1,5 @@
 /**
- * Доменные константы записи: ручная копия §3.2 / §3.3 / §4.5 из
+ * Доменные константы записи: ручная копия §3.2 / §3.3 / §4.5 / §4.8 из
  * backend/src/applications/applications.constants.ts плюс ru-подписи и карты оформления.
  *
  * Shared-пакет заводить нельзя (§3.4) — enum-ы дублируются вручную. Порядок ключей
@@ -27,6 +27,7 @@ import type {
   StatusFilter,
   SyncIconColor,
   SyncOutcome,
+  VacancySource,
 } from '../types/application.type';
 import type {
   Application,
@@ -55,9 +56,15 @@ export const APPLICATION_RESULT = {
 export const SYNC_OUTCOME = {
   OK: 'OK',
   NOT_FOUND: 'NOT_FOUND',
-  SKIPPED_NOT_HH: 'SKIPPED_NOT_HH',
+  SKIPPED_UNSUPPORTED: 'SKIPPED_UNSUPPORTED',
   RATE_LIMITED: 'RATE_LIMITED',
   ERROR: 'ERROR',
+} as const;
+
+/** §4.8 */
+export const VACANCY_SOURCE = {
+  HH: 'HH',
+  GETMATCH: 'GETMATCH',
 } as const;
 
 /** Порядок пунктов Select'а «Статус» (§7.2.2, ряд 1). */
@@ -203,10 +210,19 @@ export const APPLICATION_RESULT_LABELS: Record<ApplicationResult, string> = {
 export const SYNC_OUTCOME_LABELS: Record<SyncOutcome, string> = {
   OK: 'Обновлено',
   NOT_FOUND: 'Вакансия не найдена (снята)',
-  SKIPPED_NOT_HH: 'Не вакансия hh.ru',
-  RATE_LIMITED: 'Лимит запросов hh.ru',
+  SKIPPED_UNSUPPORTED: 'Источник не поддерживается',
+  RATE_LIMITED: 'Лимит запросов источника',
   ERROR: 'Ошибка обновления',
 };
+
+/** Подписи §4.8: источник вакансии, показывается третьей строкой tooltip'а SyncStatusIcon. */
+export const VACANCY_SOURCE_LABELS: Record<VacancySource, string> = {
+  HH: 'hh.ru',
+  GETMATCH: 'getmatch.ru',
+};
+
+export const VACANCY_SOURCE_UNKNOWN_LABEL = 'Источник не определён';
+export const SYNC_SOURCE_TOOLTIP_PREFIX = 'Источник: ';
 
 /** §7.2.3 */
 export const APPLICATION_RESULT_CHIP_COLORS: Record<ApplicationResult, ResultChipColor> = {
@@ -226,7 +242,7 @@ export const APPLICATION_RESULT_CHIP_COLORS: Record<ApplicationResult, ResultChi
 export const SYNC_OUTCOME_ICON_COLORS: Record<SyncOutcome, SyncIconColor> = {
   OK: 'success',
   NOT_FOUND: 'warning',
-  SKIPPED_NOT_HH: 'warning',
+  SKIPPED_UNSUPPORTED: 'warning',
   RATE_LIMITED: 'error',
   ERROR: 'error',
 };
@@ -234,7 +250,7 @@ export const SYNC_OUTCOME_ICON_COLORS: Record<SyncOutcome, SyncIconColor> = {
 export const SYNC_OUTCOME_ICONS: Record<SyncOutcome, IconComponent> = {
   OK: CheckCircleOutlinedIcon,
   NOT_FOUND: WarningAmberOutlinedIcon,
-  SKIPPED_NOT_HH: WarningAmberOutlinedIcon,
+  SKIPPED_UNSUPPORTED: WarningAmberOutlinedIcon,
   RATE_LIMITED: ErrorOutlinedIcon,
   ERROR: ErrorOutlinedIcon,
 };
@@ -321,4 +337,4 @@ export const CREATE_SUCCESS_MESSAGE = 'Вакансия добавлена';
 export const CREATE_ERROR_FALLBACK_MESSAGE = 'Не удалось добавить запись';
 export const DELETE_SUCCESS_MESSAGE = 'Запись удалена';
 export const DELETE_ERROR_FALLBACK_MESSAGE = 'Не удалось удалить запись';
-export const PREVIEW_ERROR_FALLBACK_MESSAGE = 'Не удалось получить данные с hh.ru';
+export const PREVIEW_ERROR_FALLBACK_MESSAGE = 'Не удалось получить данные о вакансии';

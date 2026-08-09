@@ -5,7 +5,7 @@ export const API_TIMEOUT_MS = 20_000;
 
 export const APPLICATIONS_ENDPOINT = '/applications';
 
-export const HH_PREVIEW_ENDPOINT = '/hh/preview';
+export const VACANCY_PREVIEW_ENDPOINT = '/vacancies/preview';
 
 /** Разделитель сегментов пути: путь к одной записи — `${APPLICATIONS_ENDPOINT}/${id}`. */
 export const API_PATH_SEPARATOR = '/';
@@ -16,7 +16,7 @@ export const API_PATH_SEPARATOR = '/';
  */
 export const API_ERROR_MESSAGE_SEPARATOR = ', ';
 
-/** §5.3: нераспознанная ссылка hh.ru — штатный исход, а не сбой (extractApiErrorStatus). */
+/** §5.3: нераспознанная ссылка — штатный исход, а не сбой (extractApiErrorStatus). */
 export const HTTP_STATUS_NOT_FOUND = 404;
 
 export const SYNC_PATH_SEGMENT = 'sync';
@@ -24,8 +24,9 @@ export const SYNC_OPEN_PATH_SEGMENT = 'sync-open';
 
 /**
  * Худший случай одной записи на бэкенде: 3 попытки × 10 000 мс + backoff 500/1500 мс ≈ 32 с
- * (backend/src/config/config.constants.ts, backend/src/hh/hh.constants.ts), то есть дефолтный
- * API_TIMEOUT_MS (20 000) оборвал бы штатный запрос.
+ * (backend/src/config/config.constants.ts, backend/src/vacancies/vacancies.constants.ts), то
+ * есть дефолтный API_TIMEOUT_MS (20 000) оборвал бы штатный запрос. Одинаково для обоих
+ * источников — общие дефолты ретраев.
  */
 export const SYNC_REQUEST_TIMEOUT_MS = 45_000;
 
