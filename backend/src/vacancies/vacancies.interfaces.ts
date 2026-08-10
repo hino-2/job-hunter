@@ -1,5 +1,9 @@
 import type { SYNC_OUTCOME } from '../applications/applications.constants';
-import type { ApplicationSyncPatch, SyncOutcome, VacancySource } from '../applications/applications.type';
+import type {
+  ApplicationSyncPatch,
+  SyncOutcome,
+  VacancySource,
+} from '../applications/applications.type';
 import type {
   VacancyFetchFailureOutcome,
   VacancyFetchOutcome,

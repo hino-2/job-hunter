@@ -42,8 +42,7 @@ export const GETMATCH_VACANCY_ID_GROUP = 1;
  * offer_description. Использовать только через matchAll — exec/test на этом
  * глобальном регексе мутируют lastIndex между вызовами.
  */
-export const GETMATCH_FLIGHT_CHUNK_PATTERN =
-  /self\.__next_f\.push\((\[[\s\S]*?\])\)\s*<\/script>/g;
+export const GETMATCH_FLIGHT_CHUNK_PATTERN = /self\.__next_f\.push\((\[[\s\S]*?\])\)\s*<\/script>/g;
 
 export const GETMATCH_FLIGHT_CHUNK_GROUP = 1;
 

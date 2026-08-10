@@ -12,6 +12,4 @@ export type GetmatchPageState = (typeof GETMATCH_PAGE_STATE)[keyof typeof GETMAT
  * просто метки исхода разбора без дополнительных данных.
  */
 export type GetmatchPageParseResult =
-  | GetmatchPageParsed
-  | GetmatchPageAbsent
-  | GetmatchPageUnparsable;
+  GetmatchPageParsed | GetmatchPageAbsent | GetmatchPageUnparsable;
