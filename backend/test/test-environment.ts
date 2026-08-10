@@ -20,6 +20,7 @@ import {
   TEST_GETMATCH_USER_AGENT,
   TEST_HH_USER_AGENT,
   TEST_NODE_ENV,
+  TEST_SCHEDULED_SYNC_ENABLED,
   TEST_SYNC_CONCURRENCY,
   TEST_SYNC_MIN_DELAY_MS,
 } from './test.constants';
@@ -107,6 +108,8 @@ export function applyTestEnvironment(): TestDatabaseSettings {
   // HH_SYNC_MIN_DELAY_MS вместе с обобщением синхронизации в vacancies/.
   process.env.SYNC_CONCURRENCY = String(TEST_SYNC_CONCURRENCY);
   process.env.SYNC_MIN_DELAY_MS = String(TEST_SYNC_MIN_DELAY_MS);
+  // §4.7: планировщик в e2e не нужен и опасен — см. комментарий к TEST_SCHEDULED_SYNC_ENABLED.
+  process.env.SCHEDULED_SYNC_ENABLED = TEST_SCHEDULED_SYNC_ENABLED;
   process.env[TEST_ENV_APPLIED_FLAG] = TEST_ENV_APPLIED_VALUE;
 
   return { host, port, name };

@@ -47,3 +47,24 @@ export const REQUEST_TIMEOUT_MAX_MS = 60_000;
 export const MAX_RETRIES_MAX = 10;
 export const SYNC_CONCURRENCY_MAX = 10;
 export const SYNC_MIN_DELAY_MAX_MS = 10_000;
+
+/** §4.7. Плановая синхронизация: включена, раз в 30 минут. */
+export const DEFAULT_SCHEDULED_SYNC_ENABLED = 'true';
+export const DEFAULT_SCHEDULED_SYNC_INTERVAL_MS = 1_800_000;
+
+/**
+ * Булева env-переменная приходит строкой, поэтому валидируется как перечисление:
+ * @Type(() => Boolean) превратил бы 'false' в true (Boolean('false') === true),
+ * то есть выключить планировщик стало бы невозможно.
+ */
+export const BOOLEAN_ENV_VALUES = ['true', 'false'] as const;
+export const TRUE_ENV_VALUE = 'true';
+
+/**
+ * Нижняя граница интервала — защита источников: чаще раза в минуту приложение
+ * превратилось бы в постоянную нагрузку на hh.ru/getmatch.ru. Верхняя (24 часа) —
+ * ещё и защита от опечатки: setInterval в Node принимает не более 2^31-1 мс
+ * (~24.8 суток) и молча вырождает большее значение в 1 мс.
+ */
+export const SCHEDULED_SYNC_INTERVAL_MIN_MS = 60_000;
+export const SCHEDULED_SYNC_INTERVAL_MAX_MS = 86_400_000;

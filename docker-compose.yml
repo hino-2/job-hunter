@@ -50,6 +50,8 @@ services:
       GETMATCH_MAX_RETRIES: ${GETMATCH_MAX_RETRIES:-2}
       SYNC_CONCURRENCY: ${SYNC_CONCURRENCY:-3}
       SYNC_MIN_DELAY_MS: ${SYNC_MIN_DELAY_MS:-200}
+      SCHEDULED_SYNC_ENABLED: ${SCHEDULED_SYNC_ENABLED:-true}
+      SCHEDULED_SYNC_INTERVAL_MS: ${SCHEDULED_SYNC_INTERVAL_MS:-1800000}
     # Порт наружу не публикуется: снаружи доступен только web.
     healthcheck:
       test: ['CMD-SHELL', 'wget -q -O- http://127.0.0.1:3000/api/health | grep -q ''"db":"up"''']

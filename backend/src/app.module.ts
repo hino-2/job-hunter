@@ -6,6 +6,7 @@ import { ENV_FILE_PATHS } from './config/config.constants';
 import { validateEnvironment } from './config/environment.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 import { VacanciesModule } from './vacancies/vacancies.module';
 
 @Module({
@@ -19,6 +20,7 @@ import { VacanciesModule } from './vacancies/vacancies.module';
     DatabaseModule,
     ApplicationsModule,
     HealthModule,
+    SchedulerModule,
     VacanciesModule,
   ],
 })

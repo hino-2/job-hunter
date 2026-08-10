@@ -7,7 +7,10 @@ import {
   APPLICATIONS_ROUTE,
   APPLICATIONS_TABLE,
 } from '../src/applications/applications.constants';
-import { DEFAULT_GETMATCH_MAX_RETRIES, DEFAULT_HH_MAX_RETRIES } from '../src/config/config.constants';
+import {
+  DEFAULT_GETMATCH_MAX_RETRIES,
+  DEFAULT_HH_MAX_RETRIES,
+} from '../src/config/config.constants';
 import { GETMATCH_VACANCY_PAGE_PATH } from '../src/getmatch/getmatch.constants';
 import { HH_VACANCY_PAGE_PATH } from '../src/hh/hh.constants';
 import { VACANCIES_ROUTE, VACANCY_PREVIEW_ROUTE } from '../src/vacancies/vacancies.constants';
@@ -92,8 +95,7 @@ export const EXPECTED_RESULT_VALUES_MESSAGE =
 /** Пауза перед PATCH: updated_at пишет ORM с точностью до миллисекунды. */
 export const UPDATED_AT_DELAY_MS = 25;
 
-export const VACANCY_PREVIEW_ENDPOINT =
-  `/${API_GLOBAL_PREFIX}/${VACANCIES_ROUTE}/${VACANCY_PREVIEW_ROUTE}`;
+export const VACANCY_PREVIEW_ENDPOINT = `/${API_GLOBAL_PREFIX}/${VACANCIES_ROUTE}/${VACANCY_PREVIEW_ROUTE}`;
 
 /**
  * Хост заглушек источников вакансий — только loopback, наружу они не смотрят.
@@ -132,8 +134,7 @@ export const TEST_GETMATCH_VACANCY_ID = '35683';
 
 export const TEST_GETMATCH_VACANCY_URL = `https://getmatch.ru/vacancies/${TEST_GETMATCH_VACANCY_ID}`;
 
-export const TEST_GETMATCH_VACANCY_PATH =
-  `${GETMATCH_VACANCY_PAGE_PATH}/${TEST_GETMATCH_VACANCY_ID}`;
+export const TEST_GETMATCH_VACANCY_PATH = `${GETMATCH_VACANCY_PAGE_PATH}/${TEST_GETMATCH_VACANCY_ID}`;
 
 /** Ссылка без распознаваемого источника (§4.2): ни hh.ru, ни getmatch.ru. */
 export const UNSUPPORTED_VACANCY_URL = 'https://career.habr.com/vacancies/1000123456';
@@ -151,3 +152,10 @@ export const GETMATCH_EXPECTED_ATTEMPTS = DEFAULT_GETMATCH_MAX_RETRIES + 1;
  */
 export const TEST_SYNC_CONCURRENCY = 3;
 export const TEST_SYNC_MIN_DELAY_MS = 10;
+
+/**
+ * §4.7: в e2e планировщик выключен принудительно. Прогон по расписанию ходил бы
+ * в базу, которую тесты пересоздают и чистят TRUNCATE между кейсами, и стучался бы
+ * в заглушки источников с чужими ожиданиями ответа.
+ */
+export const TEST_SCHEDULED_SYNC_ENABLED = 'false';
