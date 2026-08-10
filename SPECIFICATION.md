@@ -1610,4 +1610,23 @@ Enum'ы `SyncOutcome` (§4.5) и `VacancySource` (§4.8) объявлены в
     `lint`/`typecheck`/`test` (51 unit)/`test:e2e` (58 e2e)/`build` зелёные в обоих
     воркспейсах. **Ручной прогон в браузере не выполнялся.** _(backend + frontend)_
 
+17. ~~**Починка источника вакансии у записей с getmatch-ссылкой.**~~ ✅ **Сделано.**
+    Миграция `RepairGetmatchVacancySource` одним идемпотентным UPDATE переderive-ит
+    `vacancy_source`/`vacancy_external_id` из `vacancy_url` и откатывает последствия
+    ошибочной синхронизации в hh.ru за чужой id: `position` чистится только при
+    `last_sync_outcome = 'OK'` (только эта ветка §4.3 в него пишет), `status` возвращается
+    в `OPEN` только при `NOT_FOUND` или `OK` с `vacancy_archived`, `result` не трогается.
+    `down()` миграции `GeneralizeVacancySource` теперь обнуляет `vacancy_external_id`
+    у getmatch-строк до `DROP COLUMN`, поэтому цикл revert → up больше не склеивает
+    getmatch-шный id с источником `'HH'`. _(backend)_
+
+18. ~~**Favicon приложения.**~~ ✅ **Сделано.** `frontend/public/favicon.ico` (117 КБ,
+    исходный `job-tracker-icon.ico` из корня репозитория) и `<link rel="icon" sizes="any">`
+    в `frontend/index.html`. Каталог `public/` заведён впервые: Vite копирует его содержимое
+    в корень `dist` как есть, поэтому файл не попадает в `assets/` и не получает хеша в имени.
+    Dockerfile не менялся — он копирует `frontend/` целиком; nginx отдаёт `/favicon.ico`
+    существующим `try_files $uri` в `location /`, отдельного правила кэширования не добавлено:
+    иконка меняется вместе с приложением, а `location /assets/` с `immutable` её не накрывает.
+    Схема БД, API и код приложения не тронуты. _(frontend)_
+
 После шагов 4, 6, 8, 10, 12, 13, 14 и 15 — обязательный проход `code-reviewer`.
