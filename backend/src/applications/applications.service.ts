@@ -8,10 +8,12 @@ import { Application } from './application.entity';
 import {
   APPLICATION_NOT_FOUND_MESSAGE,
   APPLICATION_ORDER_DIRECTIONS,
+  APPLICATION_RESULT,
   APPLICATION_RESULT_CONDITION,
   APPLICATION_SEARCH_CONDITION,
   APPLICATION_SORT_NULLS,
   APPLICATION_SORT_PROPERTIES,
+  APPLICATION_STATUS,
   APPLICATION_STATUS_CONDITION,
   APPLICATION_TIEBREAK_PROPERTY,
   APPLICATIONS_ALIAS,
@@ -138,8 +140,31 @@ export class ApplicationsService {
     const sort = query.sort ?? DEFAULT_APPLICATION_SORT;
     const order = query.order ?? DEFAULT_APPLICATION_ORDER;
 
-    if (query.status !== undefined) {
+    if (query.status !== undefined && query.status !== APPLICATION_STATUS.OPEN) {
       builder.andWhere(APPLICATION_STATUS_CONDITION, { status: query.status });
+    }
+
+    if (query.status !== undefined && query.status === APPLICATION_STATUS.OPEN) {
+      builder.andWhere(APPLICATION_STATUS_CONDITION, {
+        status: APPLICATION_STATUS.OPEN,
+      });
+      builder.andWhere('result IN (:...results)', {
+        results: [APPLICATION_RESULT.IN_PROGRESS, APPLICATION_RESULT.OFFER],
+      });
+    }
+
+    if (query.status !== undefined && query.status === APPLICATION_STATUS.CLOSED) {
+      builder.orWhere(APPLICATION_STATUS_CONDITION, {
+        status: APPLICATION_STATUS.CLOSED,
+      });
+      builder.orWhere('result IN (:...results)', {
+        results: [
+          APPLICATION_RESULT.DECLINED_BY_ME,
+          APPLICATION_RESULT.REJECTED_BY_COMPANY,
+          APPLICATION_RESULT.NO_RESPONSE,
+          APPLICATION_RESULT.VACANCY_WITHDRAWN,
+        ],
+      });
     }
 
     if (query.result !== undefined) {
