@@ -129,6 +129,12 @@ npm run migration:revert --workspace=backend
   исход; `404` — только «нет записи в БД». Патч применяется к сущности до `save()`, поэтому
   на упавшем `save()` сущность откатывается по снимку (`ApplicationSyncSnapshot`) — в ответ
   не должно уехать состояние, которого в БД нет.
+- **`vacancy_source`/`vacancy_external_id` пишутся только парой и только на пути записи
+  `vacancy_url`** (`ApplicationsService.resolveVacancyRef`); `VacancySyncService.decide()`
+  доверяет колонке и URL не разбирает. Data-миграция, трогающая любую из этих двух колонок,
+  обязана менять их вместе, а её `down()` — откатывать собственный backfill:
+  `GeneralizeVacancySource` этого не делал, и цикл revert→up склеил getmatch-шный id
+  с источником `'HH'` (починено миграцией `RepairGetmatchVacancySource`).
 - **Массовый прогон** (`common/async.helpers.ts`, `mapWithConcurrency`): слот времени
   резервируется синхронно, до `await`, иначе все воркеры стартуют одновременно. Хелпер ошибки
   не глушит и прогон не отменяет — их ловит `syncOneSafely`, чтобы одна запись не срывала

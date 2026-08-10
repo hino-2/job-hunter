@@ -51,6 +51,13 @@ export class GeneralizeVacancySource1786300000000 implements MigrationInterface 
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // До этой миграции колонка hh_vacancy_id у getmatch-ссылки всегда была NULL
+    // (источника getmatch тогда не существовало), поэтому откат обязан вернуть NULL —
+    // иначе после DROP COLUMN ниже останется getmatch-шный id без источника,
+    // и повторный up() backfill-ом 1 пометит его источником 'HH'.
+    await queryRunner.query(
+      `UPDATE "applications" SET "vacancy_external_id" = NULL WHERE "vacancy_source" = 'GETMATCH'`,
+    );
     await queryRunner.query(
       `UPDATE "applications" SET "last_sync_outcome" = 'SKIPPED_NOT_HH'` +
         ` WHERE "last_sync_outcome" = 'SKIPPED_UNSUPPORTED'`,
