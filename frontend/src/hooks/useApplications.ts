@@ -3,7 +3,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { fetchApplications, toApplicationsQueryParams } from '../api/applications.api';
-import { DEFAULT_APPLICATION_FILTERS } from '../constants/application.constants';
+import { DEFAULT_APPLICATION_FILTERS, STATUS_FILTER } from '../constants/application.constants';
 import { APPLICATIONS_QUERY_KEY } from '../constants/query.constants';
 import type {
   Application,
@@ -34,7 +34,14 @@ export function useApplications(filters: ApplicationsFilters): UseQueryResult<Ap
  * схлопывает оба observer'а в один запрос, и лишнего трафика в типичном случае нет.
  */
 export function useApplicationsCounts(): UseQueryResult<ApplicationCounts> {
-  const params = useMemo(() => toApplicationsQueryParams(DEFAULT_APPLICATION_FILTERS), []);
+  const params = useMemo(
+    () =>
+      toApplicationsQueryParams({
+        ...DEFAULT_APPLICATION_FILTERS,
+        status: STATUS_FILTER.ALL,
+      }),
+    [],
+  );
 
   return useQuery({
     queryKey: [...APPLICATIONS_QUERY_KEY, params],

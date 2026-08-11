@@ -314,7 +314,7 @@ export const DEFAULT_APPLICATION_SORT: ApplicationSortField = 'createdAt';
 export const DEFAULT_APPLICATION_ORDER: ApplicationOrder = APPLICATION_ORDER.DESC;
 
 export const DEFAULT_APPLICATION_FILTERS: ApplicationsFilters = {
-  status: STATUS_FILTER.ALL,
+  status: STATUS_FILTER.OPEN,
   search: '',
   sort: DEFAULT_APPLICATION_SORT,
   order: DEFAULT_APPLICATION_ORDER,

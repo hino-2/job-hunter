@@ -3,7 +3,7 @@ import { Accordion, AccordionDetails, AccordionSummary } from '@mui/material';
 import { memo } from 'react';
 import type { SyntheticEvent } from 'react';
 
-import { APPLICATION_STATUS } from '../constants/application.constants';
+import { APPLICATION_RESULT, APPLICATION_STATUS } from '../constants/application.constants';
 import {
   ACCORDION_DETAILS_PADDING_BOTTOM,
   ACCORDION_DETAILS_PADDING_TOP,
@@ -41,7 +41,10 @@ export const ApplicationAccordion = memo(function ApplicationAccordion({
   // Шапка и поля получают одну и ту же смерженную запись — отсюда §13.10.8 «правка
   // компании/должности сразу видна в свёрнутой шапке» без единой дополнительной строки.
   const merged = mergeApplicationWithPending(application, pending);
-  const isClosed = merged.status === APPLICATION_STATUS.CLOSED;
+  const isClosed =
+    merged.status === APPLICATION_STATUS.CLOSED ||
+    merged.result === APPLICATION_RESULT.DECLINED_BY_ME ||
+    merged.result === APPLICATION_RESULT.REJECTED_BY_COMPANY;
 
   const handleChange = (_event: SyntheticEvent, isExpanded: boolean) => {
     onToggle(merged.id, isExpanded);
@@ -68,7 +71,7 @@ export const ApplicationAccordion = memo(function ApplicationAccordion({
           minHeight: SUMMARY_MIN_HEIGHT_PX,
           px: SUMMARY_PADDING_X,
           // Приглушение закрытой записи (§7.2.3).
-          bgcolor: isClosed ? 'action.hover' : undefined,
+          bgcolor: isClosed ? '#01010133' : undefined,
         }}
         slotProps={{
           content: {
