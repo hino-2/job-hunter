@@ -21,7 +21,7 @@ import {
 } from '../constants/layout.constants';
 import { SYNC_ROW_LABEL, SYNC_ROW_PENDING_LABEL } from '../constants/sync.constants';
 import { selectUpcomingInterview } from '../utils/application.utils';
-import { formatDateTimeShort } from '../utils/date.utils';
+import { formatDateTimeFull, formatDateTimeShort } from '../utils/date.utils';
 import type { ApplicationSummaryRowProps } from './application-summary-row.interfaces';
 import { SyncStatusIcon } from './SyncStatusIcon';
 
@@ -93,6 +93,8 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
       >
         {application.position ?? EMPTY_VALUE_PLACEHOLDER}
       </Typography>
+
+      <Chip label={formatDateTimeFull(application.createdAt)} sx={{ flex: SUMMARY_FLEX.auto }} />
 
       <Chip
         label={APPLICATION_STATUS_LABELS[application.status]}

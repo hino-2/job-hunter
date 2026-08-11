@@ -16,7 +16,7 @@ export const ACCORDION_DETAILS_PADDING_TOP = 1;
 export const ACCORDION_DETAILS_PADDING_BOTTOM = 2;
 
 /** Шапка аккордеона (свёрнутое состояние, §7.2.1). */
-export const SUMMARY_COMPANY_WIDTH_PX = 220;
+export const SUMMARY_COMPANY_WIDTH_PX = 500;
 
 /** Свёрнутая шапка — одна строка ~48px (§7.2.1): столько нужно, чтобы на 1920×1080
  *  помещалось не меньше 12 записей (§13.10.4). */
