@@ -2,9 +2,9 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { CircularProgress, IconButton, InputAdornment, TextField, Tooltip } from '@mui/material';
 import type { ChangeEvent } from 'react';
 
-import { INVALID_URL_MESSAGE, OPEN_LINK_LABEL } from '../constants/application.constants';
-import { FIELD_PROGRESS_SIZE_PX } from '../constants/layout.constants';
-import { isSavableUrl, toExternalHref } from '../utils/url.utils';
+import { INVALID_URL_MESSAGE, OPEN_LINK_LABEL } from '../../constants/application.constants';
+import { FIELD_PROGRESS_SIZE_PX } from '../../constants/layout.constants';
+import { isSavableUrl, toExternalHref } from '../../utils/url.utils';
 import type { UrlFieldProps } from './url-field.interfaces';
 
 /**

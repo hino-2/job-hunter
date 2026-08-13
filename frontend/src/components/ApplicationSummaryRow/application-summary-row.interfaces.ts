@@ -1,4 +1,4 @@
-import type { Application } from '../types/application.interfaces';
+import type { Application } from '../../types/application.interfaces';
 
 export interface ApplicationSummaryRowProps {
   application: Application;

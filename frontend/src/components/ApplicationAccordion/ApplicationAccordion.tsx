@@ -3,7 +3,7 @@ import { Accordion, AccordionDetails, AccordionSummary } from '@mui/material';
 import { memo } from 'react';
 import type { SyntheticEvent } from 'react';
 
-import { APPLICATION_RESULT, APPLICATION_STATUS } from '../constants/application.constants';
+import { APPLICATION_RESULT, APPLICATION_STATUS } from '../../constants/application.constants';
 import {
   ACCORDION_DETAILS_PADDING_BOTTOM,
   ACCORDION_DETAILS_PADDING_TOP,
@@ -13,12 +13,12 @@ import {
   SUMMARY_MIN_HEIGHT_PX,
   SUMMARY_PADDING_X,
   SUMMARY_TEXT_MIN_WIDTH_PX,
-} from '../constants/layout.constants';
-import { mergeApplicationWithPending } from '../utils/application.utils';
+} from '../../constants/layout.constants';
+import { mergeApplicationWithPending } from '../../utils/application.utils';
 import { ACCORDION_SLOT_PROPS } from './application-accordion.constants';
 import type { ApplicationAccordionProps } from './application-accordion.interfaces';
-import { ApplicationFields } from './ApplicationFields';
-import { ApplicationSummaryRow } from './ApplicationSummaryRow';
+import { ApplicationFields } from '../ApplicationFields/ApplicationFields';
+import { ApplicationSummaryRow } from '../ApplicationSummaryRow/ApplicationSummaryRow';
 
 /**
  * Одна вакансия — один Accordion во всю ширину (§7.2). Таблиц в проекте нет (§13.10.1).

@@ -7,7 +7,7 @@ import {
   SAVED_FIELD_RING_RADIUS,
   SAVED_FIELD_TRANSITION,
   SAVED_FIELD_RING_WIDTH_PX,
-} from '../constants/layout.constants';
+} from '../../constants/layout.constants';
 import type { FieldCellProps } from './field-cell.interfaces';
 
 /**

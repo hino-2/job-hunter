@@ -18,7 +18,7 @@ import {
   NOTES_MAX_LENGTH,
   POSITION_MAX_LENGTH,
   URL_MAX_LENGTH,
-} from '../constants/application.constants';
+} from '../../constants/application.constants';
 import {
   DATE_TIME_DISPLAY_FORMAT,
   FIELD_FLEX,
@@ -28,23 +28,23 @@ import {
   MULTILINE_MAX_ROWS_NOTES,
   MULTILINE_MIN_ROWS,
   ROW_SX,
-} from '../constants/layout.constants';
+} from '../../constants/layout.constants';
 import {
   PICKER_AMPM,
   PICKER_FIELD_SLOT_PROPS,
   PICKER_TEXT_FIELD_SLOT_PROPS,
-} from '../constants/pickers.constants';
+} from '../../constants/pickers.constants';
 import type {
   ApplicationResult,
   ApplicationStatus,
   EditableTextField,
-} from '../types/application.type';
-import { readTextFieldValue } from '../utils/application.utils';
-import { isCommittableDate, toDayjsOrNull, toIsoOrNull } from '../utils/date.utils';
+} from '../../types/application.type';
+import { readTextFieldValue } from '../../utils/application.utils';
+import { isCommittableDate, toDayjsOrNull, toIsoOrNull } from '../../utils/date.utils';
 import { RESULT_LABEL_ID_SUFFIX, STATUS_LABEL_ID_SUFFIX } from './application-fields.constants';
 import type { ApplicationFieldsProps } from './application-fields.interfaces';
-import { FieldCell } from './FieldCell';
-import { UrlField } from './UrlField';
+import { FieldCell } from '../FieldCell/FieldCell';
+import { UrlField } from '../UrlField/UrlField';
 
 /**
  * Содержимое AccordionDetails — ряды 1–2 полей §7.2.2 с автосейвом §7.3.

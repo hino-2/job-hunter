@@ -1,6 +1,6 @@
-import type { InlineEditHandlers } from '../hooks/use-inline-edits.interfaces';
-import type { Application } from '../types/application.interfaces';
-import type { EditableField, PendingTextValues } from '../types/application.type';
+import type { InlineEditHandlers } from '../../hooks/use-inline-edits.interfaces';
+import type { Application } from '../../types/application.interfaces';
+import type { EditableField, PendingTextValues } from '../../types/application.type';
 
 export interface ApplicationAccordionProps {
   application: Application;

@@ -1,4 +1,4 @@
-import type { ApplicationCreate } from '../types/application.interfaces';
+import type { ApplicationCreate } from '../../types/application.interfaces';
 
 export interface CreateApplicationDialogProps {
   isSubmitting: boolean;

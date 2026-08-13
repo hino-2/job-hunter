@@ -1,17 +1,17 @@
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { AppBar, Button, LinearProgress, Toolbar, Typography } from '@mui/material';
 
-import { COUNTS_PENDING_PLACEHOLDER } from '../constants/application.constants';
+import { COUNTS_PENDING_PLACEHOLDER } from '../../constants/application.constants';
 import {
   APP_BAR_ELEVATION,
   APP_BAR_TITLE_FLEX_GROW,
   FIELD_GAP,
-} from '../constants/layout.constants';
+} from '../../constants/layout.constants';
 import {
   SYNC_ALL_LABEL,
   SYNC_ALL_PENDING_LABEL,
   SYNC_ALL_PROGRESS_LABEL,
-} from '../constants/sync.constants';
+} from '../../constants/sync.constants';
 import type { AppHeaderProps } from './app-header.interfaces';
 
 /** Шапка приложения (§7.1): заголовок, массовая синхронизация и счётчик «Открытых: N / M». */

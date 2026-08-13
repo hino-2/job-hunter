@@ -27,13 +27,13 @@ import {
   APPLICATION_SORT_ORDER_LIST,
   STATUS_FILTER_LABELS,
   STATUS_FILTER_ORDER,
-} from '../constants/application.constants';
+} from '../../constants/application.constants';
 import {
   FIELD_GAP,
   SEARCH_FIELD_WIDTH_PX,
   SORT_FIELD_WIDTH_PX,
-} from '../constants/layout.constants';
-import type { ApplicationSortField, StatusFilter } from '../types/application.type';
+} from '../../constants/layout.constants';
+import type { ApplicationSortField, StatusFilter } from '../../types/application.type';
 import { SORT_LABEL_ID } from './filter-bar.constants';
 import type { FilterBarProps } from './filter-bar.interfaces';
 

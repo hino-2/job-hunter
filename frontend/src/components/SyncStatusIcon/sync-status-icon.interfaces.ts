@@ -1,4 +1,4 @@
-import type { SyncOutcome, VacancySource } from '../types/application.type';
+import type { SyncOutcome, VacancySource } from '../../types/application.type';
 
 export interface SyncStatusIconProps {
   outcome: SyncOutcome | null;

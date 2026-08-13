@@ -1,14 +1,14 @@
 import { Alert, Button, Skeleton, Stack } from '@mui/material';
 
-import { EMPTY_PENDING_TEXT_VALUES, EMPTY_SAVED_FIELDS } from '../constants/application.constants';
+import { EMPTY_PENDING_TEXT_VALUES, EMPTY_SAVED_FIELDS } from '../../constants/application.constants';
 import {
   ACCORDION_GAP,
   LIST_SKELETON_COUNT,
   SUMMARY_MIN_HEIGHT_PX,
-} from '../constants/layout.constants';
-import { ApplicationAccordion } from './ApplicationAccordion';
+} from '../../constants/layout.constants';
+import { ApplicationAccordion } from '../ApplicationAccordion/ApplicationAccordion';
 import type { ApplicationsListProps } from './applications-list.interfaces';
-import { EmptyState } from './EmptyState';
+import { EmptyState } from '../EmptyState/EmptyState';
 
 /** Список аккордеонов и все его состояния: загрузка, ошибка, пусто, данные (§7.8). */
 export function ApplicationsList({

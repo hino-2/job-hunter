@@ -1,6 +1,6 @@
 import { Box, Button, Stack, Typography } from '@mui/material';
 
-import { EMPTY_STATE_PADDING_Y, FIELD_GAP } from '../constants/layout.constants';
+import { EMPTY_STATE_PADDING_Y, FIELD_GAP } from '../../constants/layout.constants';
 import type { EmptyStateProps } from './empty-state.interfaces';
 
 /** Центрированное пустое состояние списка (§7.8). */

@@ -12,8 +12,8 @@ import {
   SYNC_SOURCE_TOOLTIP_PREFIX,
   VACANCY_SOURCE_LABELS,
   VACANCY_SOURCE_UNKNOWN_LABEL,
-} from '../constants/application.constants';
-import { formatDateTimeFull } from '../utils/date.utils';
+} from '../../constants/application.constants';
+import { formatDateTimeFull } from '../../utils/date.utils';
 import type { SyncStatusIconProps } from './sync-status-icon.interfaces';
 
 /** §4.8: строка «Источник: hh.ru» / «Источник: getmatch.ru» / «Источник не определён». */

@@ -1,4 +1,4 @@
-import type { ApplicationsFilters } from '../types/application.interfaces';
+import type { ApplicationsFilters } from '../../types/application.interfaces';
 
 export interface FilterBarProps {
   filters: ApplicationsFilters;

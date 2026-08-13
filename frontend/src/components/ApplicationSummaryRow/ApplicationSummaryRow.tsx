@@ -11,19 +11,19 @@ import {
   APPLICATION_STATUS,
   APPLICATION_STATUS_LABELS,
   EMPTY_VALUE_PLACEHOLDER,
-} from '../constants/application.constants';
+} from '../../constants/application.constants';
 import {
   FIELD_GAP,
   SUMMARY_FLEX,
   SUMMARY_ICON_GAP,
   SUMMARY_SYNC_PROGRESS_SIZE_PX,
   SUMMARY_TEXT_MIN_WIDTH_PX,
-} from '../constants/layout.constants';
-import { SYNC_ROW_LABEL, SYNC_ROW_PENDING_LABEL } from '../constants/sync.constants';
-import { selectUpcomingInterview } from '../utils/application.utils';
-import { formatDateTimeFull, formatDateTimeShort } from '../utils/date.utils';
+} from '../../constants/layout.constants';
+import { SYNC_ROW_LABEL, SYNC_ROW_PENDING_LABEL } from '../../constants/sync.constants';
+import { selectUpcomingInterview } from '../../utils/application.utils';
+import { formatDateTimeFull, formatDateTimeShort } from '../../utils/date.utils';
 import type { ApplicationSummaryRowProps } from './application-summary-row.interfaces';
-import { SyncStatusIcon } from './SyncStatusIcon';
+import { SyncStatusIcon } from '../SyncStatusIcon/SyncStatusIcon';
 
 /**
  * Содержимое AccordionSummary — восемь элементов свёрнутой шапки (§7.2.1), только чтение

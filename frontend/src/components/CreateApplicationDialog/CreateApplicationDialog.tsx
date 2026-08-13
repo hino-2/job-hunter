@@ -30,7 +30,7 @@ import {
   NOTES_MAX_LENGTH,
   POSITION_MAX_LENGTH,
   URL_MAX_LENGTH,
-} from '../constants/application.constants';
+} from '../../constants/application.constants';
 import {
   DATE_TIME_DISPLAY_FORMAT,
   DIALOG_CONTENT_PADDING_TOP,
@@ -40,26 +40,26 @@ import {
   MULTILINE_MAX_ROWS_NOTES,
   MULTILINE_MIN_ROWS,
   ROW_SX,
-} from '../constants/layout.constants';
+} from '../../constants/layout.constants';
 import {
   PICKER_AMPM,
   PICKER_FIELD_SLOT_PROPS,
   PICKER_TEXT_FIELD_SLOT_PROPS,
-} from '../constants/pickers.constants';
-import { useVacancyPreview } from '../hooks/useVacancyPreview';
-import type { CreateApplicationFormValues } from '../types/application.interfaces';
-import type { ApplicationResult } from '../types/application.type';
-import type { VacancyPreview } from '../types/vacancy.interfaces';
-import { buildCreateApplicationPayload } from '../utils/application.utils';
-import { isCommittableDate, toDayjsOrNull, toIsoOrNull } from '../utils/date.utils';
-import { isSavableUrl } from '../utils/url.utils';
+} from '../../constants/pickers.constants';
+import { useVacancyPreview } from '../../hooks/useVacancyPreview';
+import type { CreateApplicationFormValues } from '../../types/application.interfaces';
+import type { ApplicationResult } from '../../types/application.type';
+import type { VacancyPreview } from '../../types/vacancy.interfaces';
+import { buildCreateApplicationPayload } from '../../utils/application.utils';
+import { isCommittableDate, toDayjsOrNull, toIsoOrNull } from '../../utils/date.utils';
+import { isSavableUrl } from '../../utils/url.utils';
 import {
   CREATE_DIALOG_MAX_WIDTH,
   CREATE_DIALOG_RESULT_LABEL_ID,
 } from './create-application-dialog.constants';
 import type { CreateApplicationDialogProps } from './create-application-dialog.interfaces';
-import { FieldCell } from './FieldCell';
-import { UrlField } from './UrlField';
+import { FieldCell } from '../FieldCell/FieldCell';
+import { UrlField } from '../UrlField/UrlField';
 
 /**
  * Форма создания записи (§7.4). Состояние формы живёт здесь, а не в App: перерисовка

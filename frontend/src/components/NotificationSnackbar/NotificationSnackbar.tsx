@@ -1,6 +1,6 @@
 import { Alert, Snackbar } from '@mui/material';
 
-import { SNACKBAR_ANCHOR_ORIGIN, SNACKBAR_AUTO_HIDE_MS } from '../constants/layout.constants';
+import { SNACKBAR_ANCHOR_ORIGIN, SNACKBAR_AUTO_HIDE_MS } from '../../constants/layout.constants';
 import type { NotificationSnackbarProps } from './notification-snackbar.interfaces';
 
 /**

@@ -1,6 +1,6 @@
-import type { InlineEditHandlers } from '../hooks/use-inline-edits.interfaces';
-import type { PendingById, SavedById } from '../hooks/use-inline-edits.type';
-import type { Application } from '../types/application.interfaces';
+import type { InlineEditHandlers } from '../../hooks/use-inline-edits.interfaces';
+import type { PendingById, SavedById } from '../../hooks/use-inline-edits.type';
+import type { Application } from '../../types/application.interfaces';
 
 export interface ApplicationsListProps {
   applications: readonly Application[];

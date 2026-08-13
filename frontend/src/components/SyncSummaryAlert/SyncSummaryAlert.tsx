@@ -10,15 +10,15 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 
-import { SYNC_OUTCOME_LABELS } from '../constants/application.constants';
-import { FIELD_GAP, SYNC_SUMMARY_LIST_MAX_HEIGHT_PX } from '../constants/layout.constants';
-import { NOTIFICATION_SEVERITY } from '../constants/notification.constants';
+import { SYNC_OUTCOME_LABELS } from '../../constants/application.constants';
+import { FIELD_GAP, SYNC_SUMMARY_LIST_MAX_HEIGHT_PX } from '../../constants/layout.constants';
+import { NOTIFICATION_SEVERITY } from '../../constants/notification.constants';
 import {
   SYNC_SUMMARY_DISMISS_LABEL,
   SYNC_SUMMARY_HIDE_PROBLEMS_LABEL,
   SYNC_SUMMARY_SHOW_PROBLEMS_LABEL,
-} from '../constants/sync.constants';
-import { formatSyncSummaryText, selectSyncProblemItems } from '../utils/sync.utils';
+} from '../../constants/sync.constants';
+import { formatSyncSummaryText, selectSyncProblemItems } from '../../utils/sync.utils';
 import type { SyncSummaryAlertProps } from './sync-summary-alert.interfaces';
 
 /**

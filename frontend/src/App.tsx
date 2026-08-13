@@ -1,13 +1,13 @@
 import { Box, Container, Stack } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 
-import { AppHeader } from './components/AppHeader';
-import { ApplicationsList } from './components/ApplicationsList';
-import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog';
-import { CreateApplicationDialog } from './components/CreateApplicationDialog';
-import { FilterBar } from './components/FilterBar';
-import { NotificationSnackbar } from './components/NotificationSnackbar';
-import { SyncSummaryAlert } from './components/SyncSummaryAlert';
+import { AppHeader } from './components/AppHeader/AppHeader';
+import { ApplicationsList } from './components/ApplicationsList/ApplicationsList';
+import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog/ConfirmDeleteDialog';
+import { CreateApplicationDialog } from './components/CreateApplicationDialog/CreateApplicationDialog';
+import { FilterBar } from './components/FilterBar/FilterBar';
+import { NotificationSnackbar } from './components/NotificationSnackbar/NotificationSnackbar';
+import { SyncSummaryAlert } from './components/SyncSummaryAlert/SyncSummaryAlert';
 import {
   CREATE_ERROR_FALLBACK_MESSAGE,
   CREATE_SUCCESS_MESSAGE,

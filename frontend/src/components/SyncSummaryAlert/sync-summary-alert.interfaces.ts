@@ -1,4 +1,4 @@
-import type { SyncSummary } from '../types/sync.interfaces';
+import type { SyncSummary } from '../../types/sync.interfaces';
 
 export interface SyncSummaryAlertProps {
   summary: SyncSummary;
