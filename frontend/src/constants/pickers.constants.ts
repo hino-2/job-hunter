@@ -1,3 +1,4 @@
+import type { Theme } from '@mui/material/styles';
 import { ruRU } from '@mui/x-date-pickers/locales';
 
 /**
@@ -14,7 +15,7 @@ export const PICKERS_LOCALE_TEXT = ruRU.components.MuiLocalizationProvider.defau
 export const PICKER_TEXT_FIELD_SLOT_PROPS = {
   fullWidth: true,
   size: 'small',
-  sx: (theme: any) => ({
+  sx: (theme: Theme) => ({
     '& .MuiPickersOutlinedInput-notchedOutline': {
       border: `1px solid ${theme.palette.primary.main}`,
     },
