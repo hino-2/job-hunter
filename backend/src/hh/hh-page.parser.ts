@@ -5,8 +5,10 @@ import {
   HH_ARCHIVED_FLAG_PATTERN,
   HH_ARCHIVED_MARKER,
   HH_ARCHIVED_TRUE_TOKEN,
-  HH_COMPANY_LOGO_PATTERN,
-  HH_COMPANY_LOGO_SRC_GROUP,
+  HH_COMPANY_LOGO_ENTRY_PATTERN,
+  HH_COMPANY_LOGO_TYPE_GROUP,
+  HH_COMPANY_LOGO_TYPE_PRIORITY,
+  HH_COMPANY_LOGO_URL_GROUP,
   HH_LOGO_ALLOWED_HOST_PATTERN,
   JSON_LD_CONTENT_GROUP,
   JSON_LD_FIELD,
@@ -109,11 +111,35 @@ function hasJobPostingType(entry: Record<string, unknown>): boolean {
 }
 
 /**
- * §4.10: src логотипа компании из блока data-qa="vacancy-company-logo". Не глобальный
- * регекс — безопасен с .exec (lastIndex не мутируется между вызовами).
+ * §4.10: URL логотипа компании из встроенного состояния страницы. Из каждого типа
+ * берётся ПЕРВОЕ вхождение: блок работодателя самой вакансии идёт в состоянии раньше
+ * похожих вакансий, у которых логотипы уже чужие. Дальше — первый доступный тип
+ * по приоритету, а не первый попавшийся URL: типы в блоке перечислены в порядке
+ * hh.ru, и он не совпадает с нужным нам.
  */
 function readCompanyLogo(html: string): string | null {
-  return HH_COMPANY_LOGO_PATTERN.exec(html)?.[HH_COMPANY_LOGO_SRC_GROUP] ?? null;
+  const urlByType = new Map<string, string>();
+
+  for (const match of html.matchAll(HH_COMPANY_LOGO_ENTRY_PATTERN)) {
+    const type = match[HH_COMPANY_LOGO_TYPE_GROUP]?.toLowerCase();
+    const url = match[HH_COMPANY_LOGO_URL_GROUP];
+
+    if (type === undefined || url === undefined || urlByType.has(type)) {
+      continue;
+    }
+
+    urlByType.set(type, url);
+  }
+
+  for (const type of HH_COMPANY_LOGO_TYPE_PRIORITY) {
+    const url = urlByType.get(type);
+
+    if (url !== undefined) {
+      return url;
+    }
+  }
+
+  return null;
 }
 
 /** Первая запись JSON-LD с @type: 'JobPosting' (строкой либо в массиве типов). */
@@ -142,9 +168,10 @@ function findJobPosting(entries: unknown[]): Record<string, unknown> | null {
  *
  * Никогда не бросает: любой мусор на входе — это null, а не исключение.
  *
- * logoBaseUrl (§4.10) нужен для абсолютизации src логотипа компании — разметка hh.ru
- * может отдать как относительный, так и абсолютный путь; logoUrl заполняется в ОБОИХ
- * return, потому что разметка логотипа от наличия JSON-LD не зависит.
+ * logoBaseUrl (§4.10) нужен для абсолютизации URL логотипа компании — состояние
+ * страницы отдаёт его относительным (/employer-logo/…), но может отдать и абсолютный;
+ * logoUrl заполняется в ОБОИХ return, потому что блок логотипа лежит вне JSON-LD
+ * и от его наличия не зависит.
  */
 export function parseHhVacancyPage(html: unknown, logoBaseUrl: string): Vacancy | null {
   if (typeof html !== 'string' || html.length === 0) {

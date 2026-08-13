@@ -100,7 +100,9 @@ export const GETMATCH_TRANSPORT_ERROR_MESSAGE = 'Запрос к getmatch.ru н�
  * Опциональный \\? перед кавычками — паттерн обязан работать и по «сырому» HTML,
  * и по уже склеенному flight-payload, где кавычки экранированы (тот же приём, что
  * у GETMATCH_FLIGHT_CHUNK_PATTERN). Ограниченное окно ~2 КБ — защита от сканирования
- * всей страницы и от катастрофического бэктрекинга, как у HH_COMPANY_LOGO_PATTERN.
+ * всей страницы и от катастрофического бэктрекинга. У hh.ru разметка логотипа
+ * бесполезна (src подставляет клиентский JS), и там разбирается блок состояния —
+ * см. HH_COMPANY_LOGO_ENTRY_PATTERN; здесь src в ответе сервера есть.
  */
 export const GETMATCH_COMPANY_LOGO_PATTERN =
   /class=\\?["'][^"'\\]*\bb-company-logotype\b[^"'\\]*\\?["'][\s\S]{0,2000}?<img\b[^>]*\bsrc=\\?["']([^"'\\]+)/i;

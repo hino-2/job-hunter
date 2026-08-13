@@ -53,6 +53,9 @@ export const SUMMARY_LOGO_SIZE_PX = 24;
 /** У MUI Avatar font-size буквы-фолбэка фиксирован 1.25rem — на 24px это не влезает. */
 export const SUMMARY_LOGO_FONT_SIZE = '0.75rem';
 
+/** Зазор между логотипом и названием компании: 8px, а не 4px как у остальных иконок шапки. */
+export const SUMMARY_LOGO_GAP = 1;
+
 export const ACCORDION_ELEVATION = 1;
 export const APP_BAR_ELEVATION = 1;
 

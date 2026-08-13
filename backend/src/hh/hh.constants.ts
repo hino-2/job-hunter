@@ -61,15 +61,37 @@ export const HH_ARCHIVED_TRUE_TOKEN = 'true';
 export const HH_ARCHIVED_MARKER = 'vacancy-title-archived-text';
 
 /**
- * §4.10: блок логотипа компании — data-qa="vacancy-company-logo" с <img src="…">
- * внутри. Ограниченный ленивый квантификатор (окно ~2 КБ) обязателен: без потолка
- * регекс сканировал бы всю ~700 КБ страницу и был бы уязвим к катастрофическому
- * бэктрекингу. Регекс не глобальный → безопасен с .exec (lastIndex не мутируется).
+ * §4.10: варианты логотипа компании из встроенного состояния страницы —
+ * "logos":{"logo":[{"@type":"vacancyPage","@url":"/employer-logo/7085359.png"}, …]}.
+ * У <img> внутри data-qa="vacancy-company-logo" атрибута src в ответе сервера нет:
+ * картинку подставляет клиентский JS из этого же блока, поэтому разбирать надо его,
+ * а не разметку. JSON приезжает в HTML экранированным (&#34;), отсюда все три формы
+ * кавычек — та же причина, что у HH_ARCHIVED_FLAG_PATTERN. Класс символов URL
+ * исключает & и кавычки, поэтому захват обрывается на следующей энтити и не может
+ * съесть остаток страницы. Глобальный регекс безопасен именно с matchAll:
+ * lastIndex не мутируется между вызовами.
  */
-export const HH_COMPANY_LOGO_PATTERN =
-  /data-qa=["']vacancy-company-logo["'][\s\S]{0,2000}?<img\b[^>]*\bsrc=\\?["']([^"'\\]+)/i;
+export const HH_COMPANY_LOGO_ENTRY_PATTERN =
+  /(?:"|&quot;|&#34;)@type(?:"|&quot;|&#34;)\s*:\s*(?:"|&quot;|&#34;)([\w-]+)(?:"|&quot;|&#34;)\s*,\s*(?:"|&quot;|&#34;)@url(?:"|&quot;|&#34;)\s*:\s*(?:"|&quot;|&#34;)([^"'&\\\s]+)/gi;
 
-export const HH_COMPANY_LOGO_SRC_GROUP = 1;
+export const HH_COMPANY_LOGO_TYPE_GROUP = 1;
+export const HH_COMPANY_LOGO_URL_GROUP = 2;
+
+/**
+ * §4.10: приоритет вариантов логотипа. vacancyPage и medium — ровно те картинки,
+ * что hh.ru рисует на самой странице вакансии; ORIGINAL последний, потому что он
+ * не масштабирован и легко не пролезает в лимит размера файла, а тогда логотипа
+ * не будет вовсе. Сравнение идёт по нижнему регистру: у hh.ru тип ORIGINAL
+ * записан капсом, остальные — camelCase.
+ */
+export const HH_COMPANY_LOGO_TYPE_PRIORITY = [
+  'vacancypage',
+  'medium',
+  'employerpage',
+  'searchresultspage',
+  'small',
+  'original',
+];
 
 /** §4.10: allow-list хостов CDN hh.ru — логотипы раздаются с hhcdn.ru и поддоменов. */
 export const HH_LOGO_ALLOWED_HOST_PATTERN = /^([a-z0-9-]+\.)*(hhcdn\.ru|hh\.ru)$/;

@@ -24,6 +24,7 @@ import {
   FIELD_GAP,
   SUMMARY_FLEX,
   SUMMARY_ICON_GAP,
+  SUMMARY_LOGO_GAP,
   SUMMARY_LOGO_FONT_SIZE,
   SUMMARY_LOGO_SIZE_PX,
   SUMMARY_SYNC_PROGRESS_SIZE_PX,
@@ -94,7 +95,7 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
         sx={{
           display: 'flex',
           alignItems: 'center',
-          gap: SUMMARY_ICON_GAP,
+          gap: SUMMARY_LOGO_GAP,
           flex: SUMMARY_FLEX.company,
           minWidth: SUMMARY_TEXT_MIN_WIDTH_PX,
         }}
