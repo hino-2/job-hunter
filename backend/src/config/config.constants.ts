@@ -1,3 +1,6 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 /**
  * Значения по умолчанию и допустимые варианты для переменных окружения.
  * Обязательные переменные (креды БД, AUTH_*) дефолтов не имеют намеренно —
@@ -35,6 +38,15 @@ export const DEFAULT_GETMATCH_MAX_RETRIES = 2;
 /** Общий параметр массового прогона (§4.6): один прогон может смешивать источники. */
 export const DEFAULT_SYNC_CONCURRENCY = 3;
 export const DEFAULT_SYNC_MIN_DELAY_MS = 200;
+
+/**
+ * §4.10. Каталог логотипов эфемерный (tmpdir, без docker-volume) — после
+ * пересоздания контейнера файлы теряются, а колонка company_logo_file самолечится
+ * ближайшей синхронизацией.
+ */
+export const COMPANY_LOGO_DIR_NAME = 'job-hunter-logos';
+export const DEFAULT_COMPANY_LOGO_DIR = join(tmpdir(), COMPANY_LOGO_DIR_NAME);
+export const DEFAULT_COMPANY_LOGO_REQUEST_TIMEOUT_MS = 5_000;
 
 /**
  * Границы валидации таймаута и числа ретраев — общие для всех источников вакансий:

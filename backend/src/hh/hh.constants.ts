@@ -60,6 +60,20 @@ export const HH_ARCHIVED_TRUE_TOKEN = 'true';
 /** data-qa hh.ru: есть только на архивной странице. Считается ещё одним токеном true. */
 export const HH_ARCHIVED_MARKER = 'vacancy-title-archived-text';
 
+/**
+ * §4.10: блок логотипа компании — data-qa="vacancy-company-logo" с <img src="…">
+ * внутри. Ограниченный ленивый квантификатор (окно ~2 КБ) обязателен: без потолка
+ * регекс сканировал бы всю ~700 КБ страницу и был бы уязвим к катастрофическому
+ * бэктрекингу. Регекс не глобальный → безопасен с .exec (lastIndex не мутируется).
+ */
+export const HH_COMPANY_LOGO_PATTERN =
+  /data-qa=["']vacancy-company-logo["'][\s\S]{0,2000}?<img\b[^>]*\bsrc=\\?["']([^"'\\]+)/i;
+
+export const HH_COMPANY_LOGO_SRC_GROUP = 1;
+
+/** §4.10: allow-list хостов CDN hh.ru — логотипы раздаются с hhcdn.ru и поддоменов. */
+export const HH_LOGO_ALLOWED_HOST_PATTERN = /^([a-z0-9-]+\.)*(hhcdn\.ru|hh\.ru)$/;
+
 export const HH_PAGE_UNPARSABLE_MESSAGE =
   'Страница вакансии hh.ru не распознана: не найден признак архивности';
 

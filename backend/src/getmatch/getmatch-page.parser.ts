@@ -1,10 +1,14 @@
 import type { Vacancy } from '../vacancies/vacancies.interfaces';
+import { resolveVacancyLogoUrl } from '../vacancies/vacancy-logo-url.helpers';
 import {
+  GETMATCH_COMPANY_LOGO_PATTERN,
+  GETMATCH_COMPANY_LOGO_SRC_GROUP,
   GETMATCH_FIELD,
   GETMATCH_FLIGHT_CHUNK_GROUP,
   GETMATCH_FLIGHT_CHUNK_PATTERN,
   GETMATCH_FLIGHT_PAYLOAD_INDEX,
   GETMATCH_INITIAL_VACANCY_KEY,
+  GETMATCH_LOGO_ALLOWED_HOST_PATTERN,
   GETMATCH_NULL_TOKEN,
   GETMATCH_OBJECT_CLOSE,
   GETMATCH_OBJECT_OPEN,
@@ -134,6 +138,22 @@ function unparsable(): GetmatchPageParseResult {
 }
 
 /**
+ * §4.10: src логотипа компании — сначала пробуем «сырой» html (кавычки не
+ * экранированы), при промахе — уже склеенный flight-payload (кавычки экранированы,
+ * поэтому в паттерне есть опциональный \\?). Паттерн не глобальный — .exec безопасен
+ * без сброса lastIndex между вызовами.
+ */
+function readCompanyLogo(html: string, payload: string): string | null {
+  const fromHtml = GETMATCH_COMPANY_LOGO_PATTERN.exec(html)?.[GETMATCH_COMPANY_LOGO_SRC_GROUP];
+
+  if (fromHtml !== undefined) {
+    return fromHtml;
+  }
+
+  return GETMATCH_COMPANY_LOGO_PATTERN.exec(payload)?.[GETMATCH_COMPANY_LOGO_SRC_GROUP] ?? null;
+}
+
+/**
  * Разбор страницы вакансии getmatch.ru (§4.9): склейка чанков self.__next_f.push
  * и извлечение initialVacancy из flight-payload Next.js. Чистая функция, а не метод
  * сервиса и не провайдер — тот же аргумент, что и у getmatch-url.parser.ts.
@@ -147,8 +167,14 @@ function unparsable(): GetmatchPageParseResult {
  * position и company.name деградируют мягко — они питают только автозаполнение (§4.4).
  *
  * Никогда не бросает: любой мусор на входе — это UNPARSABLE, а не исключение.
+ *
+ * logoBaseUrl (§4.10) нужен для абсолютизации src логотипа компании; заполняется
+ * только в ветке PARSED — у ABSENT/UNPARSABLE самой vacancy нет.
  */
-export function parseGetmatchVacancyPage(html: unknown): GetmatchPageParseResult {
+export function parseGetmatchVacancyPage(
+  html: unknown,
+  logoBaseUrl: string,
+): GetmatchPageParseResult {
   if (typeof html !== 'string' || html.length === 0) {
     return unparsable();
   }
@@ -195,10 +221,19 @@ export function parseGetmatchVacancyPage(html: unknown): GetmatchPageParseResult
   }
 
   const company = parsed[GETMATCH_FIELD.COMPANY];
+  const logoUrl = resolveVacancyLogoUrl(
+    readCompanyLogo(html, payload),
+    logoBaseUrl,
+    GETMATCH_LOGO_ALLOWED_HOST_PATTERN,
+  );
   const vacancy: Vacancy = {
     name: readString(parsed, GETMATCH_FIELD.POSITION),
     archived: !isActive,
     employerName: isRecord(company) ? readString(company, GETMATCH_FIELD.NAME) : null,
+    logoUrl,
+    // Тот же allow-list, которым уже проверили logoUrl (§4.10) — CompanyLogoService
+    // повторит эту проверку на каждом хопе редиректа, а не только на исходном URL.
+    logoAllowedHostPattern: logoUrl === null ? null : GETMATCH_LOGO_ALLOWED_HOST_PATTERN,
   };
 
   return { state: GETMATCH_PAGE_STATE.PARSED, vacancy };

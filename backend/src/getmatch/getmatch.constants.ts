@@ -94,3 +94,18 @@ export const GETMATCH_FORBIDDEN_MESSAGE =
 export const GETMATCH_UNEXPECTED_STATUS_MESSAGE = 'getmatch.ru ответил статусом';
 
 export const GETMATCH_TRANSPORT_ERROR_MESSAGE = 'Запрос к getmatch.ru не выполнен';
+
+/**
+ * §4.10: логотип компании — <img src="…"> внутри блока class="b-company-logotype".
+ * Опциональный \\? перед кавычками — паттерн обязан работать и по «сырому» HTML,
+ * и по уже склеенному flight-payload, где кавычки экранированы (тот же приём, что
+ * у GETMATCH_FLIGHT_CHUNK_PATTERN). Ограниченное окно ~2 КБ — защита от сканирования
+ * всей страницы и от катастрофического бэктрекинга, как у HH_COMPANY_LOGO_PATTERN.
+ */
+export const GETMATCH_COMPANY_LOGO_PATTERN =
+  /class=\\?["'][^"'\\]*\bb-company-logotype\b[^"'\\]*\\?["'][\s\S]{0,2000}?<img\b[^>]*\bsrc=\\?["']([^"'\\]+)/i;
+
+export const GETMATCH_COMPANY_LOGO_SRC_GROUP = 1;
+
+/** §4.10: allow-list хоста CDN логотипов getmatch.ru. */
+export const GETMATCH_LOGO_ALLOWED_HOST_PATTERN = /^(www\.)?getmatch\.ru$/;

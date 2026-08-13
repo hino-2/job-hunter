@@ -6,7 +6,11 @@ import { of, throwError } from 'rxjs';
 
 import { SYNC_OUTCOME } from '../applications/applications.constants';
 import { HhApiService } from './hh-api.service';
-import { HH_MAX_RETRIES_ENV_KEY, HH_VACANCY_PAGE_PATH } from './hh.constants';
+import {
+  HH_MAX_RETRIES_ENV_KEY,
+  HH_SITE_BASE_URL_ENV_KEY,
+  HH_VACANCY_PAGE_PATH,
+} from './hh.constants';
 
 /** Мок HttpService: спеке нужен только get, а инстанс настоящего клиента — нет. */
 interface HttpServiceMock {
@@ -106,6 +110,10 @@ function createService(maxRetries: number): { service: HhApiService; http: HttpS
         return maxRetries;
       }
 
+      if (key === HH_SITE_BASE_URL_ENV_KEY) {
+        return 'https://hh.ru';
+      }
+
       throw new Error(`Неожиданный ключ конфигурации: ${key}`);
     }),
   } as unknown as ConfigService;
@@ -153,7 +161,13 @@ describe('HhApiService', () => {
       expect(http.get).toHaveBeenCalledWith(`${HH_VACANCY_PAGE_PATH}/${VACANCY_ID}`);
       expect(result).toEqual({
         outcome: SYNC_OUTCOME.OK,
-        vacancy: { name: 'Node.js Developer', archived: false, employerName: 'Acme' },
+        vacancy: {
+          name: 'Node.js Developer',
+          archived: false,
+          employerName: 'Acme',
+          logoUrl: null,
+          logoAllowedHostPattern: null,
+        },
       });
     });
 
@@ -168,7 +182,13 @@ describe('HhApiService', () => {
 
       expect(result).toEqual({
         outcome: SYNC_OUTCOME.OK,
-        vacancy: { name: 'Node.js Developer', archived: true, employerName: null },
+        vacancy: {
+          name: 'Node.js Developer',
+          archived: true,
+          employerName: null,
+          logoUrl: null,
+          logoAllowedHostPattern: null,
+        },
       });
     });
 
@@ -183,7 +203,13 @@ describe('HhApiService', () => {
 
       expect(result).toEqual({
         outcome: SYNC_OUTCOME.OK,
-        vacancy: { name: null, archived: true, employerName: null },
+        vacancy: {
+          name: null,
+          archived: true,
+          employerName: null,
+          logoUrl: null,
+          logoAllowedHostPattern: null,
+        },
       });
     });
   });

@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Application } from '../applications/application.entity';
 import { GetmatchModule } from '../getmatch/getmatch.module';
 import { HhModule } from '../hh/hh.module';
+import { LogosModule } from '../logos/logos.module';
 import { VacanciesController } from './vacancies.controller';
 import { VacancyProviderRegistry } from './vacancy-provider.registry';
 import { VacancySyncService } from './vacancy-sync.service';
@@ -20,9 +21,13 @@ import { VacancySyncService } from './vacancy-sync.service';
  * через ApplicationsService — иначе получился бы цикл модулей и forwardRef.
  *
  * GetmatchModule зарегистрирован фазой B3: реестр теперь знает про оба источника.
+ *
+ * LogosModule (§4.10) не зависит ни от applications, ни от vacancies — импорт сюда
+ * не создаёт цикла: VacancySyncService использует CompanyLogoService для скачивания
+ * логотипов по правилам §4.3.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Application]), HhModule, GetmatchModule],
+  imports: [TypeOrmModule.forFeature([Application]), HhModule, GetmatchModule, LogosModule],
   controllers: [VacanciesController],
   providers: [VacancyProviderRegistry, VacancySyncService],
   exports: [VacancyProviderRegistry, VacancySyncService],

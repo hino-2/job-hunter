@@ -22,6 +22,21 @@ export interface Vacancy {
   name: string | null;
   archived: boolean;
   employerName: string | null;
+  /**
+   * §4.10: абсолютный http(s)-URL с доверенного для этого источника хоста
+   * (проверка allow-list в resolveVacancyLogoUrl), либо null. Деградирует мягко,
+   * как name/employerName — отсутствие логотипа на странице не ошибка разбора.
+   */
+  logoUrl: string | null;
+  /**
+   * §4.10 (SSRF на редиректах): тот же allow-list хоста источника, которым только что
+   * проверили logoUrl. resolveVacancyLogoUrl отсекает только исходный URL — CDN может
+   * ответить 3xx на произвольный хост, и axios/follow-redirects пойдёт туда без
+   * вопросов. Поле летит вместе с logoUrl до CompanyLogoDownloadRequest, чтобы
+   * CompanyLogoService повторил ту же проверку на каждом хопе редиректа, а не только
+   * на первом запросе. null, когда логотипа нет — тогда скачивания не будет вовсе.
+   */
+  logoAllowedHostPattern: RegExp | null;
 }
 
 /** Пара «источник + внешний ID», уже распознанная реестром из пользовательской ссылки. */

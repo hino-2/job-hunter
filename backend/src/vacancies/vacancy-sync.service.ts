@@ -20,6 +20,7 @@ import type {
   SyncOutcomeCounts,
 } from '../applications/applications.type';
 import { mapWithConcurrency } from '../common/async.helpers';
+import { CompanyLogoService } from '../logos/company-logo.service';
 import { normalizeVacancyPosition } from './vacancy-position.helpers';
 import { VacancyProviderRegistry } from './vacancy-provider.registry';
 import {
@@ -69,8 +70,16 @@ function buildSkippedDecision(message: string): VacancySyncDecision {
  * status не трогается (вручную закрытая запись не открывается заново); last_synced_at
  * обновляется только когда ответ от источника реально получен (OK и NOT_FOUND),
  * а при RATE_LIMITED/ERROR остаётся временем последней успешной синхронизации.
+ *
+ * logoFile (§4.10) уже вычислен вызывающим (resolveLogoFile) — эта функция только
+ * решает, попадёт ли он в патч. undefined, а не null: null в патче означал бы
+ * «записать NULL» и затёр бы уже сохранённый логотип, если источник в этот раз
+ * логотипа не дал (то же правило, что у position).
  */
-function buildFetchedDecision(fetched: VacancyFetchResult): VacancySyncDecision {
+function buildFetchedDecision(
+  fetched: VacancyFetchResult,
+  logoFile: string | undefined,
+): VacancySyncDecision {
   if (fetched.outcome === SYNC_OUTCOME.OK) {
     const { vacancy } = fetched;
     const patch: ApplicationSyncPatch = {
@@ -92,6 +101,12 @@ function buildFetchedDecision(fetched: VacancyFetchResult): VacancySyncDecision 
     // NULL» и затёр бы должность, введённую пользователем вручную.
     if (position !== null) {
       patch.position = position;
+    }
+
+    // Условный ключ по тому же принципу, что у position (§4.10): отсутствие ключа
+    // означает «колонку не трогать».
+    if (logoFile !== undefined) {
+      patch.companyLogoFile = logoFile;
     }
 
     return { patch, outcome: SYNC_OUTCOME.OK, message: null };
@@ -155,6 +170,7 @@ function takeSyncSnapshot(application: Application): ApplicationSyncSnapshot {
     position: application.position,
     status: application.status,
     vacancyArchived: application.vacancyArchived,
+    companyLogoFile: application.companyLogoFile,
     lastSyncedAt: application.lastSyncedAt,
     lastSyncOutcome: application.lastSyncOutcome,
     lastSyncError: application.lastSyncError,
@@ -187,6 +203,7 @@ export class VacancySyncService {
     @InjectRepository(Application)
     private readonly applications: Repository<Application>,
     private readonly registry: VacancyProviderRegistry,
+    private readonly logos: CompanyLogoService,
     configService: ConfigService,
   ) {
     this.concurrency = configService.getOrThrow<number>(SYNC_CONCURRENCY_ENV_KEY);
@@ -316,6 +333,48 @@ export class VacancySyncService {
       return buildSkippedDecision(VACANCY_UNKNOWN_SOURCE_MESSAGE);
     }
 
-    return buildFetchedDecision(await provider.fetchVacancy(vacancyExternalId));
+    const fetched = await provider.fetchVacancy(vacancyExternalId);
+
+    return buildFetchedDecision(fetched, await this.resolveLogoFile(application, fetched));
+  }
+
+  /**
+   * §4.10: качать логотип или нет. undefined — «колонку не трогать» (см. комментарий
+   * к buildFetchedDecision), а не null. Порядок отказов: не OK → не узнали о вакансии
+   * вообще; нет logoUrl → источник логотип не отдал; файл уже на диске → не перекачиваем
+   * (иначе массовый прогон по всем открытым записям заново скачивал бы то, что уже есть).
+   * CompanyLogoService.download сам не бросает — здесь дополнительный try/catch не нужен.
+   */
+  private async resolveLogoFile(
+    application: Application,
+    fetched: VacancyFetchResult,
+  ): Promise<string | undefined> {
+    if (fetched.outcome !== SYNC_OUTCOME.OK) {
+      return undefined;
+    }
+
+    const { logoUrl, logoAllowedHostPattern } = fetched.vacancy;
+
+    // Оба поля заполняются парсером источника вместе (§4.10) — logoAllowedHostPattern
+    // здесь null означал бы, что парсер прислал URL без allow-list'а, чего не бывает;
+    // проверка на всякий случай сохраняет тип allowedHostPattern ниже необязательным.
+    if (logoUrl === null || logoAllowedHostPattern === null) {
+      return undefined;
+    }
+
+    if (
+      application.companyLogoFile !== null &&
+      (await this.logos.exists(application.companyLogoFile))
+    ) {
+      return undefined;
+    }
+
+    return (
+      (await this.logos.download({
+        fileKey: application.id,
+        logoUrl,
+        allowedHostPattern: logoAllowedHostPattern,
+      })) ?? undefined
+    );
   }
 }

@@ -38,6 +38,7 @@ export class ApplicationDto implements ApplicationResponse {
   vacancySource!: VacancySource | null;
   vacancyExternalId!: string | null;
   vacancyArchived!: boolean | null;
+  hasCompanyLogo!: boolean;
   lastSyncedAt!: string | null;
   lastSyncOutcome!: SyncOutcome | null;
   lastSyncError!: string | null;
@@ -62,6 +63,8 @@ export class ApplicationDto implements ApplicationResponse {
     dto.vacancySource = entity.vacancySource;
     dto.vacancyExternalId = entity.vacancyExternalId;
     dto.vacancyArchived = entity.vacancyArchived;
+    // Имя файла наружу не уходит — только признак наличия (§4.10).
+    dto.hasCompanyLogo = entity.companyLogoFile !== null;
     dto.lastSyncedAt = toIsoOrNull(entity.lastSyncedAt);
     dto.lastSyncOutcome = entity.lastSyncOutcome;
     dto.lastSyncError = entity.lastSyncError;

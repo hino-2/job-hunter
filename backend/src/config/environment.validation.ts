@@ -13,6 +13,8 @@ import {
 import {
   BOOLEAN_ENV_VALUES,
   DEFAULT_API_PORT,
+  DEFAULT_COMPANY_LOGO_DIR,
+  DEFAULT_COMPANY_LOGO_REQUEST_TIMEOUT_MS,
   DEFAULT_DATABASE_PORT,
   DEFAULT_GETMATCH_MAX_RETRIES,
   DEFAULT_GETMATCH_REQUEST_TIMEOUT_MS,
@@ -174,6 +176,22 @@ export class EnvironmentVariables {
   @Min(TCP_PORT_MIN)
   @Max(TCP_PORT_MAX)
   API_PORT: number = DEFAULT_API_PORT;
+
+  /**
+   * §4.10. Каталог эфемерный (tmpdir по умолчанию) — docker-volume для него не заводим,
+   * пересоздание контейнера самолечится ближайшей синхронизацией.
+   */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  COMPANY_LOGO_DIR: string = DEFAULT_COMPANY_LOGO_DIR;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(REQUEST_TIMEOUT_MIN_MS)
+  @Max(REQUEST_TIMEOUT_MAX_MS)
+  COMPANY_LOGO_REQUEST_TIMEOUT_MS: number = DEFAULT_COMPANY_LOGO_REQUEST_TIMEOUT_MS;
 }
 
 export function validateEnvironment(raw: Record<string, unknown>): EnvironmentVariables {

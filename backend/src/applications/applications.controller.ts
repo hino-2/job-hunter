@@ -3,22 +3,35 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
 
+import {
+  COMPANY_LOGO_DISPOSITION,
+  CONTENT_TYPE_OPTIONS_HEADER,
+  CONTENT_TYPE_OPTIONS_NOSNIFF,
+  LOGO_CACHE_CONTROL_HEADER,
+  LOGO_CACHE_CONTROL_VALUE,
+} from '../logos/company-logo.constants';
+import { CompanyLogoService } from '../logos/company-logo.service';
 import { VacancySyncService } from '../vacancies/vacancy-sync.service';
 import {
   APPLICATION_BY_ID_ROUTE,
   APPLICATION_ID_PARAM,
+  APPLICATION_LOGO_ROUTE,
   APPLICATION_SYNC_ROUTE,
   APPLICATIONS_ROUTE,
   APPLICATIONS_SYNC_OPEN_ROUTE,
+  COMPANY_LOGO_NOT_FOUND_MESSAGE,
 } from './applications.constants';
 import { ApplicationsService } from './applications.service';
 import { ApplicationDto } from './dto/application.dto';
@@ -31,14 +44,16 @@ import { UpdateApplicationDto } from './dto/update-application.dto';
 /**
  * CRUD ресурса applications (§5.1) и запуск синхронизации (§5.2).
  *
- * ВАЖНО: маршруты POST 'sync-open' и POST ':id/sync' объявлены ВЫШЕ методов с ':id',
- * иначе Express сматчит 'sync-open' как значение :id (§5.2). Не переставлять.
+ * ВАЖНО: маршруты POST 'sync-open', POST ':id/sync' и GET ':id/logo' объявлены ВЫШЕ
+ * методов с ':id', иначе Express сматчит их хвост ('sync-open', '/sync', '/logo') как
+ * значение :id (§5.2, §4.10). Не переставлять.
  */
 @Controller(APPLICATIONS_ROUTE)
 export class ApplicationsController {
   constructor(
     private readonly applicationsService: ApplicationsService,
     private readonly vacancySyncService: VacancySyncService,
+    private readonly companyLogoService: CompanyLogoService,
   ) {}
 
   @Get()
@@ -82,6 +97,38 @@ export class ApplicationsController {
     const result = await this.vacancySyncService.syncById(id);
 
     return SyncResultDto.fromResult(result);
+  }
+
+  /**
+   * GET /api/applications/:id/logo (§4.10, §5.1) — байты логотипа компании. Объявлен
+   * ВЫШЕ методов с ':id' по тому же правилу, что и маршруты синхронизации выше.
+   *
+   * @Res не используется намеренно: с ним перестал бы работать HttpExceptionFilter
+   * (§5.5) — StreamableFile остаётся единственным способом отдать бинарный ответ.
+   * nosniff ставим сами, а не надеемся на nginx: в dev-режиме API стоит за Vite.
+   */
+  @Get(APPLICATION_LOGO_ROUTE)
+  @Header(LOGO_CACHE_CONTROL_HEADER, LOGO_CACHE_CONTROL_VALUE)
+  @Header(CONTENT_TYPE_OPTIONS_HEADER, CONTENT_TYPE_OPTIONS_NOSNIFF)
+  async findLogo(@Param(APPLICATION_ID_PARAM, ParseUUIDPipe) id: string): Promise<StreamableFile> {
+    const entity = await this.applicationsService.findOneOrFail(id);
+
+    if (entity.companyLogoFile === null) {
+      throw new NotFoundException(COMPANY_LOGO_NOT_FOUND_MESSAGE);
+    }
+
+    const content = await this.companyLogoService.read(entity.companyLogoFile);
+
+    if (content === null) {
+      // Файл пропал с диска (эфемерный каталог, §4.10) — та же ошибка, что «нет логотипа».
+      throw new NotFoundException(COMPANY_LOGO_NOT_FOUND_MESSAGE);
+    }
+
+    return new StreamableFile(content.buffer, {
+      type: content.contentType,
+      disposition: COMPANY_LOGO_DISPOSITION,
+      length: content.length,
+    });
   }
 
   @Get(APPLICATION_BY_ID_ROUTE)

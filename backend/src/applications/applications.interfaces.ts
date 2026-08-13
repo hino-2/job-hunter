@@ -58,6 +58,8 @@ export interface ApplicationResponse {
   vacancySource: VacancySource | null;
   vacancyExternalId: string | null;
   vacancyArchived: boolean | null;
+  /** §4.10: наружу уходит только признак наличия — имя файла остаётся деталью хранилища. */
+  hasCompanyLogo: boolean;
   lastSyncedAt: string | null;
   lastSyncOutcome: SyncOutcome | null;
   lastSyncError: string | null;
@@ -75,6 +77,8 @@ export interface ApplicationSyncFields {
   position: string | null;
   status: ApplicationStatus;
   vacancyArchived: boolean | null;
+  /** §4.10: колонка принадлежит синхронизации — имя файла логотипа на диске либо null. */
+  companyLogoFile: string | null;
   lastSyncedAt: Date | null;
   lastSyncOutcome: SyncOutcome;
   lastSyncError: string | null;

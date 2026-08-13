@@ -39,9 +39,19 @@ export const SUMMARY_ICON_GAP = 0.5;
 /** flex элементов свёрнутой шапки (§7.2.1). */
 export const SUMMARY_FLEX = {
   company: `0 0 ${SUMMARY_COMPANY_WIDTH_PX}px`,
+  // Текст внутри ячейки компании — сама ячейка держит фиксированную 0 0 500px,
+  // а название сжимается/растягивается рядом с Avatar-логотипом (§4.10).
+  companyText: '1 1 auto',
   position: '1 1 auto',
   auto: '0 0 auto',
 } as const;
+
+/** Логотип компании в свёрнутой шапке (§4.10, §7.2.1): 48px строка §13.10.4 не переживёт
+ *  дефолтные 40px MUI Avatar — отсюда собственный размер. */
+export const SUMMARY_LOGO_SIZE_PX = 24;
+
+/** У MUI Avatar font-size буквы-фолбэка фиксирован 1.25rem — на 24px это не влезает. */
+export const SUMMARY_LOGO_FONT_SIZE = '0.75rem';
 
 export const ACCORDION_ELEVATION = 1;
 export const APP_BAR_ELEVATION = 1;

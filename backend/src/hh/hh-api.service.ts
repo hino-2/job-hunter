@@ -25,6 +25,7 @@ import {
   HH_NOT_FOUND_MESSAGE,
   HH_PAGE_UNPARSABLE_MESSAGE,
   HH_RATE_LIMITED_MESSAGE,
+  HH_SITE_BASE_URL_ENV_KEY,
   HH_TRANSPORT_ERROR_MESSAGE,
   HH_UNEXPECTED_STATUS_MESSAGE,
   HH_VACANCY_PAGE_PATH,
@@ -51,12 +52,16 @@ export class HhApiService implements VacancySourceProvider {
 
   private readonly logger = new Logger(HhApiService.name);
   private readonly maxRetries: number;
+  private readonly siteBaseUrl: string;
 
   constructor(
     private readonly http: HttpService,
     configService: ConfigService,
   ) {
     this.maxRetries = configService.getOrThrow<number>(HH_MAX_RETRIES_ENV_KEY);
+    // §4.10: та же переменная, что задаёт baseURL HTTP-клиента (HH_HTTP_ENV_KEYS.baseUrl) —
+    // логотип абсолютизируется относительно того же базового хоста hh.ru.
+    this.siteBaseUrl = configService.getOrThrow<string>(HH_SITE_BASE_URL_ENV_KEY);
   }
 
   parseUrl(rawUrl: string | null | undefined): string | null {
@@ -99,7 +104,7 @@ export class HhApiService implements VacancySourceProvider {
 
   private interpretResponse(status: number, payload: unknown): VacancyRequestAttempt {
     if (status === OK_STATUS) {
-      const vacancy = parseHhVacancyPage(payload);
+      const vacancy = parseHhVacancyPage(payload, this.siteBaseUrl);
 
       if (vacancy === null) {
         // Тело не логируем — только длину, чтобы не заносить в лог всю HTML-страницу.

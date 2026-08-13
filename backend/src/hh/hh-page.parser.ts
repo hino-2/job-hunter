@@ -1,9 +1,13 @@
 import type { Vacancy } from '../vacancies/vacancies.interfaces';
+import { resolveVacancyLogoUrl } from '../vacancies/vacancy-logo-url.helpers';
 import {
   HH_ARCHIVED_FLAG_GROUP,
   HH_ARCHIVED_FLAG_PATTERN,
   HH_ARCHIVED_MARKER,
   HH_ARCHIVED_TRUE_TOKEN,
+  HH_COMPANY_LOGO_PATTERN,
+  HH_COMPANY_LOGO_SRC_GROUP,
+  HH_LOGO_ALLOWED_HOST_PATTERN,
   JSON_LD_CONTENT_GROUP,
   JSON_LD_FIELD,
   JSON_LD_JOB_POSTING_TYPE,
@@ -104,6 +108,14 @@ function hasJobPostingType(entry: Record<string, unknown>): boolean {
   return false;
 }
 
+/**
+ * §4.10: src логотипа компании из блока data-qa="vacancy-company-logo". Не глобальный
+ * регекс — безопасен с .exec (lastIndex не мутируется между вызовами).
+ */
+function readCompanyLogo(html: string): string | null {
+  return HH_COMPANY_LOGO_PATTERN.exec(html)?.[HH_COMPANY_LOGO_SRC_GROUP] ?? null;
+}
+
 /** Первая запись JSON-LD с @type: 'JobPosting' (строкой либо в массиве типов). */
 function findJobPosting(entries: unknown[]): Record<string, unknown> | null {
   for (const entry of entries) {
@@ -129,8 +141,12 @@ function findJobPosting(entries: unknown[]): Record<string, unknown> | null {
  * только автозаполнение (§4.4), отсутствие блока ld+json — не ошибка разбора.
  *
  * Никогда не бросает: любой мусор на входе — это null, а не исключение.
+ *
+ * logoBaseUrl (§4.10) нужен для абсолютизации src логотипа компании — разметка hh.ru
+ * может отдать как относительный, так и абсолютный путь; logoUrl заполняется в ОБОИХ
+ * return, потому что разметка логотипа от наличия JSON-LD не зависит.
  */
-export function parseHhVacancyPage(html: unknown): Vacancy | null {
+export function parseHhVacancyPage(html: unknown, logoBaseUrl: string): Vacancy | null {
   if (typeof html !== 'string' || html.length === 0) {
     return null;
   }
@@ -141,10 +157,19 @@ export function parseHhVacancyPage(html: unknown): Vacancy | null {
     return null;
   }
 
+  const logoUrl = resolveVacancyLogoUrl(
+    readCompanyLogo(html),
+    logoBaseUrl,
+    HH_LOGO_ALLOWED_HOST_PATTERN,
+  );
   const jobPosting = findJobPosting(extractJsonLdEntries(html));
 
+  // Тот же allow-list, которым уже проверили logoUrl (§4.10) — CompanyLogoService
+  // повторит эту проверку на каждом хопе редиректа, а не только на исходном URL.
+  const logoAllowedHostPattern = logoUrl === null ? null : HH_LOGO_ALLOWED_HOST_PATTERN;
+
   if (jobPosting === null) {
-    return { name: null, archived, employerName: null };
+    return { name: null, archived, employerName: null, logoUrl, logoAllowedHostPattern };
   }
 
   const hiringOrganization = jobPosting[JSON_LD_FIELD.HIRING_ORGANIZATION];
@@ -155,5 +180,7 @@ export function parseHhVacancyPage(html: unknown): Vacancy | null {
     employerName: isRecord(hiringOrganization)
       ? readString(hiringOrganization, JSON_LD_FIELD.NAME)
       : null,
+    logoUrl,
+    logoAllowedHostPattern,
   };
 }

@@ -30,6 +30,7 @@ export interface Application {
   vacancySource: VacancySource | null;
   vacancyExternalId: string | null;
   vacancyArchived: boolean | null;
+  hasCompanyLogo: boolean;
   lastSyncedAt: string | null;
   lastSyncOutcome: SyncOutcome | null;
   lastSyncError: string | null;

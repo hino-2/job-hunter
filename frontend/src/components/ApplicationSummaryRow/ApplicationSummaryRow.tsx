@@ -1,7 +1,15 @@
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EventIcon from '@mui/icons-material/Event';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { Box, Chip, CircularProgress, IconButton, Tooltip, Typography } from '@mui/material';
+import {
+  Avatar,
+  Box,
+  Chip,
+  CircularProgress,
+  IconButton,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { memo } from 'react';
 import type { MouseEvent } from 'react';
 
@@ -16,11 +24,17 @@ import {
   FIELD_GAP,
   SUMMARY_FLEX,
   SUMMARY_ICON_GAP,
+  SUMMARY_LOGO_FONT_SIZE,
+  SUMMARY_LOGO_SIZE_PX,
   SUMMARY_SYNC_PROGRESS_SIZE_PX,
   SUMMARY_TEXT_MIN_WIDTH_PX,
 } from '../../constants/layout.constants';
 import { SYNC_ROW_LABEL, SYNC_ROW_PENDING_LABEL } from '../../constants/sync.constants';
-import { selectUpcomingInterview } from '../../utils/application.utils';
+import {
+  buildCompanyInitial,
+  buildCompanyLogoUrl,
+  selectUpcomingInterview,
+} from '../../utils/application.utils';
 import { formatDateTimeFull, formatDateTimeShort } from '../../utils/date.utils';
 import type { ApplicationSummaryRowProps } from './application-summary-row.interfaces';
 import { SyncStatusIcon } from '../SyncStatusIcon/SyncStatusIcon';
@@ -42,6 +56,10 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
 }: ApplicationSummaryRowProps) {
   const isClosed = application.status === APPLICATION_STATUS.CLOSED;
   const upcoming = selectUpcomingInterview(application);
+  const logoSrc = application.hasCompanyLogo
+    ? buildCompanyLogoUrl(application.id)
+    : undefined;
+  const initial = buildCompanyInitial(application.company);
 
   // stopPropagation обязателен (§7.2.1): без него клик по кнопке всплыл бы
   // до AccordionSummary и переключил раскрытость (§13.10.3).
@@ -72,19 +90,43 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
         minWidth: SUMMARY_TEXT_MIN_WIDTH_PX,
       }}
     >
-      <Tooltip title={application.company}>
-        <Typography
-          noWrap
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: SUMMARY_ICON_GAP,
+          flex: SUMMARY_FLEX.company,
+          minWidth: SUMMARY_TEXT_MIN_WIDTH_PX,
+        }}
+      >
+        <Avatar
+          variant="rounded"
+          alt=""
+          src={logoSrc}
           sx={{
-            flex: SUMMARY_FLEX.company,
-            minWidth: SUMMARY_TEXT_MIN_WIDTH_PX,
-            fontWeight: 'bold',
-            color: isClosed ? 'text.secondary' : 'text.primary',
+            width: SUMMARY_LOGO_SIZE_PX,
+            height: SUMMARY_LOGO_SIZE_PX,
+            fontSize: SUMMARY_LOGO_FONT_SIZE,
+            flex: SUMMARY_FLEX.auto,
           }}
         >
-          {application.company}
-        </Typography>
-      </Tooltip>
+          {initial}
+        </Avatar>
+
+        <Tooltip title={application.company}>
+          <Typography
+            noWrap
+            sx={{
+              flex: SUMMARY_FLEX.companyText,
+              minWidth: SUMMARY_TEXT_MIN_WIDTH_PX,
+              fontWeight: 'bold',
+              color: isClosed ? 'text.secondary' : 'text.primary',
+            }}
+          >
+            {application.company}
+          </Typography>
+        </Tooltip>
+      </Box>
 
       <Typography
         noWrap

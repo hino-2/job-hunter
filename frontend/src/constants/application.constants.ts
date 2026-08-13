@@ -338,3 +338,6 @@ export const CREATE_ERROR_FALLBACK_MESSAGE = 'Не удалось добавит
 export const DELETE_SUCCESS_MESSAGE = 'Запись удалена';
 export const DELETE_ERROR_FALLBACK_MESSAGE = 'Не удалось удалить запись';
 export const PREVIEW_ERROR_FALLBACK_MESSAGE = 'Не удалось получить данные о вакансии';
+
+/** Буква-фолбэк логотипа (§4.10, §7.2.1), когда у company нет непробельного символа. */
+export const COMPANY_INITIAL_FALLBACK = '?';

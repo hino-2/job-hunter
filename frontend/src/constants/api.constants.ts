@@ -22,6 +22,9 @@ export const HTTP_STATUS_NOT_FOUND = 404;
 export const SYNC_PATH_SEGMENT = 'sync';
 export const SYNC_OPEN_PATH_SEGMENT = 'sync-open';
 
+/** §5.1: GET /api/applications/:id/logo — байты логотипа компании (§4.10). */
+export const LOGO_PATH_SEGMENT = 'logo';
+
 /**
  * Худший случай одной записи на бэкенде: 3 попытки × 10 000 мс + backoff 500/1500 мс ≈ 32 с
  * (backend/src/config/config.constants.ts, backend/src/vacancies/vacancies.constants.ts), то

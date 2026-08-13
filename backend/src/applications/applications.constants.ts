@@ -22,6 +22,13 @@ export const APPLICATIONS_SYNC_OPEN_ROUTE = 'sync-open';
 
 export const APPLICATION_SYNC_ROUTE = `${APPLICATION_BY_ID_ROUTE}/sync`;
 
+/**
+ * §4.10, §5.1. По тому же правилу порядка маршрутов, что и sync-роуты выше:
+ * объявляется в контроллере ВЫШЕ методов с ':id', иначе Express сматчит
+ * '/logo' как хвост значения :id.
+ */
+export const APPLICATION_LOGO_ROUTE = `${APPLICATION_BY_ID_ROUTE}/logo`;
+
 export const APPLICATIONS_TABLE = 'applications';
 
 export const APPLICATIONS_ALIAS = 'application';
@@ -43,6 +50,7 @@ export const APPLICATION_COLUMN = {
   VACANCY_EXTERNAL_ID: 'vacancy_external_id',
   VACANCY_ARCHIVED: 'vacancy_archived',
   VACANCY_SOURCE: 'vacancy_source',
+  COMPANY_LOGO_FILE: 'company_logo_file',
   LAST_SYNCED_AT: 'last_synced_at',
   LAST_SYNC_OUTCOME: 'last_sync_outcome',
   LAST_SYNC_ERROR: 'last_sync_error',
@@ -111,6 +119,9 @@ export const VACANCY_EXTERNAL_ID_COLUMN_LENGTH = 32;
 export const VACANCY_SOURCE_COLUMN_LENGTH = 16;
 export const SYNC_OUTCOME_COLUMN_LENGTH = 32;
 
+/** §4.10: uuid записи (36) + разделитель (1) + расширение из белого списка (≤4). */
+export const COMPANY_LOGO_FILE_COLUMN_LENGTH = 64;
+
 /** §5.1: допустимые значения query-параметра sort. */
 export const APPLICATION_SORT_FIELDS = [
   'createdAt',
@@ -176,6 +187,9 @@ export const LIKE_ESCAPE_REPLACEMENT = '\\$&';
 export const LIKE_WILDCARD = '%';
 
 export const APPLICATION_NOT_FOUND_MESSAGE = 'Запись не найдена';
+
+/** §4.10, §5.1: отдаётся и когда у записи нет логотипа, и когда файл пропал с диска. */
+export const COMPANY_LOGO_NOT_FOUND_MESSAGE = 'Логотип компании не сохранён';
 
 /** Страховка на случай, если валидация DTO пропустит непарсящуюся дату. */
 export const INVALID_DATE_MESSAGE =

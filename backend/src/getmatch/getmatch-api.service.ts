@@ -25,6 +25,7 @@ import {
   GETMATCH_PAGE_STATE,
   GETMATCH_PAGE_UNPARSABLE_MESSAGE,
   GETMATCH_RATE_LIMITED_MESSAGE,
+  GETMATCH_SITE_BASE_URL_ENV_KEY,
   GETMATCH_TRANSPORT_ERROR_MESSAGE,
   GETMATCH_UNEXPECTED_STATUS_MESSAGE,
   GETMATCH_VACANCY_PAGE_PATH,
@@ -53,12 +54,16 @@ export class GetmatchApiService implements VacancySourceProvider {
 
   private readonly logger = new Logger(GetmatchApiService.name);
   private readonly maxRetries: number;
+  private readonly siteBaseUrl: string;
 
   constructor(
     private readonly http: HttpService,
     configService: ConfigService,
   ) {
     this.maxRetries = configService.getOrThrow<number>(GETMATCH_MAX_RETRIES_ENV_KEY);
+    // §4.10: та же переменная, что задаёт baseURL HTTP-клиента — логотип
+    // абсолютизируется относительно того же базового хоста getmatch.ru.
+    this.siteBaseUrl = configService.getOrThrow<string>(GETMATCH_SITE_BASE_URL_ENV_KEY);
   }
 
   parseUrl(rawUrl: string | null | undefined): string | null {
@@ -140,7 +145,7 @@ export class GetmatchApiService implements VacancySourceProvider {
    * её от «страница не распознана» может только парсер payload.
    */
   private interpretPage(payload: unknown): VacancyRequestAttempt {
-    const parsed = parseGetmatchVacancyPage(payload);
+    const parsed = parseGetmatchVacancyPage(payload, this.siteBaseUrl);
 
     if (parsed.state === GETMATCH_PAGE_STATE.PARSED) {
       return { result: { outcome: SYNC_OUTCOME.OK, vacancy: parsed.vacancy }, retryable: false };

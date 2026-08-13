@@ -1,8 +1,15 @@
 import dayjs from 'dayjs';
 
 import {
+  API_BASE_URL,
+  APPLICATIONS_ENDPOINT,
+  API_PATH_SEPARATOR,
+  LOGO_PATH_SEGMENT,
+} from '../constants/api.constants';
+import {
   APPLICATION_FIELD_PICKERS,
   APPLICATION_STATUS,
+  COMPANY_INITIAL_FALLBACK,
   EDITABLE_FIELDS,
   EDITABLE_TEXT_FIELDS,
   EMPTY_TEXT_FIELD_VALUE,
@@ -69,6 +76,31 @@ export function selectUpcomingInterview(application: Application): UpcomingInter
  */
 export function isFilterActive(filters: ApplicationsFilters): boolean {
   return filters.status !== STATUS_FILTER.ALL || filters.search.trim().length > 0;
+}
+
+/**
+ * Относительный путь к байтам логотипа (§4.10, §5.1). API_BASE_URL обязателен: `<img>`
+ * не проходит через axios и его `baseURL` не получит.
+ */
+export function buildCompanyLogoUrl(id: string): string {
+  return `${API_BASE_URL}${APPLICATIONS_ENDPOINT}${API_PATH_SEPARATOR}${id}${API_PATH_SEPARATOR}${LOGO_PATH_SEGMENT}`;
+}
+
+/**
+ * Буква-фолбэк Avatar'а (§4.10, §7.2.1): первый непробельный символ названия компании
+ * в верхнем регистре. toUpperCase учитывает не-ASCII (кириллицу и т. п.) корректно.
+ * Символ берётся по кодовой точке, а не `charAt(0)`: у названия, начинающегося с эмодзи,
+ * первая единица UTF-16 — половина суррогатной пары, и в DOM она отрисовалась бы как `�`.
+ */
+export function buildCompanyInitial(company: string): string {
+  const trimmed = company.trim();
+  const [firstCodePoint] = trimmed;
+
+  if (firstCodePoint === undefined) {
+    return COMPANY_INITIAL_FALLBACK;
+  }
+
+  return firstCodePoint.toUpperCase();
 }
 
 /** Поле-ссылка: у него черновик переживает невалидное значение, у остальных — нет (§7.3). */
@@ -245,6 +277,11 @@ export function buildServerEchoPatch(
  * только при исходе OK и только непустой: при прочих исходах бэкенд должность
  * не писал, и перенос откатил бы оптимистичное значение параллельного автосейва.
  * Поэтому на вход идёт весь SyncResult, а не одна сущность.
+ *
+ * hasCompanyLogo (§4.10) — той же ловушки ради: переносится только при OK и только
+ * когда true. Бэкенд колонку company_logo_file никогда не чистит, поэтому false
+ * из «догоняющего» ответа — не сигнал «логотип пропал», а лишь то, что этот прогон
+ * его не скачивал; перенос false затёр бы уже показанный Avatar.
  */
 export function buildSyncEchoPatch(
   result: SyncResult,
@@ -261,6 +298,10 @@ export function buildSyncEchoPatch(
 
   if (result.outcome === SYNC_OUTCOME.OK && saved.position !== null) {
     patch = { ...patch, position: saved.position };
+  }
+
+  if (result.outcome === SYNC_OUTCOME.OK && saved.hasCompanyLogo) {
+    patch = { ...patch, hasCompanyLogo: saved.hasCompanyLogo };
   }
 
   if (cached === undefined || saved.updatedAt > cached.updatedAt) {

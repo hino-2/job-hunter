@@ -12,6 +12,7 @@ import {
   APPLICATION_COLUMN,
   APPLICATION_INDEX,
   APPLICATIONS_TABLE,
+  COMPANY_LOGO_FILE_COLUMN_LENGTH,
   COMPANY_MAX_LENGTH,
   DEFAULT_APPLICATION_RESULT,
   DEFAULT_APPLICATION_STATUS,
@@ -125,6 +126,19 @@ export class Application implements ApplicationWritableFields, ApplicationDerive
 
   @Column({ type: COLUMN_TYPE.BOOLEAN, name: APPLICATION_COLUMN.VACANCY_ARCHIVED, nullable: true })
   vacancyArchived!: boolean | null;
+
+  /**
+   * §4.10: имя файла логотипа на диске (каталог COMPANY_LOGO_DIR), а не URL и не байты.
+   * Владеет колонкой синхронизация (ApplicationSyncFields) — тот же принцип, что у
+   * vacancyArchived/lastSync*.
+   */
+  @Column({
+    type: COLUMN_TYPE.VARCHAR,
+    name: APPLICATION_COLUMN.COMPANY_LOGO_FILE,
+    length: COMPANY_LOGO_FILE_COLUMN_LENGTH,
+    nullable: true,
+  })
+  companyLogoFile!: string | null;
 
   @Column({
     type: COLUMN_TYPE.TIMESTAMPTZ,

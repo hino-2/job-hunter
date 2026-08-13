@@ -52,6 +52,9 @@ services:
       SYNC_MIN_DELAY_MS: ${SYNC_MIN_DELAY_MS:-200}
       SCHEDULED_SYNC_ENABLED: ${SCHEDULED_SYNC_ENABLED:-true}
       SCHEDULED_SYNC_INTERVAL_MS: ${SCHEDULED_SYNC_INTERVAL_MS:-1800000}
+      # Каталог эфемерный (§4.10) — docker-volume не заводим намеренно.
+      COMPANY_LOGO_DIR: ${COMPANY_LOGO_DIR:-/tmp/job-hunter-logos}
+      COMPANY_LOGO_REQUEST_TIMEOUT_MS: ${COMPANY_LOGO_REQUEST_TIMEOUT_MS:-5000}
     # Порт наружу не публикуется: снаружи доступен только web.
     healthcheck:
       test: ['CMD-SHELL', 'wget -q -O- http://127.0.0.1:3000/api/health | grep -q ''"db":"up"''']
