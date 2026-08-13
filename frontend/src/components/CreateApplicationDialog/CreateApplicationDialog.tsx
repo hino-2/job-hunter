@@ -228,8 +228,8 @@ export function CreateApplicationDialog({
             isLoading={preview.isPending}
             onValueChange={(value) => {
               patchValues({ vacancyUrl: value });
+              handleVacancyUrlBlur();
             }}
-            onBlur={handleVacancyUrlBlur}
           />
 
           <TextField
