@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { SelectQueryBuilder } from 'typeorm';
 
+import { buildLikePattern } from '../common/like.helpers';
 import { VacancyProviderRegistry } from '../vacancies/vacancy-provider.registry';
 import { Application } from './application.entity';
 import {
@@ -22,9 +23,6 @@ import {
   DEFAULT_APPLICATION_SORT,
   DEFAULT_APPLICATION_STATUS,
   INVALID_DATE_MESSAGE,
-  LIKE_ESCAPE_PATTERN,
-  LIKE_ESCAPE_REPLACEMENT,
-  LIKE_WILDCARD,
 } from './applications.constants';
 import type { ApplicationDerivedFields } from './applications.interfaces';
 import type { ApplicationCreatePayload, ApplicationPatch } from './applications.type';
@@ -49,13 +47,6 @@ function toDateOrNull(value: string | null | undefined): Date | null {
   }
 
   return date;
-}
-
-/** Экранирует метасимволы LIKE и оборачивает терм в проценты для поиска подстроки. */
-function buildSearchPattern(term: string): string {
-  const escaped = term.replace(LIKE_ESCAPE_PATTERN, LIKE_ESCAPE_REPLACEMENT);
-
-  return `${LIKE_WILDCARD}${escaped}${LIKE_WILDCARD}`;
 }
 
 /**
@@ -173,7 +164,7 @@ export class ApplicationsService {
 
     if (query.search !== undefined && query.search.length > 0) {
       builder.andWhere(APPLICATION_SEARCH_CONDITION, {
-        search: buildSearchPattern(query.search),
+        search: buildLikePattern(query.search),
       });
     }
 

@@ -76,6 +76,13 @@ export interface VacancySourceProvider {
   parseUrl(rawUrl: string | null | undefined): string | null;
   /** Исключений наружу не выпускает: любой сбой — исход из §4.5. */
   fetchVacancy(externalId: string): Promise<VacancyFetchResult>;
+  /**
+   * §4.11.2: слот общего троттла источника, если у него есть лимит частоты (hh.ru —
+   * есть, HhRequestThrottle; getmatch.ru — нет). Скачивание логотипа компании (§4.10)
+   * зовёт его перед запросом к CDN источника — так модуль logos/ не узнаёт о hh.ru
+   * напрямую, слот приезжает данными через VacancyResolution.provider.
+   */
+  readonly acquireRequestSlot?: () => Promise<void>;
 }
 
 /**

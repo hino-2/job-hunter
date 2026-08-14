@@ -80,3 +80,71 @@ export const TRUE_ENV_VALUE = 'true';
  */
 export const SCHEDULED_SYNC_INTERVAL_MIN_MS = 60_000;
 export const SCHEDULED_SYNC_INTERVAL_MAX_MS = 86_400_000;
+
+/**
+ * §4.11.2. Общий троттл всех запросов к hh.ru (HhRequestThrottle, модуль hh/):
+ * минимальный интервал между стартами запросов = 1000 / HH_MAX_REQUESTS_PER_SECOND.
+ *
+ * Нижняя граница — защита от деления на ноль и отрицательного интервала в
+ * HhRequestThrottle. Верхняя (50) проверяется наравне с ней: значение выше — это уже
+ * не «поиск не должен подозрительно нагружать hh.ru», а отсутствие троттла, и попасть
+ * туда опечаткой в .env нельзя. E2e укладывается в тот же потолок: заглушка локальная,
+ * и 50 запросов в секунду (интервал 20 мс) не удлиняют прогон заметно.
+ */
+export const DEFAULT_HH_MAX_REQUESTS_PER_SECOND = 2;
+export const HH_MAX_REQUESTS_PER_SECOND_MIN = 0.1;
+export const HH_MAX_REQUESTS_PER_SECOND_MAX = 50;
+
+/**
+ * §4.11.1. Дефолтный шаблон выдачи hh.ru — сортировка по свежести публикации
+ * (на ней держится ранняя остановка по возрасту, §4.11.6) плюс явные фильтры,
+ * повторяющие анонимно подборку «под резюме» (cookie-сессия отклонена пользователем,
+ * см. §4.11.1). Региональный хост (ekaterinburg) не важен — вакансия одна и та же
+ * для всех региональных доменов, а в vacancy_url всё равно пишется канонический адрес.
+ */
+export const DEFAULT_HH_SEARCH_URL_TEMPLATE =
+  'https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true' +
+  '&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}';
+
+/**
+ * Оба плейсхолдера обязательны (§4.11.1): без {page} прогон читал бы первую страницу
+ * бесконечно. Проверка через .test() — совпадение в любом месте строки, а не
+ * полное совпадение шаблона целиком.
+ */
+export const HH_SEARCH_URL_TEXT_PLACEHOLDER_PATTERN = /\{text\}/;
+export const HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN = /\{page\}/;
+
+export const HH_SEARCH_URL_MISSING_TEXT_PLACEHOLDER_MESSAGE =
+  'HH_SEARCH_URL_TEMPLATE обязан содержать плейсхолдер {text}';
+export const HH_SEARCH_URL_MISSING_PAGE_PLACEHOLDER_MESSAGE =
+  'HH_SEARCH_URL_TEMPLATE обязан содержать плейсхолдер {page}, иначе прогон читал бы' +
+  ' первую страницу бесконечно';
+
+/** §4.11.8: бюджеты одного прогона поиска. */
+export const DEFAULT_VACANCY_SCAN_MAX_PAGES = 10;
+export const VACANCY_SCAN_MAX_PAGES_MIN = 1;
+/** У hh.ru своя отсечка на 40-й странице (paging.lastPage.page = 39, §4.11.1). */
+export const VACANCY_SCAN_MAX_PAGES_MAX = 40;
+
+export const DEFAULT_VACANCY_SCAN_MAX_DETAILS = 30;
+export const DEFAULT_VACANCY_SCAN_MAX_AGE_DAYS = 30;
+export const DEFAULT_VACANCY_SCAN_MAX_DURATION_MS = 1_800_000;
+
+/** §4.11.4: режим детерминированного отбора до/вместо ИИ. */
+export const VACANCY_PREFILTER_MODES = ['exclude_only', 'full', 'off'] as const;
+export const DEFAULT_VACANCY_PREFILTER_MODE = 'exclude_only';
+
+export const VACANCY_MATCH_MODES = ['any', 'all'] as const;
+export const DEFAULT_VACANCY_MATCH_MODE = 'any';
+
+/** §5.7: предохранитель, а не пагинация. */
+export const DEFAULT_VACANCY_LEADS_LIST_LIMIT = 500;
+
+/** §4.12.1: протокол общения с моделью — либо Ollama, либо OpenAI-совместимый API. */
+export const VACANCY_AI_PROVIDERS = ['ollama', 'openai'] as const;
+export const DEFAULT_VACANCY_AI_PROVIDER = 'ollama';
+export const DEFAULT_VACANCY_AI_BASE_URL = 'http://ollama:11434';
+export const DEFAULT_VACANCY_AI_MODEL = 'qwen3:4b-instruct';
+export const DEFAULT_VACANCY_AI_BATCH_SIZE = 10;
+export const DEFAULT_VACANCY_AI_TIMEOUT_MS = 120_000;
+export const DEFAULT_VACANCY_AI_DESCRIPTION_MAX_CHARS = 6_000;

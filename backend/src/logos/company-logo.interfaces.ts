@@ -9,6 +9,12 @@ export interface CompanyLogoDownloadRequest {
   fileKey: string;
   logoUrl: string;
   allowedHostPattern: RegExp;
+  /**
+   * §4.11.2: слот общего троттла источника (hh.ru — есть, HhRequestThrottle;
+   * getmatch.ru — нет). Модуль logos/ про hh.ru не знает ничего — функция приезжает
+   * данными от VacancySyncService (provider.acquireRequestSlot), а не импортом.
+   */
+  acquireSlot?: () => Promise<void>;
 }
 
 /**

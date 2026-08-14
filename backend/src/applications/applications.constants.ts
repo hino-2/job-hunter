@@ -181,11 +181,6 @@ export const APPLICATION_SEARCH_CONDITION =
   ` OR ${APPLICATIONS_ALIAS}.position ILIKE :search` +
   ` OR ${APPLICATIONS_ALIAS}.notes ILIKE :search)`;
 
-/** Экранирование метасимволов LIKE, чтобы «100%» искалось как подстрока, а не как шаблон. */
-export const LIKE_ESCAPE_PATTERN = /[\\%_]/g;
-export const LIKE_ESCAPE_REPLACEMENT = '\\$&';
-export const LIKE_WILDCARD = '%';
-
 export const APPLICATION_NOT_FOUND_MESSAGE = 'Запись не найдена';
 
 /** §4.10, §5.1: отдаётся и когда у записи нет логотипа, и когда файл пропал с диска. */

@@ -110,6 +110,21 @@ export const HH_STUB_BASE_URL = `http://${VACANCY_STUB_HOST}:${HH_STUB_PORT}`;
 export const GETMATCH_STUB_PORT = 34600;
 export const GETMATCH_STUB_BASE_URL = `http://${VACANCY_STUB_HOST}:${GETMATCH_STUB_PORT}`;
 
+/**
+ * §4.11.2: верхняя граница диапазона §8 — троттл в e2e фактически снят (иначе 58 e2e
+ * с полусекундными паузами шли бы минутами), но валидацию env тесты проходят ту же,
+ * что и прод. При 50 запросах в секунду интервал — 20 мс, а заглушка локальная,
+ * поэтому на длительность прогона это не влияет.
+ */
+export const TEST_HH_MAX_REQUESTS_PER_SECOND = '50';
+
+/**
+ * §4.11.1: локальная заглушка вместо реального hh.ru — страховка от того, чтобы
+ * будущий модуль поиска случайно не ушёл в интернет. Плановой синхронизации поиска
+ * не существует (§4.11.10), поэтому маршрут ни один e2e фазы B1–B3 не запрашивает.
+ */
+export const TEST_HH_SEARCH_URL_TEMPLATE = `${HH_STUB_BASE_URL}/search/vacancy?text={text}&page={page}`;
+
 /** Node отдаёт имена входящих заголовков в нижнем регистре. */
 export const USER_AGENT_HEADER_NAME = 'user-agent';
 export const ACCEPT_HEADER_NAME = 'accept';

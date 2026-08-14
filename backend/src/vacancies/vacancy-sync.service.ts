@@ -32,7 +32,7 @@ import {
   VACANCY_SKIPPED_UNSUPPORTED_MESSAGE,
   VACANCY_UNKNOWN_SOURCE_MESSAGE,
 } from './vacancies.constants';
-import type { VacancySyncDecision } from './vacancies.interfaces';
+import type { VacancySourceProvider, VacancySyncDecision } from './vacancies.interfaces';
 import type { VacancyFetchResult } from './vacancies.type';
 
 /** Нули по всем пяти исходам §4.5: сводка обязана содержать каждый ключ, даже пустой. */
@@ -335,7 +335,10 @@ export class VacancySyncService {
 
     const fetched = await provider.fetchVacancy(vacancyExternalId);
 
-    return buildFetchedDecision(fetched, await this.resolveLogoFile(application, fetched));
+    return buildFetchedDecision(
+      fetched,
+      await this.resolveLogoFile(application, fetched, provider),
+    );
   }
 
   /**
@@ -344,10 +347,14 @@ export class VacancySyncService {
    * вообще; нет logoUrl → источник логотип не отдал; файл уже на диске → не перекачиваем
    * (иначе массовый прогон по всем открытым записям заново скачивал бы то, что уже есть).
    * CompanyLogoService.download сам не бросает — здесь дополнительный try/catch не нужен.
+   *
+   * provider передаётся третьим аргументом ради acquireRequestSlot (§4.11.2): скачивание
+   * логотипа обязано идти через тот же троттл, что и страница вакансии этого источника.
    */
   private async resolveLogoFile(
     application: Application,
     fetched: VacancyFetchResult,
+    provider: VacancySourceProvider,
   ): Promise<string | undefined> {
     if (fetched.outcome !== SYNC_OUTCOME.OK) {
       return undefined;
@@ -374,6 +381,7 @@ export class VacancySyncService {
         fileKey: application.id,
         logoUrl,
         allowedHostPattern: logoAllowedHostPattern,
+        acquireSlot: provider.acquireRequestSlot,
       })) ?? undefined
     );
   }

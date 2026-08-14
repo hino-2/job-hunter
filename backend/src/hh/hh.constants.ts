@@ -16,6 +16,12 @@ export const HH_USER_AGENT_ENV_KEY = 'HH_USER_AGENT';
 export const HH_REQUEST_TIMEOUT_MS_ENV_KEY = 'HH_REQUEST_TIMEOUT_MS';
 export const HH_MAX_RETRIES_ENV_KEY = 'HH_MAX_RETRIES';
 
+/** §4.11.2: общий троттл всех запросов к hh.ru (HhRequestThrottle). */
+export const HH_MAX_REQUESTS_PER_SECOND_ENV_KEY = 'HH_MAX_REQUESTS_PER_SECOND';
+
+/** Основание пересчёта «запросов в секунду» в миллисекунды между стартами. */
+export const MS_PER_SECOND = 1_000;
+
 /** Имена env-переменных для buildVacancyHttpOptions (§4.1) — значения достаёт сам фабричный метод. */
 export const HH_HTTP_ENV_KEYS = {
   baseUrl: HH_SITE_BASE_URL_ENV_KEY,

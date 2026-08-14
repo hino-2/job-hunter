@@ -31,6 +31,7 @@ import {
   HH_VACANCY_PAGE_PATH,
 } from './hh.constants';
 import { parseHhVacancyPage } from './hh-page.parser';
+import { HhRequestThrottle } from './hh-request.throttle';
 import { parseHhVacancyId } from './hh-url.parser';
 
 /**
@@ -57,12 +58,21 @@ export class HhApiService implements VacancySourceProvider {
   constructor(
     private readonly http: HttpService,
     configService: ConfigService,
+    private readonly throttle: HhRequestThrottle,
   ) {
     this.maxRetries = configService.getOrThrow<number>(HH_MAX_RETRIES_ENV_KEY);
     // §4.10: та же переменная, что задаёт baseURL HTTP-клиента (HH_HTTP_ENV_KEYS.baseUrl) —
     // логотип абсолютизируется относительно того же базового хоста hh.ru.
     this.siteBaseUrl = configService.getOrThrow<string>(HH_SITE_BASE_URL_ENV_KEY);
   }
+
+  /**
+   * §4.11.2: тот же троттл, что и запросы страницы вакансии — скачивание логотипа
+   * компании с hhcdn.ru тоже обязано идти через общий лимит частоты к hh.ru. Стрелка,
+   * а не обычный метод: CompanyLogoDownloadRequest.acquireSlot ждёт функцию без
+   * привязанного this, а метод класса при передаче как значение его бы потерял.
+   */
+  readonly acquireRequestSlot = (): Promise<void> => this.throttle.acquire();
 
   parseUrl(rawUrl: string | null | undefined): string | null {
     return parseHhVacancyId(rawUrl);
@@ -84,6 +94,10 @@ export class HhApiService implements VacancySourceProvider {
   }
 
   private async requestVacancy(vacancyId: string): Promise<VacancyRequestAttempt> {
+    // §4.11.2: троттл на КАЖДОЙ попытке ретрая, а не только на первой — fetchWithRetries
+    // зовёт requestVacancy заново на каждый повтор.
+    await this.throttle.acquire();
+
     // Строго без query: robots.txt hh.ru запрещает `Disallow: *?*` для `User-agent: *`.
     const path = `${HH_VACANCY_PAGE_PATH}/${encodeURIComponent(vacancyId)}`;
 

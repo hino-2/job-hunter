@@ -82,13 +82,17 @@ export class CompanyLogoService {
   }
 
   async download(request: CompanyLogoDownloadRequest): Promise<string | null> {
-    const { fileKey, logoUrl, allowedHostPattern } = request;
+    const { fileKey, logoUrl, allowedHostPattern, acquireSlot } = request;
 
     if (!COMPANY_LOGO_FILE_KEY_PATTERN.test(fileKey)) {
       this.logger.warn(`${COMPANY_LOGO_INVALID_FILE_KEY_MESSAGE}: ${fileKey}`);
 
       return null;
     }
+
+    // §4.11.2: скачивание логотипа с hhcdn.ru идёт через тот же троттл, что и
+    // страница вакансии — источники без лимита частоты (getmatch.ru) слот не присылают.
+    await acquireSlot?.();
 
     let status: number;
     let data: unknown;

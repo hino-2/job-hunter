@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { HhApiService } from './hh-api.service';
 import { buildHhHttpOptions } from './hh-http-options.factory';
+import { HhRequestThrottle } from './hh-request.throttle';
 
 /**
  * Модуль интеграции с hh.ru (§4.1, §4.2): HhApiService реализует VacancySourceProvider
@@ -16,6 +17,11 @@ import { buildHhHttpOptions } from './hh-http-options.factory';
  * HttpModule.registerAsync зарегистрирован внутри этого модуля намеренно (а не в
  * vacancies/): у каждого источника свой baseURL, поэтому HttpService должен быть
  * module-scoped — второй источник (getmatch) регистрирует свой клиент в своём модуле.
+ *
+ * HhRequestThrottle (§4.11.2) — общий на процесс лимит частоты запросов к hh.ru,
+ * экспортируется отдельно от HhApiService: логотипы компаний с hhcdn.ru скачивает
+ * CompanyLogoService в logos/, а слот приезжает туда данными через
+ * HhApiService.acquireRequestSlot, а не прямым импортом HhRequestThrottle.
  */
 @Module({
   imports: [
@@ -24,7 +30,7 @@ import { buildHhHttpOptions } from './hh-http-options.factory';
       useFactory: buildHhHttpOptions,
     }),
   ],
-  providers: [HhApiService],
-  exports: [HhApiService],
+  providers: [HhApiService, HhRequestThrottle],
+  exports: [HhApiService, HhRequestThrottle],
 })
 export class HhModule {}

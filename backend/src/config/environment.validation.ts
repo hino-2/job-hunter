@@ -3,10 +3,13 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
+  ValidateIf,
   validateSync,
 } from 'class-validator';
 
@@ -20,8 +23,10 @@ import {
   DEFAULT_GETMATCH_REQUEST_TIMEOUT_MS,
   DEFAULT_GETMATCH_SITE_BASE_URL,
   DEFAULT_GETMATCH_USER_AGENT,
+  DEFAULT_HH_MAX_REQUESTS_PER_SECOND,
   DEFAULT_HH_MAX_RETRIES,
   DEFAULT_HH_REQUEST_TIMEOUT_MS,
+  DEFAULT_HH_SEARCH_URL_TEMPLATE,
   DEFAULT_HH_SITE_BASE_URL,
   DEFAULT_LOG_LEVEL,
   DEFAULT_NODE_ENV,
@@ -29,6 +34,25 @@ import {
   DEFAULT_SCHEDULED_SYNC_INTERVAL_MS,
   DEFAULT_SYNC_CONCURRENCY,
   DEFAULT_SYNC_MIN_DELAY_MS,
+  DEFAULT_VACANCY_AI_BASE_URL,
+  DEFAULT_VACANCY_AI_BATCH_SIZE,
+  DEFAULT_VACANCY_AI_DESCRIPTION_MAX_CHARS,
+  DEFAULT_VACANCY_AI_MODEL,
+  DEFAULT_VACANCY_AI_PROVIDER,
+  DEFAULT_VACANCY_AI_TIMEOUT_MS,
+  DEFAULT_VACANCY_LEADS_LIST_LIMIT,
+  DEFAULT_VACANCY_MATCH_MODE,
+  DEFAULT_VACANCY_PREFILTER_MODE,
+  DEFAULT_VACANCY_SCAN_MAX_AGE_DAYS,
+  DEFAULT_VACANCY_SCAN_MAX_DETAILS,
+  DEFAULT_VACANCY_SCAN_MAX_DURATION_MS,
+  DEFAULT_VACANCY_SCAN_MAX_PAGES,
+  HH_MAX_REQUESTS_PER_SECOND_MAX,
+  HH_MAX_REQUESTS_PER_SECOND_MIN,
+  HH_SEARCH_URL_MISSING_PAGE_PLACEHOLDER_MESSAGE,
+  HH_SEARCH_URL_MISSING_TEXT_PLACEHOLDER_MESSAGE,
+  HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN,
+  HH_SEARCH_URL_TEXT_PLACEHOLDER_PATTERN,
   LOG_LEVELS,
   MAX_RETRIES_MAX,
   NODE_ENVS,
@@ -40,6 +64,11 @@ import {
   SYNC_MIN_DELAY_MAX_MS,
   TCP_PORT_MAX,
   TCP_PORT_MIN,
+  VACANCY_AI_PROVIDERS,
+  VACANCY_MATCH_MODES,
+  VACANCY_PREFILTER_MODES,
+  VACANCY_SCAN_MAX_PAGES_MAX,
+  VACANCY_SCAN_MAX_PAGES_MIN,
 } from './config.constants';
 
 /**
@@ -192,6 +221,119 @@ export class EnvironmentVariables {
   @Min(REQUEST_TIMEOUT_MIN_MS)
   @Max(REQUEST_TIMEOUT_MAX_MS)
   COMPANY_LOGO_REQUEST_TIMEOUT_MS: number = DEFAULT_COMPANY_LOGO_REQUEST_TIMEOUT_MS;
+
+  /**
+   * §4.11.2. Диапазон §8 проверяется целиком: значение выше 50 — это уже не троттл,
+   * а его отсутствие, и попасть туда опечаткой в .env нельзя (см. комментарий
+   * к HH_MAX_REQUESTS_PER_SECOND_MIN в config.constants.ts).
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(HH_MAX_REQUESTS_PER_SECOND_MIN)
+  @Max(HH_MAX_REQUESTS_PER_SECOND_MAX)
+  HH_MAX_REQUESTS_PER_SECOND: number = DEFAULT_HH_MAX_REQUESTS_PER_SECOND;
+
+  /**
+   * §4.11.1. Оба плейсхолдера обязательны — их отсутствие роняет старт приложения
+   * с внятной ошибкой (шаблон без {page} означал бы бесконечное чтение первой страницы).
+   */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(HH_SEARCH_URL_TEXT_PLACEHOLDER_PATTERN, {
+    message: HH_SEARCH_URL_MISSING_TEXT_PLACEHOLDER_MESSAGE,
+  })
+  @Matches(HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN, {
+    message: HH_SEARCH_URL_MISSING_PAGE_PLACEHOLDER_MESSAGE,
+  })
+  HH_SEARCH_URL_TEMPLATE: string = DEFAULT_HH_SEARCH_URL_TEMPLATE;
+
+  /** §4.11.8: бюджеты одного прогона поиска (§4.11). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(VACANCY_SCAN_MAX_PAGES_MIN)
+  @Max(VACANCY_SCAN_MAX_PAGES_MAX)
+  VACANCY_SCAN_MAX_PAGES: number = DEFAULT_VACANCY_SCAN_MAX_PAGES;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  VACANCY_SCAN_MAX_DETAILS: number = DEFAULT_VACANCY_SCAN_MAX_DETAILS;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  VACANCY_SCAN_MAX_AGE_DAYS: number = DEFAULT_VACANCY_SCAN_MAX_AGE_DAYS;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  VACANCY_SCAN_MAX_DURATION_MS: number = DEFAULT_VACANCY_SCAN_MAX_DURATION_MS;
+
+  /** §4.11.4: что проверяется детерминированно до/вместо ИИ. */
+  @IsOptional()
+  @IsIn(VACANCY_PREFILTER_MODES)
+  VACANCY_PREFILTER_MODE: string = DEFAULT_VACANCY_PREFILTER_MODE;
+
+  @IsOptional()
+  @IsIn(VACANCY_MATCH_MODES)
+  VACANCY_MATCH_MODE: string = DEFAULT_VACANCY_MATCH_MODE;
+
+  /** §5.7: предохранитель ответа GET /api/vacancy-leads, а не пагинация. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  VACANCY_LEADS_LIST_LIMIT: number = DEFAULT_VACANCY_LEADS_LIST_LIMIT;
+
+  /** §4.12.1: протокол общения с моделью. */
+  @IsOptional()
+  @IsIn(VACANCY_AI_PROVIDERS)
+  VACANCY_AI_PROVIDER: string = DEFAULT_VACANCY_AI_PROVIDER;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  VACANCY_AI_BASE_URL: string = DEFAULT_VACANCY_AI_BASE_URL;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  VACANCY_AI_MODEL: string = DEFAULT_VACANCY_AI_MODEL;
+
+  /**
+   * §8: обязателен только при VACANCY_AI_PROVIDER=openai — для дефолтного ollama
+   * ключ не нужен вовсе, поэтому проверка условная, а не сквозной @IsNotEmpty.
+   */
+  @ValidateIf((env: EnvironmentVariables) => env.VACANCY_AI_PROVIDER === 'openai')
+  @IsString()
+  @IsNotEmpty({
+    message: 'VACANCY_AI_API_KEY обязателен при VACANCY_AI_PROVIDER=openai',
+  })
+  VACANCY_AI_API_KEY?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  VACANCY_AI_BATCH_SIZE: number = DEFAULT_VACANCY_AI_BATCH_SIZE;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  VACANCY_AI_TIMEOUT_MS: number = DEFAULT_VACANCY_AI_TIMEOUT_MS;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  VACANCY_AI_DESCRIPTION_MAX_CHARS: number = DEFAULT_VACANCY_AI_DESCRIPTION_MAX_CHARS;
 }
 
 export function validateEnvironment(raw: Record<string, unknown>): EnvironmentVariables {

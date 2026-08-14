@@ -55,6 +55,23 @@ services:
       # Каталог эфемерный (§4.10) — docker-volume не заводим намеренно.
       COMPANY_LOGO_DIR: ${COMPANY_LOGO_DIR:-/tmp/job-hunter-logos}
       COMPANY_LOGO_REQUEST_TIMEOUT_MS: ${COMPANY_LOGO_REQUEST_TIMEOUT_MS:-5000}
+      # --- Поиск, отбор и отображение вакансий с hh.ru (§4.11, §4.12) ---
+      HH_MAX_REQUESTS_PER_SECOND: ${HH_MAX_REQUESTS_PER_SECOND:-2}
+      HH_SEARCH_URL_TEMPLATE: ${HH_SEARCH_URL_TEMPLATE:-https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}}
+      VACANCY_SCAN_MAX_PAGES: ${VACANCY_SCAN_MAX_PAGES:-10}
+      VACANCY_SCAN_MAX_DETAILS: ${VACANCY_SCAN_MAX_DETAILS:-30}
+      VACANCY_SCAN_MAX_AGE_DAYS: ${VACANCY_SCAN_MAX_AGE_DAYS:-30}
+      VACANCY_SCAN_MAX_DURATION_MS: ${VACANCY_SCAN_MAX_DURATION_MS:-1800000}
+      VACANCY_PREFILTER_MODE: ${VACANCY_PREFILTER_MODE:-exclude_only}
+      VACANCY_MATCH_MODE: ${VACANCY_MATCH_MODE:-any}
+      VACANCY_LEADS_LIST_LIMIT: ${VACANCY_LEADS_LIST_LIMIT:-500}
+      VACANCY_AI_PROVIDER: ${VACANCY_AI_PROVIDER:-ollama}
+      VACANCY_AI_BASE_URL: ${VACANCY_AI_BASE_URL:-http://ollama:11434}
+      VACANCY_AI_MODEL: ${VACANCY_AI_MODEL:-qwen3:4b-instruct}
+      VACANCY_AI_API_KEY: ${VACANCY_AI_API_KEY:-}
+      VACANCY_AI_BATCH_SIZE: ${VACANCY_AI_BATCH_SIZE:-10}
+      VACANCY_AI_TIMEOUT_MS: ${VACANCY_AI_TIMEOUT_MS:-120000}
+      VACANCY_AI_DESCRIPTION_MAX_CHARS: ${VACANCY_AI_DESCRIPTION_MAX_CHARS:-6000}
     # Порт наружу не публикуется: снаружи доступен только web.
     healthcheck:
       test: ['CMD-SHELL', 'wget -q -O- http://127.0.0.1:3000/api/health | grep -q ''"db":"up"''']
@@ -81,5 +98,22 @@ services:
       retries: 5
       start_period: 5s
 
+  # §4.12.4: ИИ-отбор вакансий опционален — без флага `--profile ai` сервис не
+  # поднимается, а инфраструктура без ИИ остаётся прежней. Модель качается вручную
+  # (`docker compose exec ollama ollama pull qwen3:4b-instruct`) — автоскачивание
+  # при старте означало бы несколько гигабайт трафика по неявной команде.
+  ollama:
+    image: ollama/ollama
+    restart: unless-stopped
+    profiles: [ai]
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      # Выгружает модель из RAM через 5 минут простоя — прогон запускается только
+      # вручную (§4.11.10), большую часть времени модель не нужна.
+      OLLAMA_KEEP_ALIVE: 5m
+    # Порт наружу не публикуется: модель доступна только внутри compose-сети как ollama:11434.
+
 volumes:
   pgdata:
+  ollama-models:

@@ -19,6 +19,12 @@ export const COLUMN_TYPE = {
   TEXT: 'text',
   TIMESTAMPTZ: 'timestamptz',
   BOOLEAN: 'boolean',
+  /** §3.5: published_on — дата без времени, часть ключа дедупликации. */
+  DATE: 'date',
+  /** §3.5: salary_from/salary_to. */
+  INTEGER: 'integer',
+  /** §3.6: vacancy_search_settings.id — ровно одна строка, CHECK (id = 1). */
+  SMALLINT: 'smallint',
 } as const;
 
 export const PRIMARY_KEY_STRATEGY = 'uuid' as const;

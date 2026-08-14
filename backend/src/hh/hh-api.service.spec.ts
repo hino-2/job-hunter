@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 
 import { SYNC_OUTCOME } from '../applications/applications.constants';
 import { HhApiService } from './hh-api.service';
+import type { HhRequestThrottle } from './hh-request.throttle';
 import {
   HH_MAX_RETRIES_ENV_KEY,
   HH_SITE_BASE_URL_ENV_KEY,
@@ -102,6 +103,14 @@ function axiosResponse(status: number, data: unknown): AxiosResponse<unknown> {
   return { status, data } as AxiosResponse<unknown>;
 }
 
+/**
+ * §4.11.2: спеке нужен не настоящий троттл (мутирует время между запросами и мешал бы
+ * счётчикам http.get.mock.calls), а стаб, немедленно резолвящий acquire().
+ */
+interface HhRequestThrottleMock {
+  acquire: jest.Mock;
+}
+
 function createService(maxRetries: number): { service: HhApiService; http: HttpServiceMock } {
   const http: HttpServiceMock = { get: jest.fn() };
   const configService = {
@@ -117,9 +126,14 @@ function createService(maxRetries: number): { service: HhApiService; http: HttpS
       throw new Error(`Неожиданный ключ конфигурации: ${key}`);
     }),
   } as unknown as ConfigService;
+  const throttle: HhRequestThrottleMock = { acquire: jest.fn().mockResolvedValue(undefined) };
 
   return {
-    service: new HhApiService(http as unknown as HttpService, configService),
+    service: new HhApiService(
+      http as unknown as HttpService,
+      configService,
+      throttle as unknown as HhRequestThrottle,
+    ),
     http,
   };
 }

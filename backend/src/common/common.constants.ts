@@ -70,3 +70,12 @@ export const RATE_LIMITED_STATUS: number = HttpStatus.TOO_MANY_REQUESTS;
 
 /** Отправка ответа уже началась — тело §5.5 доставить невозможно, только закрыть соединение. */
 export const HEADERS_ALREADY_SENT_MESSAGE = 'Ответ уже отправляется, тело ошибки не заменить';
+
+/**
+ * Экранирование метасимволов LIKE, чтобы «100%» искалось как подстрока, а не как
+ * шаблон (common/like.helpers.ts). Переезд из applications.constants.ts: общие для
+ * всех модулей с поиском по подстроке (§5.1, §5.7), а не только applications.
+ */
+export const LIKE_ESCAPE_PATTERN = /[\\%_]/g;
+export const LIKE_ESCAPE_REPLACEMENT = '\\$&';
+export const LIKE_WILDCARD = '%';

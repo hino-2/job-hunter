@@ -18,6 +18,8 @@ import {
   TEST_ENV_APPLIED_FLAG,
   TEST_ENV_APPLIED_VALUE,
   TEST_GETMATCH_USER_AGENT,
+  TEST_HH_MAX_REQUESTS_PER_SECOND,
+  TEST_HH_SEARCH_URL_TEMPLATE,
   TEST_HH_USER_AGENT,
   TEST_NODE_ENV,
   TEST_SCHEDULED_SYNC_ENABLED,
@@ -101,6 +103,10 @@ export function applyTestEnvironment(): TestDatabaseSettings {
   process.env.HH_SITE_BASE_URL = HH_STUB_BASE_URL;
   process.env.HH_USER_AGENT = TEST_HH_USER_AGENT;
   process.env.HH_MAX_RETRIES = String(DEFAULT_HH_MAX_RETRIES);
+  // §4.11.2: троттл фактически снят (заведомо большое значение) и указывает на
+  // локальную заглушку — ни один e2e не должен уйти в интернет за выдачей hh.ru.
+  process.env.HH_MAX_REQUESTS_PER_SECOND = TEST_HH_MAX_REQUESTS_PER_SECOND;
+  process.env.HH_SEARCH_URL_TEMPLATE = TEST_HH_SEARCH_URL_TEMPLATE;
   process.env.GETMATCH_SITE_BASE_URL = GETMATCH_STUB_BASE_URL;
   process.env.GETMATCH_USER_AGENT = TEST_GETMATCH_USER_AGENT;
   process.env.GETMATCH_MAX_RETRIES = String(DEFAULT_GETMATCH_MAX_RETRIES);
