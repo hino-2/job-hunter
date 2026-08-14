@@ -57,9 +57,7 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
 }: ApplicationSummaryRowProps) {
   const isClosed = application.status === APPLICATION_STATUS.CLOSED;
   const upcoming = selectUpcomingInterview(application);
-  const logoSrc = application.hasCompanyLogo
-    ? buildCompanyLogoUrl(application.id)
-    : undefined;
+  const logoSrc = application.hasCompanyLogo ? buildCompanyLogoUrl(application.id) : undefined;
   const initial = buildCompanyInitial(application.company);
 
   // stopPropagation обязателен (§7.2.1): без него клик по кнопке всплыл бы

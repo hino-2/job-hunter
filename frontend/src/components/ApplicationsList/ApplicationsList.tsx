@@ -1,6 +1,9 @@
 import { Alert, Button, Skeleton, Stack } from '@mui/material';
 
-import { EMPTY_PENDING_TEXT_VALUES, EMPTY_SAVED_FIELDS } from '../../constants/application.constants';
+import {
+  EMPTY_PENDING_TEXT_VALUES,
+  EMPTY_SAVED_FIELDS,
+} from '../../constants/application.constants';
 import {
   ACCORDION_GAP,
   LIST_SKELETON_COUNT,

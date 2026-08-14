@@ -1,6 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ClearIcon from '@mui/icons-material/Clear';
 import SearchIcon from '@mui/icons-material/Search';
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
@@ -61,6 +62,10 @@ export function FilterBar({
     onFiltersChange({ ...filters, search: event.target.value });
   };
 
+  const handleSearchClear = () => {
+    onFiltersChange({ ...filters, search: '' });
+  };
+
   const handleSortChange = (event: SelectChangeEvent<ApplicationSortField>) => {
     onFiltersChange({ ...filters, sort: event.target.value });
   };
@@ -94,6 +99,23 @@ export function FilterBar({
             startAdornment: (
               <InputAdornment position="start">
                 <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              // Кнопка занимает место всегда: условный рендер менял бы ширину поля
+              // ввода на первом же символе и дёргал бы текст под кареткой.
+              <InputAdornment
+                position="end"
+                sx={{ visibility: filters.search ? 'visible' : 'hidden' }}
+              >
+                <IconButton
+                  aria-label="Очистить поиск"
+                  edge="end"
+                  size="small"
+                  onClick={handleSearchClear}
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
               </InputAdornment>
             ),
           },
