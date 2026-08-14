@@ -21,8 +21,8 @@ import type { VacancyLeadSummaryRowProps } from './vacancy-lead-summary-row.inte
 
 /**
  * Содержимое AccordionSummary одного лида (§7.9.1): дата · должность · компания ·
- * короткая зарплата, кнопки ↗ и Скрыть/Вернуть. Короткая зарплата опущена вовсе,
- * если её нет у вакансии (§7.9.1) — прочерк здесь не показываем, в отличие от откликов.
+ * короткая зарплата, кнопки ↗ и Скрыть/Вернуть. Если зарплаты у вакансии нет, её ячейка
+ * остаётся пустой (§7.9.1) — прочерк здесь не показываем, в отличие от откликов.
  *
  * memo обязателен тем же приёмом, что ApplicationSummaryRow: шапка не зависит
  * от `expanded`, поэтому обязана отбиваться memo при переключении раскрытости соседей.
@@ -85,14 +85,18 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
         {lead.company}
       </Typography>
 
-      {salary !== null ? (
-        <Typography
-          noWrap
-          sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.salary, minWidth: SUMMARY_TEXT_MIN_WIDTH_PX }}
-        >
-          {salary}
-        </Typography>
-      ) : null}
+      {/*
+       * Ячейка зарплаты рендерится всегда, даже пустой: `position` и `company` растут
+       * (`flex-grow: 1`), поэтому пропущенная ячейка отдавала бы им свои 160px и должность
+       * становилась шире — компания в строках без зарплаты уезжала вправо и колонки
+       * не выстраивались. Прочерк внутрь не пишем (§7.9.1) — резервируется только место.
+       */}
+      <Typography
+        noWrap
+        sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.salary, minWidth: SUMMARY_TEXT_MIN_WIDTH_PX }}
+      >
+        {salary}
+      </Typography>
 
       <Tooltip title={OPEN_VACANCY_LABEL}>
         <Box

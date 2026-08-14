@@ -164,7 +164,7 @@ export const VACANCY_LEAD_SUMMARY_FLEX = {
   publishedOn: '0 0 64px',
   position: '1 1 320px',
   company: '1 1 200px',
-  salary: '0 0 160px',
+  salary: '0 0 200px',
   auto: '0 0 auto',
 } as const;
 

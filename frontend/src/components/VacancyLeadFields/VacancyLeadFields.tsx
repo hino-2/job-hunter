@@ -54,13 +54,11 @@ export const VacancyLeadFields = memo(function VacancyLeadFields({ lead }: Vacan
   return (
     <Stack spacing={FIELD_GAP}>
       <Box sx={ROW_SX}>
-        {salary !== null ? (
-          <ReadOnlyCell
-            flex={VACANCY_LEAD_FIELD_FLEX.salary}
-            label={VACANCY_LEAD_FIELD_LABELS.salary}
-            value={salary}
-          />
-        ) : null}
+        <ReadOnlyCell
+          flex={VACANCY_LEAD_FIELD_FLEX.salary}
+          label={VACANCY_LEAD_FIELD_LABELS.salary}
+          value={salary ?? ''}
+        />
 
         {lead.areaName !== null ? (
           <ReadOnlyCell
@@ -93,9 +91,7 @@ export const VacancyLeadFields = memo(function VacancyLeadFields({ lead }: Vacan
             value={workFormats}
           />
         ) : null}
-      </Box>
 
-      <Box sx={ROW_SX}>
         {publishedAtFull !== null ? (
           <ReadOnlyCell
             flex={VACANCY_LEAD_FIELD_FLEX.publishedAtFull}
