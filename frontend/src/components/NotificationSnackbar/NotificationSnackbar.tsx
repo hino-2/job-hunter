@@ -4,8 +4,9 @@ import { SNACKBAR_ANCHOR_ORIGIN, SNACKBAR_AUTO_HIDE_MS } from '../../constants/l
 import type { NotificationSnackbarProps } from './notification-snackbar.interfaces';
 
 /**
- * Единственный Snackbar приложения: сейчас — ошибки автосейва (§7.3), дальше шаги 9–10
- * переиспользуют его как есть.
+ * Единственный Snackbar приложения (§7.3, §7.9): живёт в шелле (App.tsx), а оба экрана
+ * получают нотификатор пропом одним стабильным объектом. Два независимых Snackbar
+ * с одним SNACKBAR_ANCHOR_ORIGIN MUI не стекует — легли бы друг на друга.
  *
  * key={notification.id} обязателен: без него повтор того же текста не переоткрыл бы
  * уже закрывшийся по autoHideDuration Snackbar, и вторая ошибка прошла бы незаметно.

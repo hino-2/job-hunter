@@ -7,6 +7,10 @@ export const APPLICATIONS_ENDPOINT = '/applications';
 
 export const VACANCY_PREVIEW_ENDPOINT = '/vacancies/preview';
 
+/** §5.7: найденные вакансии и настройки поиска (модуль vacancy-search на бэкенде). */
+export const VACANCY_LEADS_ENDPOINT = '/vacancy-leads';
+export const VACANCY_SEARCH_SETTINGS_ENDPOINT = '/vacancy-search-settings';
+
 /** Разделитель сегментов пути: путь к одной записи — `${APPLICATIONS_ENDPOINT}/${id}`. */
 export const API_PATH_SEPARATOR = '/';
 
@@ -19,8 +23,18 @@ export const API_ERROR_MESSAGE_SEPARATOR = ', ';
 /** §5.3: нераспознанная ссылка — штатный исход, а не сбой (extractApiErrorStatus). */
 export const HTTP_STATUS_NOT_FOUND = 404;
 
+/** §5.7: прогон поиска уже идёт — штатный исход кнопки «Найти вакансии», не сбой. */
+export const HTTP_STATUS_CONFLICT = 409;
+
 export const SYNC_PATH_SEGMENT = 'sync';
 export const SYNC_OPEN_PATH_SEGMENT = 'sync-open';
+
+/**
+ * §5.7: маршруты запуска и статуса прогона поиска. Объявлены здесь, а не выведены
+ * из пути `${VACANCY_LEADS_ENDPOINT}/scan`, тем же приёмом, что SYNC_PATH_SEGMENT.
+ */
+export const VACANCY_LEADS_SCAN_PATH_SEGMENT = 'scan';
+export const VACANCY_LEADS_SCAN_STATUS_PATH_SEGMENT = 'scan/status';
 
 /** §5.1: GET /api/applications/:id/logo — байты логотипа компании (§4.10). */
 export const LOGO_PATH_SEGMENT = 'logo';
@@ -35,3 +49,12 @@ export const SYNC_REQUEST_TIMEOUT_MS = 45_000;
 
 /** Ровно столько же держит nginx (proxy_read_timeout 120s) — больше ждать бессмысленно. */
 export const SYNC_OPEN_REQUEST_TIMEOUT_MS = 120_000;
+
+/**
+ * У прогона поиска (§4.11, §5.7) нет отдельного per-request таймаута, в отличие
+ * от sync-open: тот держит соединение открытым на всю синхронную операцию, а
+ * POST /vacancy-leads/scan отвечает 202 сразу, не дожидаясь конца прогона (§4.11.9),
+ * и GET /vacancy-leads/scan/status читает только снимок состояния из памяти процесса —
+ * оба запроса быстрые независимо от того, идёт ли сам прогон. Дефолтного API_TIMEOUT_MS
+ * достаточно.
+ */

@@ -68,3 +68,38 @@ export function extractApiErrorStatus(error: unknown): number | null {
 
   return error.response?.status ?? null;
 }
+
+/**
+ * Ошибки валидации (400) по конкретным полям (§7.9.4). class-validator подставляет
+ * $property именем поля, а UpdateVacancySearchSettingsDto для titlePrompt/descriptionPrompt
+ * явно строит сообщение как "поле: текст" (§5.7) — именно по этому префиксу текст кладётся
+ * под нужный контрол, а не общим уведомлением. Поля без такого сообщения в bucket не попадают.
+ */
+export function extractFieldValidationErrors(
+  error: unknown,
+  fields: readonly string[],
+): Partial<Record<string, string>> {
+  if (!axios.isAxiosError<unknown>(error)) {
+    return {};
+  }
+
+  const body = error.response?.data;
+
+  if (!isApiErrorBody(body)) {
+    return {};
+  }
+
+  const messages = typeof body.message === 'string' ? [body.message] : body.message;
+  const result: Partial<Record<string, string>> = {};
+
+  for (const message of messages) {
+    const field = fields.find((candidate) => message.startsWith(`${candidate}:`));
+
+    if (field !== undefined && result[field] === undefined) {
+      // Префикс "field: " сносим — под контролом уже стоит подпись этого же поля.
+      result[field] = message.slice(field.length + 1).trim();
+    }
+  }
+
+  return result;
+}

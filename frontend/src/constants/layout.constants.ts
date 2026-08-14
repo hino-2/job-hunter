@@ -155,3 +155,36 @@ export const SUMMARY_SYNC_PROGRESS_SIZE_PX = 16;
 
 /** Проблемных записей в сводке §7.7 может быть до 50 — список скроллится, а не растёт вниз. */
 export const SYNC_SUMMARY_LIST_MAX_HEIGHT_PX = 240;
+
+/** Короткая дата без времени: publishedOn — уже голая дата (§3.5), не ISO-момент времени. */
+export const DATE_SHORT_FORMAT = 'DD.MM';
+
+/** flex элементов свёрнутой шапки лида (§7.9.1): дата · должность · компания · зарплата · кнопки. */
+export const VACANCY_LEAD_SUMMARY_FLEX = {
+  publishedOn: '0 0 64px',
+  position: '1 1 320px',
+  company: '1 1 200px',
+  salary: '0 0 160px',
+  auto: '0 0 auto',
+} as const;
+
+/** flex-basis полей раскрытого состояния лида (§7.9.1, две строки). */
+export const VACANCY_LEAD_FIELD_FLEX = {
+  salary: '1 1 240px',
+  area: '1 1 200px',
+  experience: '0 0 160px',
+  employmentForm: '0 0 200px',
+  workFormats: '0 0 200px',
+  publishedAtFull: '0 0 220px',
+  firstSeenAt: '0 0 220px',
+  matchedKeywords: '1 1 320px',
+  aiTitleReason: '1 1 480px',
+  aiDescriptionReason: '1 1 480px',
+} as const;
+
+/** Диалог настроек поиска (§7.9.4) шире стандартного 'sm': два многострочных промпта. */
+export const SETTINGS_DIALOG_MAX_WIDTH = 'md' as const;
+
+/** Многострочные поля промптов — выше, чем заметки отклика: текст длиннее (до 8000 симв.). */
+export const MULTILINE_MIN_ROWS_PROMPT = 3;
+export const MULTILINE_MAX_ROWS_PROMPT = 8;
