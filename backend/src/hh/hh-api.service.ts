@@ -79,13 +79,13 @@ export class HhApiService implements VacancySourceProvider {
   }
 
   fetchVacancy(vacancyId: string): Promise<VacancyFetchResult> {
-    return fetchWithRetries(
+    return fetchWithRetries<VacancyFetchResult>(
       {
         maxRetries: this.maxRetries,
-        onRetry: (pauseMs, attempt, outcome) => {
+        onRetry: (pauseMs, attempt, result) => {
           this.logger.warn(
             `Повтор запроса вакансии ${vacancyId} через ${pauseMs} мс` +
-              ` (попытка ${attempt + 1} из ${this.maxRetries}), исход: ${outcome}`,
+              ` (попытка ${attempt + 1} из ${this.maxRetries}), исход: ${result.outcome}`,
           );
         },
       },
@@ -93,7 +93,7 @@ export class HhApiService implements VacancySourceProvider {
     );
   }
 
-  private async requestVacancy(vacancyId: string): Promise<VacancyRequestAttempt> {
+  private async requestVacancy(vacancyId: string): Promise<VacancyRequestAttempt<VacancyFetchResult>> {
     // §4.11.2: троттл на КАЖДОЙ попытке ретрая, а не только на первой — fetchWithRetries
     // зовёт requestVacancy заново на каждый повтор.
     await this.throttle.acquire();
@@ -116,7 +116,10 @@ export class HhApiService implements VacancySourceProvider {
     }
   }
 
-  private interpretResponse(status: number, payload: unknown): VacancyRequestAttempt {
+  private interpretResponse(
+    status: number,
+    payload: unknown,
+  ): VacancyRequestAttempt<VacancyFetchResult> {
     if (status === OK_STATUS) {
       const vacancy = parseHhVacancyPage(payload, this.siteBaseUrl);
 

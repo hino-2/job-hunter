@@ -51,6 +51,8 @@ export const JSON_LD_FIELD = {
   TITLE: 'title',
   HIRING_ORGANIZATION: 'hiringOrganization',
   NAME: 'name',
+  /** §4.11.7: описание вакансии для ИИ-отбора — то же поле JobPosting.description. */
+  DESCRIPTION: 'description',
 } as const;
 
 /**
@@ -123,3 +125,77 @@ export const HH_FORBIDDEN_MESSAGE =
   'hh.ru отклонил запрос (403): проверь HH_USER_AGENT и доступность hh.ru с этой машины';
 
 export const HH_TRANSPORT_ERROR_MESSAGE = 'Запрос к hh.ru не выполнен';
+
+/**
+ * §4.11.1: та же переменная, что валидируется при старте (config/environment.validation.ts)
+ * на наличие плейсхолдеров {text}/{page}; здесь она читается по имени сервисами,
+ * которым нужно её значение (HhSearchService и, для предпросмотра на фронте,
+ * VacancySearchSettingsService из vacancy-search/, §5.7).
+ */
+export const HH_SEARCH_URL_TEMPLATE_ENV_KEY = 'HH_SEARCH_URL_TEMPLATE';
+
+/** §4.11.1: плейсхолдеры шаблона ссылки на выдачу — подставляются buildHhSearchUrl. */
+export const HH_SEARCH_TEXT_PLACEHOLDER = '{text}';
+export const HH_SEARCH_PAGE_PLACEHOLDER = '{page}';
+
+/**
+ * §4.11.3: состояние выдачи лежит в <template id="HH-Lux-InitialState">…</template>,
+ * содержимое HTML-экранировано (снимается тем же unescapeHtmlEntities, что и описание
+ * вакансии, §4.11.7 — единственное место, знающее порядок замен &amp; последним).
+ */
+export const HH_SEARCH_STATE_TEMPLATE_PATTERN =
+  /<template[^>]*id\s*=\s*["']HH-Lux-InitialState["'][^>]*>([\s\S]*?)<\/template>/i;
+export const HH_SEARCH_STATE_CONTENT_GROUP = 1;
+
+/** §4.11.3: путь до нужных данных внутри разобранного JSON состояния выдачи. */
+export const HH_SEARCH_RESULT_FIELD = 'vacancySearchResult';
+export const HH_SEARCH_VACANCIES_FIELD = 'vacancies';
+export const HH_SEARCH_PAGING_FIELD = 'paging';
+export const HH_SEARCH_LAST_PAGE_FIELD = 'lastPage';
+export const HH_SEARCH_PAGE_FIELD = 'page';
+
+/** §4.11.3: поля одного элемента выдачи, участвующие в разборе (таблица §4.11.3). */
+export const HH_SEARCH_ITEM_FIELD = {
+  EXTERNAL_ID: 'vacancyId',
+  NAME: 'name',
+  COMPANY: 'company',
+  CREATION_TIME: 'creationTime',
+  PUBLICATION_TIME: 'publicationTime',
+  PUBLICATION_TIME_VALUE: '$',
+  AREA: 'area',
+  COMPENSATION: 'compensation',
+  WORK_EXPERIENCE: 'workExperience',
+  EMPLOYMENT_FORM: 'employmentForm',
+  WORK_FORMATS: 'workFormats',
+  WORK_FORMATS_ELEMENT: 'workFormatsElement',
+} as const;
+
+/** company.name и area.name используют один и тот же ключ 'name' во вложенном объекте. */
+export const HH_SEARCH_NESTED_NAME_FIELD = 'name';
+
+/**
+ * У анонимных работодателей hh.ru не отдаёт company.name, но отдаёт visibleName
+ * («Крупная IT-компания» и подобное). Без фолбэка такие вакансии молча выпадали бы
+ * из выдачи целиком, а их в ней заметная доля.
+ */
+export const HH_SEARCH_COMPANY_VISIBLE_NAME_FIELD = 'visibleName';
+
+export const HH_SEARCH_COMPENSATION_FIELD = {
+  FROM: 'from',
+  TO: 'to',
+  CURRENCY: 'currencyCode',
+  GROSS: 'gross',
+} as const;
+
+/** §4.11.3: work_formats хранится через запятую — тот же разделитель, что и у matched_keywords. */
+export const HH_SEARCH_WORK_FORMATS_SEPARATOR = ',';
+
+export const HH_SEARCH_PAGE_UNPARSABLE_MESSAGE =
+  'Страница выдачи hh.ru не распознана: не найден блок состояния поиска';
+
+/**
+ * §4.11.7: отсутствие описания — fail-closed для поиска (в отличие от синхронизации,
+ * где это лишь warn, HH_JSON_LD_MISSING_MESSAGE): вакансия не попадает в БД и будет
+ * обработана следующим прогоном заново.
+ */
+export const HH_SEARCH_DESCRIPTION_MISSING_MESSAGE = 'На странице вакансии нет описания в JSON-LD';

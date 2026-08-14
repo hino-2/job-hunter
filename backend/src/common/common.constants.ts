@@ -79,3 +79,28 @@ export const HEADERS_ALREADY_SENT_MESSAGE = 'Ответ уже отправля�
 export const LIKE_ESCAPE_PATTERN = /[\\%_]/g;
 export const LIKE_ESCAPE_REPLACEMENT = '\\$&';
 export const LIKE_WILDCARD = '%';
+
+/**
+ * §4.11.3/§4.11.7: снятие HTML-экранирования у встроенных JSON-состояний hh.ru
+ * (блок выдачи) и у HTML-описания вакансии перед превращением в plain text.
+ * Порядок ВАЖЕН — &amp; заменяется ПОСЛЕДНИМ, иначе &amp;quot; превратится в
+ * кавычку раньше срока и сломает JSON.parse либо исказит текст описания.
+ */
+export const HTML_ENTITY_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/&quot;|&#34;/g, '"'],
+  [/&#39;|&apos;/g, "'"],
+  [/&lt;/g, '<'],
+  [/&gt;/g, '>'],
+  [/&nbsp;/g, ' '],
+  [/&amp;/g, '&'],
+];
+
+/** §4.11.7: <li>/<p>/<br> становятся переводами строк перед вырезкой прочих тегов. */
+export const HTML_BLOCK_BREAK_TAG_PATTERN = /<\s*(li|p|br)\b[^>]*>/gi;
+
+export const HTML_ANY_TAG_PATTERN = /<[^>]*>/g;
+
+/** Пробельные серии внутри строки — не переводы строк, их сохраняет разбиение по '\n'. */
+export const HTML_INLINE_WHITESPACE_PATTERN = /[ \t\f\v]+/g;
+
+export const HTML_BLANK_LINE_RUN_PATTERN = /\n{2,}/g;

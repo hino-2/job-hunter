@@ -4,11 +4,7 @@ import type {
   SyncOutcome,
   VacancySource,
 } from '../applications/applications.type';
-import type {
-  VacancyFetchFailureOutcome,
-  VacancyFetchOutcome,
-  VacancyFetchResult,
-} from './vacancies.type';
+import type { VacancyFetchFailureOutcome, VacancyFetchResult } from './vacancies.type';
 
 /**
  * Провалидированный срез страницы вакансии, общий для всех источников (§4.3).
@@ -58,11 +54,15 @@ export interface VacancyFetchFailure {
 
 /**
  * Результат одной попытки запроса плюс признак, имеет ли смысл её повторять.
- * Флаг живёт отдельно от VacancyFetchResult, потому что наружу он не нужен: §4.6
- * разрешает ретраи только на 429 и 5xx, а вызывающий видит уже итоговый исход.
+ * Флаг живёт отдельно от результата, потому что наружу он не нужен: §4.6
+ * разрешает ретраи только на 429 и 5xx, а вызывающий видит уже итоговый результат.
+ *
+ * Обобщён по TResult (с шага 22, §4.11): fetchWithRetries переиспользует
+ * HhSearchService для страниц выдачи и описаний (hh.type.ts), у которых нет
+ * общего с VacancyFetchResult контракта — дискриминант там `ok`, а не `outcome`.
  */
-export interface VacancyRequestAttempt {
-  result: VacancyFetchResult;
+export interface VacancyRequestAttempt<TResult> {
+  result: TResult;
   retryable: boolean;
 }
 
@@ -94,9 +94,14 @@ export interface VacancyResolution {
   provider: VacancySourceProvider;
 }
 
-export interface VacancyRetryOptions {
+/**
+ * onRetry получает весь результат попытки, а не только исход: у VacancyFetchResult
+ * это `outcome`, у результатов HhSearchService — `ok` (hh.type.ts), а хелпер
+ * fetchWithRetries о конкретной форме результата ничего не знает.
+ */
+export interface VacancyRetryOptions<TResult> {
   maxRetries: number;
-  onRetry(pauseMs: number, attempt: number, outcome: VacancyFetchOutcome): void;
+  onRetry(pauseMs: number, attempt: number, result: TResult): void;
 }
 
 /** Имена env-переменных, из которых собираются опции axios конкретного источника. */

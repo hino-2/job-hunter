@@ -5,7 +5,6 @@ import {
   VACANCY_RETRY_MAX_DELAY_MS,
 } from './vacancies.constants';
 import type { VacancyRequestAttempt, VacancyRetryOptions } from './vacancies.interfaces';
-import type { VacancyFetchResult } from './vacancies.type';
 
 /** §4.6: 500 мс, 1500 мс, далее с тем же множителем, но не дольше потолка. */
 function computeRetryDelay(attempt: number): number {
@@ -20,13 +19,15 @@ function computeRetryDelay(attempt: number): number {
  * своим Logger'ом и своим текстом; сам хелпер о существовании Logger'а не знает.
  *
  * Обобщённый цикл ретраев hh-api.service.ts (§4.6): раньше жил внутри HhApiService,
- * теперь общий для всех источников — копировать его в getmatch было бы дублированием
- * одного и того же требования.
+ * теперь общий для всех источников вакансий — копировать его в getmatch было бы
+ * дублированием одного и того же требования. Обобщён по TResult (шаг 22, §4.11.2):
+ * HhSearchService (страницы выдачи и описания, hh.type.ts) переиспользует тот же
+ * цикл ретраев и backoff, хотя его результаты не являются VacancyFetchResult.
  */
-export async function fetchWithRetries(
-  options: VacancyRetryOptions,
-  requestOnce: () => Promise<VacancyRequestAttempt>,
-): Promise<VacancyFetchResult> {
+export async function fetchWithRetries<TResult>(
+  options: VacancyRetryOptions<TResult>,
+  requestOnce: () => Promise<VacancyRequestAttempt<TResult>>,
+): Promise<TResult> {
   let attempt = 0;
 
   for (;;) {
@@ -38,7 +39,7 @@ export async function fetchWithRetries(
 
     const pause = computeRetryDelay(attempt);
 
-    options.onRetry(pause, attempt, result.outcome);
+    options.onRetry(pause, attempt, result);
     await delay(pause);
     attempt += 1;
   }

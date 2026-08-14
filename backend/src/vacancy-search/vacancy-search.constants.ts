@@ -90,3 +90,48 @@ export const VACANCY_SEARCH_SETTINGS_SINGLETON_ID = 1;
 export const VACANCY_SEARCH_SETTINGS_ID_CHECK = 'CHK_vacancy_search_settings_id';
 
 export const VACANCY_SEARCH_SETTINGS_SEARCH_TEXT_LENGTH = 512;
+
+export const VACANCY_SEARCH_SETTINGS_ROUTE = 'vacancy-search-settings';
+
+/** §5.7: оба промпта — не длиннее 8000 символов. */
+export const VACANCY_SEARCH_SETTINGS_PROMPT_MAX_LENGTH = 8000;
+
+/**
+ * §3.6/§4.11.4: keywords/exclude_keywords хранятся строкой через запятую.
+ * Разделитель при разборе — просто запятая (каждый кусок затем trim()'ится),
+ * при сборке из массива на PUT — запятая с пробелом для читаемости в БД/UI.
+ */
+export const KEYWORD_LIST_SEPARATOR = ',';
+export const KEYWORD_LIST_JOIN_SEPARATOR = ', ';
+
+/** §4.11.4: нормализация ключевых/стоп-слов — ё → е, схлопывание пробельных серий. */
+export const NORMALIZE_YO_PATTERN = /ё/g;
+export const NORMALIZE_YO_REPLACEMENT = 'е';
+export const NORMALIZE_WHITESPACE_PATTERN = /\s+/g;
+
+/**
+ * §3.6: строку засевает миграция CreateVacancySearchSettingsTable — сервис её
+ * не создаёт (второй путь появления данных запрещён), отсутствие строки —
+ * повреждение схемы.
+ */
+export const VACANCY_SEARCH_SETTINGS_MISSING_MESSAGE =
+  'Настройки поиска вакансий не найдены: миграция не выполнена или строка удалена вручную';
+
+/** §4.12.2: плейсхолдеры, обязательные в промптах — проверяются при PUT (§5.7). */
+export const PLACEHOLDER_KEYWORDS_PATTERN = /\{keywords\}/;
+export const PLACEHOLDER_TITLES_PATTERN = /\{titles\}/;
+export const PLACEHOLDER_DESCRIPTION_PATTERN = /\{description\}/;
+
+/**
+ * §5.7: сообщения обязаны начинаться с имени поля — фронт кладёт текст под нужный
+ * контрол по этому префиксу. $property подставляется class-validator'ом при сборке
+ * ValidationError (тот же приём, что ISO_8601_INSTANT_VALIDATION_OPTIONS).
+ */
+export const VACANCY_SEARCH_SETTINGS_TITLE_PROMPT_MISSING_KEYWORDS_MESSAGE =
+  '$property: обязан содержать плейсхолдер {keywords}';
+export const VACANCY_SEARCH_SETTINGS_TITLE_PROMPT_MISSING_TITLES_MESSAGE =
+  '$property: обязан содержать плейсхолдер {titles}';
+export const VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_KEYWORDS_MESSAGE =
+  '$property: обязан содержать плейсхолдер {keywords}';
+export const VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_DESCRIPTION_MESSAGE =
+  '$property: обязан содержать плейсхолдер {description}';

@@ -71,13 +71,13 @@ export class GetmatchApiService implements VacancySourceProvider {
   }
 
   fetchVacancy(vacancyId: string): Promise<VacancyFetchResult> {
-    return fetchWithRetries(
+    return fetchWithRetries<VacancyFetchResult>(
       {
         maxRetries: this.maxRetries,
-        onRetry: (pauseMs, attempt, outcome) => {
+        onRetry: (pauseMs, attempt, result) => {
           this.logger.warn(
             `Повтор запроса вакансии ${vacancyId} через ${pauseMs} мс` +
-              ` (попытка ${attempt + 1} из ${this.maxRetries}), исход: ${outcome}`,
+              ` (попытка ${attempt + 1} из ${this.maxRetries}), исход: ${result.outcome}`,
           );
         },
       },
@@ -85,7 +85,7 @@ export class GetmatchApiService implements VacancySourceProvider {
     );
   }
 
-  private async requestVacancy(vacancyId: string): Promise<VacancyRequestAttempt> {
+  private async requestVacancy(vacancyId: string): Promise<VacancyRequestAttempt<VacancyFetchResult>> {
     const path = `${GETMATCH_VACANCY_PAGE_PATH}/${encodeURIComponent(vacancyId)}`;
 
     try {
@@ -103,7 +103,10 @@ export class GetmatchApiService implements VacancySourceProvider {
     }
   }
 
-  private interpretResponse(status: number, payload: unknown): VacancyRequestAttempt {
+  private interpretResponse(
+    status: number,
+    payload: unknown,
+  ): VacancyRequestAttempt<VacancyFetchResult> {
     if (status === OK_STATUS) {
       return this.interpretPage(payload);
     }
@@ -144,7 +147,7 @@ export class GetmatchApiService implements VacancySourceProvider {
    * это не ошибка: getmatch.ru отвечает 200 и на несуществующую вакансию, отличить
    * её от «страница не распознана» может только парсер payload.
    */
-  private interpretPage(payload: unknown): VacancyRequestAttempt {
+  private interpretPage(payload: unknown): VacancyRequestAttempt<VacancyFetchResult> {
     const parsed = parseGetmatchVacancyPage(payload, this.siteBaseUrl);
 
     if (parsed.state === GETMATCH_PAGE_STATE.PARSED) {
