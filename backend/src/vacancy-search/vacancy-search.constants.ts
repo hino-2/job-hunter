@@ -135,3 +135,93 @@ export const VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_KEYWORDS_MESSAGE
   '$property: обязан содержать плейсхолдер {keywords}';
 export const VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_DESCRIPTION_MESSAGE =
   '$property: обязан содержать плейсхолдер {description}';
+
+/** Общий делитель для бюджета по возрасту (§4.11.6, VACANCY_SCAN_MAX_AGE_DAYS). */
+export const MS_IN_DAY = 86_400_000;
+
+/** §5.7: маршруты VacancyLeadsController. scan/scan-status ОБЯЗАНЫ идти выше ':id' (то же правило, что у sync-open). */
+export const VACANCY_LEADS_ROUTE = 'vacancy-leads';
+export const VACANCY_LEAD_ID_PARAM = 'id';
+export const VACANCY_LEAD_BY_ID_ROUTE = ':id';
+export const VACANCY_LEADS_SCAN_ROUTE = 'scan';
+export const VACANCY_LEADS_SCAN_STATUS_ROUTE = 'scan/status';
+
+export const VACANCY_LEADS_ALIAS = 'vacancyLead';
+
+export const VACANCY_LEAD_NOT_FOUND_MESSAGE = 'Вакансия не найдена';
+
+export const VACANCY_LEADS_SEARCH_MAX_LENGTH = 255;
+
+/** §5.7: значения query-параметра hidden. */
+export const VACANCY_LEADS_HIDDEN_FILTERS = ['exclude', 'only', 'all'] as const;
+export const DEFAULT_VACANCY_LEADS_HIDDEN_FILTER = 'exclude';
+
+export const VACANCY_LEADS_SORT_FIELDS = ['publishedAt', 'firstSeenAt'] as const;
+export const DEFAULT_VACANCY_LEADS_SORT = 'publishedAt';
+
+export const VACANCY_LEADS_ORDERS = ['asc', 'desc'] as const;
+export const DEFAULT_VACANCY_LEADS_ORDER = 'desc';
+
+export const VACANCY_LEADS_ORDER_DIRECTIONS = {
+  asc: 'ASC',
+  desc: 'DESC',
+} as const;
+
+/** Whitelist для ORDER BY — пользовательский ввод в SQL попадает только через эту статическую карту. */
+export const VACANCY_LEADS_SORT_PROPERTIES = {
+  publishedAt: 'publishedAt',
+  firstSeenAt: 'firstSeenAt',
+} as const;
+
+/** Добивка сортировки: без неё записи с равным значением сортируемого поля отдаются в случайном порядке. */
+export const VACANCY_LEADS_TIEBREAK_PROPERTY = 'id';
+
+export const VACANCY_LEADS_SEARCH_CONDITION =
+  `(${VACANCY_LEADS_ALIAS}.position ILIKE :search` + ` OR ${VACANCY_LEADS_ALIAS}.company ILIKE :search)`;
+
+export const VACANCY_LEADS_HIDDEN_EXCLUDE_CONDITION = `${VACANCY_LEADS_ALIAS}.hiddenAt IS NULL`;
+export const VACANCY_LEADS_HIDDEN_ONLY_CONDITION = `${VACANCY_LEADS_ALIAS}.hiddenAt IS NOT NULL`;
+
+export const VACANCY_LEADS_LIST_LIMIT_ENV_KEY = 'VACANCY_LEADS_LIST_LIMIT';
+
+/**
+ * §4.11.9/§5.7: статус прогона поиска, живущий в памяти процесса (VacancyScanStateService).
+ * IDLE — прогонов после старта процесса не было (рестарт возвращает сюда же).
+ */
+export const SCAN_STATUS = {
+  IDLE: 'IDLE',
+  RUNNING: 'RUNNING',
+  DONE: 'DONE',
+  ERROR: 'ERROR',
+} as const;
+
+/** §4.11.11: причина остановки прогона. */
+export const SCAN_STOPPED_REASON = {
+  COMPLETED: 'COMPLETED',
+  LAST_PAGE: 'LAST_PAGE',
+  MAX_PAGES: 'MAX_PAGES',
+  MAX_DETAILS: 'MAX_DETAILS',
+  DEADLINE: 'DEADLINE',
+  AGE_LIMIT: 'AGE_LIMIT',
+  ERROR: 'ERROR',
+} as const;
+
+/** §8: имена env-переменных бюджетов и режимов прогона (значения — в config/config.constants.ts). */
+export const VACANCY_SCAN_MAX_PAGES_ENV_KEY = 'VACANCY_SCAN_MAX_PAGES';
+export const VACANCY_SCAN_MAX_DETAILS_ENV_KEY = 'VACANCY_SCAN_MAX_DETAILS';
+export const VACANCY_SCAN_MAX_AGE_DAYS_ENV_KEY = 'VACANCY_SCAN_MAX_AGE_DAYS';
+export const VACANCY_SCAN_MAX_DURATION_MS_ENV_KEY = 'VACANCY_SCAN_MAX_DURATION_MS';
+export const VACANCY_PREFILTER_MODE_ENV_KEY = 'VACANCY_PREFILTER_MODE';
+export const VACANCY_MATCH_MODE_ENV_KEY = 'VACANCY_MATCH_MODE';
+
+export const VACANCY_SCAN_ALREADY_RUNNING_MESSAGE = 'Прогон поиска вакансий уже выполняется';
+export const VACANCY_SCAN_FINISHED_MESSAGE = 'Прогон поиска вакансий завершён';
+export const VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE = 'Непредвиденная ошибка прогона поиска вакансий';
+
+/**
+ * §4.12.4: предупреждение при старте, если ai_enabled = true, а модели нет
+ * у провайдера (VacancyAiCheckService). Старт процесса это не роняет.
+ */
+export const VACANCY_AI_MODEL_UNAVAILABLE_MESSAGE =
+  'Модель ИИ недоступна у провайдера: прогон поиска будет работать по ключевым словам';
+export const VACANCY_AI_CHECK_FAILED_MESSAGE = 'Проверка доступности модели ИИ не выполнена';

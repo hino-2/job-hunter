@@ -1113,9 +1113,10 @@ description_prompt:
 ```
 ollama: image ollama/ollama
         volume: ollama-models:/root/.ollama      # именованный, модели переживают down
-        порт на хост НЕ публикуется (только сеть compose)
+        порт 11434 публикуется только на 127.0.0.1 (как db) — для дев-режима и curl
         environment: OLLAMA_KEEP_ALIVE=5m        # выгрузка модели из RAM между прогонами
         profiles: [ai]
+        deploy.resources.reservations.devices: nvidia/all/[gpu]
 ```
 
 - Модель качается один раз вручную: `docker compose exec ollama ollama pull qwen3:4b-instruct`.
@@ -1127,8 +1128,17 @@ ollama: image ollama/ollama
 - Память: 4B в Q4_K_M — файл ~2.5 ГБ, в работе ~3.5–4 ГБ RAM. `OLLAMA_KEEP_ALIVE=5m`
   возвращает эту память системе через 5 минут после прогона; поскольку прогон запускается
   только вручную (§4.11.10), модель большую часть времени выгружена.
-- GPU не требуется и в compose не конфигурируется: на CPU прогон медленнее, но он
-  фоновый и асинхронный (§4.11.9).
+- GPU **не требуется**, но пробрасывается, если он есть: на машине разработки стоит
+  NVIDIA RTX 5070 (12 ГБ), и `deploy.resources.reservations.devices` отдаёт её контейнеру.
+  Разница не косметическая — 4B на CPU считает секунды на вакансию, на этой карте
+  укладывается в десятые доли. На машине без NVIDIA-драйвера в Docker секцию `deploy`
+  надо убрать: контейнер с ней не стартует, а на CPU сервис работает без иных правок.
+  Прогон остаётся фоновым и асинхронным (§4.11.9) в обоих случаях.
+- Порт `11434` публикуется на `127.0.0.1` — по той же причине, что и у `db` (§9.1):
+  в compose-сети `api` ходит по имени `ollama`, но `npm run dev:api` работает на хосте
+  и это имя не резолвит, там нужен `VACANCY_AI_BASE_URL=http://127.0.0.1:11434`.
+  Хост-порт задаётся `OLLAMA_PORT_HOST` (дефолт `11434`); само приложение эту
+  переменную не читает — она только для compose.
 
 #### 4.12.5 Отклонённые варианты
 
@@ -1893,7 +1903,10 @@ web:  build: { context: ., dockerfile: frontend/Dockerfile }
 ollama: image: ollama/ollama              # профиль compose `ai` (§4.12.4)
         volume: ollama-models:/root/.ollama
         environment: OLLAMA_KEEP_ALIVE=5m
-        порт на хост НЕ публикуется
+        ports: "127.0.0.1:${OLLAMA_PORT_HOST:-11434}:11434"
+               только loopback — нужен дев-режиму (dev:api работает на хосте
+               и имя ollama из compose-сети не резолвит) и диагностике curl'ом
+        deploy: reservations.devices nvidia/all/[gpu]  # убрать на машине без NVIDIA
         profiles: [ai]                    # без --profile ai сервис не поднимается
 ```
 

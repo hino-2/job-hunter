@@ -1,5 +1,12 @@
-import type { VACANCY_MATCH_MODES } from '../config/config.constants';
-import type { MATCH_SOURCE } from './vacancy-search.constants';
+import type { VACANCY_MATCH_MODES, VACANCY_PREFILTER_MODES } from '../config/config.constants';
+import type {
+  MATCH_SOURCE,
+  SCAN_STATUS,
+  SCAN_STOPPED_REASON,
+  VACANCY_LEADS_HIDDEN_FILTERS,
+  VACANCY_LEADS_ORDERS,
+  VACANCY_LEADS_SORT_FIELDS,
+} from './vacancy-search.constants';
 
 /** §4.12: кто подтвердил соответствие вакансии профилю — детерминированный отбор или ИИ. */
 export type MatchSource = (typeof MATCH_SOURCE)[keyof typeof MATCH_SOURCE];
@@ -11,3 +18,19 @@ export type MatchSource = (typeof MATCH_SOURCE)[keyof typeof MATCH_SOURCE];
  * env при старте), а не продублирован здесь отдельным union.
  */
 export type VacancyMatchMode = (typeof VACANCY_MATCH_MODES)[number];
+
+/** §4.11.4: что проверяется детерминированно до/вместо ИИ (этап 0). */
+export type VacancyPrefilterMode = (typeof VACANCY_PREFILTER_MODES)[number];
+
+/** §4.11.9/§5.7: статус прогона поиска, живущий в памяти процесса (VacancyScanStateService). */
+export type ScanStatus = (typeof SCAN_STATUS)[keyof typeof SCAN_STATUS];
+
+/** §4.11.11: почему прогон остановился — бюджет, конец выдачи, отсечка по возрасту или сбой. */
+export type ScanStoppedReason = (typeof SCAN_STOPPED_REASON)[keyof typeof SCAN_STOPPED_REASON];
+
+/** §5.7: значения query-параметра hidden у GET /api/vacancy-leads. */
+export type VacancyLeadsHiddenFilter = (typeof VACANCY_LEADS_HIDDEN_FILTERS)[number];
+
+export type VacancyLeadsSortField = (typeof VACANCY_LEADS_SORT_FIELDS)[number];
+
+export type VacancyLeadsOrder = (typeof VACANCY_LEADS_ORDERS)[number];
