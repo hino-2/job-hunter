@@ -1,5 +1,26 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 
+import { readCompanyLogoOrFail } from '../logos/company-logo-response.helpers';
+import {
+  CONTENT_TYPE_OPTIONS_HEADER,
+  CONTENT_TYPE_OPTIONS_NOSNIFF,
+  LOGO_CACHE_CONTROL_HEADER,
+  LOGO_CACHE_CONTROL_VALUE,
+} from '../logos/company-logo.constants';
+import { CompanyLogoService } from '../logos/company-logo.service';
 import { FindVacancyLeadsQueryDto } from './dto/find-vacancy-leads.query.dto';
 import { ScanAcceptedDto } from './dto/scan-accepted.dto';
 import { ScanStatusDto } from './dto/scan-status.dto';
@@ -11,6 +32,7 @@ import { VacancyScanService } from './vacancy-scan.service';
 import {
   VACANCY_LEAD_BY_ID_ROUTE,
   VACANCY_LEAD_ID_PARAM,
+  VACANCY_LEAD_LOGO_ROUTE,
   VACANCY_LEADS_ROUTE,
   VACANCY_LEADS_SCAN_ROUTE,
   VACANCY_LEADS_SCAN_STATUS_ROUTE,
@@ -19,8 +41,9 @@ import {
 /**
  * Список/скрытие лидов и запуск/статус прогона поиска (§5.7).
  *
- * ВАЖНО: маршруты 'scan' и 'scan/status' объявлены ВЫШЕ метода с ':id', иначе Express
- * сматчил бы их как значение :id — то же правило, что у sync-open в ApplicationsController (§5.2).
+ * ВАЖНО: маршруты 'scan', 'scan/status' и ':id/logo' объявлены ВЫШЕ метода с ':id',
+ * иначе Express сматчил бы их хвост как значение :id — то же правило, что у
+ * sync-open/:id/logo в ApplicationsController (§5.2, §4.10, шаг №26 §14).
  */
 @Controller(VACANCY_LEADS_ROUTE)
 export class VacancyLeadsController {
@@ -28,6 +51,7 @@ export class VacancyLeadsController {
     private readonly leadsService: VacancyLeadsService,
     private readonly scanService: VacancyScanService,
     private readonly scanStateService: VacancyScanStateService,
+    private readonly companyLogoService: CompanyLogoService,
   ) {}
 
   @Get()
@@ -50,6 +74,21 @@ export class VacancyLeadsController {
   @Get(VACANCY_LEADS_SCAN_STATUS_ROUTE)
   status(): ScanStatusDto {
     return ScanStatusDto.fromState(this.scanStateService.snapshot());
+  }
+
+  /**
+   * GET /api/vacancy-leads/:id/logo (§4.10, §4.11, §5.7, шаг №26 §14) — байты логотипа
+   * компании лида, ровно та же обвязка, что у ApplicationsController.findLogo: заголовки
+   * кэша и nosniff ставим сами, @Res не используется — иначе перестал бы работать
+   * HttpExceptionFilter (§5.5).
+   */
+  @Get(VACANCY_LEAD_LOGO_ROUTE)
+  @Header(LOGO_CACHE_CONTROL_HEADER, LOGO_CACHE_CONTROL_VALUE)
+  @Header(CONTENT_TYPE_OPTIONS_HEADER, CONTENT_TYPE_OPTIONS_NOSNIFF)
+  async findLogo(@Param(VACANCY_LEAD_ID_PARAM, ParseUUIDPipe) id: string): Promise<StreamableFile> {
+    const entity = await this.leadsService.findOneOrFail(id);
+
+    return readCompanyLogoOrFail(this.companyLogoService, entity.companyLogoFile);
   }
 
   @Patch(VACANCY_LEAD_BY_ID_ROUTE)

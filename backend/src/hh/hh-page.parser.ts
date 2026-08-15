@@ -1,14 +1,11 @@
 import type { Vacancy } from '../vacancies/vacancies.interfaces';
 import { resolveVacancyLogoUrl } from '../vacancies/vacancy-logo-url.helpers';
+import { readHhCompanyLogoSrc } from './hh-company-logo.helpers';
 import {
   HH_ARCHIVED_FLAG_GROUP,
   HH_ARCHIVED_FLAG_PATTERN,
   HH_ARCHIVED_MARKER,
   HH_ARCHIVED_TRUE_TOKEN,
-  HH_COMPANY_LOGO_ENTRY_PATTERN,
-  HH_COMPANY_LOGO_TYPE_GROUP,
-  HH_COMPANY_LOGO_TYPE_PRIORITY,
-  HH_COMPANY_LOGO_URL_GROUP,
   HH_LOGO_ALLOWED_HOST_PATTERN,
   JSON_LD_FIELD,
 } from './hh.constants';
@@ -49,38 +46,6 @@ function resolveArchived(html: string): boolean | null {
 }
 
 /**
- * §4.10: URL логотипа компании из встроенного состояния страницы. Из каждого типа
- * берётся ПЕРВОЕ вхождение: блок работодателя самой вакансии идёт в состоянии раньше
- * похожих вакансий, у которых логотипы уже чужие. Дальше — первый доступный тип
- * по приоритету, а не первый попавшийся URL: типы в блоке перечислены в порядке
- * hh.ru, и он не совпадает с нужным нам.
- */
-function readCompanyLogo(html: string): string | null {
-  const urlByType = new Map<string, string>();
-
-  for (const match of html.matchAll(HH_COMPANY_LOGO_ENTRY_PATTERN)) {
-    const type = match[HH_COMPANY_LOGO_TYPE_GROUP]?.toLowerCase();
-    const url = match[HH_COMPANY_LOGO_URL_GROUP];
-
-    if (type === undefined || url === undefined || urlByType.has(type)) {
-      continue;
-    }
-
-    urlByType.set(type, url);
-  }
-
-  for (const type of HH_COMPANY_LOGO_TYPE_PRIORITY) {
-    const url = urlByType.get(type);
-
-    if (url !== undefined) {
-      return url;
-    }
-  }
-
-  return null;
-}
-
-/**
  * Разбор HTML-страницы вакансии hh.ru (§4.1). Чистая функция, а не метод сервиса
  * и не провайдер — тот же аргумент, что и у hh-url.parser.ts: нет зависимостей
  * и состояния, DI ничего не даёт.
@@ -112,7 +77,7 @@ export function parseHhVacancyPage(html: unknown, logoBaseUrl: string): Vacancy 
   }
 
   const logoUrl = resolveVacancyLogoUrl(
-    readCompanyLogo(html),
+    readHhCompanyLogoSrc(html),
     logoBaseUrl,
     HH_LOGO_ALLOWED_HOST_PATTERN,
   );

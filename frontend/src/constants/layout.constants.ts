@@ -164,6 +164,9 @@ export const VACANCY_LEAD_SUMMARY_FLEX = {
   publishedOn: '0 0 64px',
   position: '1 1 320px',
   company: '1 1 200px',
+  // Текст внутри ячейки компании — сама ячейка держит flex-basis, а название
+  // сжимается/растягивается рядом с Avatar-логотипом (§4.10), как у откликов.
+  companyText: '1 1 auto',
   salary: '0 0 200px',
   auto: '0 0 auto',
 } as const;

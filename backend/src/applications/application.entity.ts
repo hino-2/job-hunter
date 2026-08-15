@@ -8,11 +8,11 @@ import {
 } from 'typeorm';
 
 import { COLUMN_TYPE, PRIMARY_KEY_STRATEGY } from '../database/database.constants';
+import { COMPANY_LOGO_FILE_COLUMN_LENGTH } from '../logos/company-logo.constants';
 import {
   APPLICATION_COLUMN,
   APPLICATION_INDEX,
   APPLICATIONS_TABLE,
-  COMPANY_LOGO_FILE_COLUMN_LENGTH,
   COMPANY_MAX_LENGTH,
   DEFAULT_APPLICATION_RESULT,
   DEFAULT_APPLICATION_STATUS,

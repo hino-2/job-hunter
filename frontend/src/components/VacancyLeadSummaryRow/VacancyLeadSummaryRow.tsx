@@ -1,12 +1,16 @@
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { memo } from 'react';
 import type { MouseEvent } from 'react';
 
+import { VACANCY_LEADS_ENDPOINT } from '../../constants/api.constants';
 import {
   FIELD_GAP,
+  SUMMARY_LOGO_FONT_SIZE,
+  SUMMARY_LOGO_GAP,
+  SUMMARY_LOGO_SIZE_PX,
   SUMMARY_TEXT_MIN_WIDTH_PX,
   VACANCY_LEAD_SUMMARY_FLEX,
 } from '../../constants/layout.constants';
@@ -15,6 +19,7 @@ import {
   OPEN_VACANCY_LABEL,
   RESTORE_VACANCY_LABEL,
 } from '../../constants/vacancy-search.constants';
+import { buildCompanyInitial, buildCompanyLogoUrl } from '../../utils/company-logo.utils';
 import { toExternalHref } from '../../utils/url.utils';
 import { formatPublishedOnShort, formatSalaryShort } from '../../utils/vacancy-lead.utils';
 import type { VacancyLeadSummaryRowProps } from './vacancy-lead-summary-row.interfaces';
@@ -33,6 +38,9 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
 }: VacancyLeadSummaryRowProps) {
   const salary = formatSalaryShort(lead);
   const href = toExternalHref(lead.vacancyUrl);
+  const logoSrc = lead.hasCompanyLogo
+    ? buildCompanyLogoUrl(VACANCY_LEADS_ENDPOINT, lead.id)
+    : undefined;
 
   // stopPropagation обязателен (§7.9.1): без него клик по кнопке всплыл бы до
   // AccordionSummary и переключил раскрытость (§13.10.3). Оборачиваем в span, а не
@@ -77,13 +85,37 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
         {lead.position}
       </Typography>
 
-      <Typography
-        noWrap
-        color="text.secondary"
-        sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.company, minWidth: SUMMARY_TEXT_MIN_WIDTH_PX }}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: SUMMARY_LOGO_GAP,
+          flex: VACANCY_LEAD_SUMMARY_FLEX.company,
+          minWidth: SUMMARY_TEXT_MIN_WIDTH_PX,
+        }}
       >
-        {lead.company}
-      </Typography>
+        <Avatar
+          variant="rounded"
+          alt=""
+          src={logoSrc}
+          sx={{
+            width: SUMMARY_LOGO_SIZE_PX,
+            height: SUMMARY_LOGO_SIZE_PX,
+            fontSize: SUMMARY_LOGO_FONT_SIZE,
+            flex: VACANCY_LEAD_SUMMARY_FLEX.auto,
+          }}
+        >
+          {buildCompanyInitial(lead.company)}
+        </Avatar>
+
+        <Typography
+          noWrap
+          color="text.secondary"
+          sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.companyText, minWidth: SUMMARY_TEXT_MIN_WIDTH_PX }}
+        >
+          {lead.company}
+        </Typography>
+      </Box>
 
       {/*
        * Ячейка зарплаты рендерится всегда, даже пустой: `position` и `company` растут

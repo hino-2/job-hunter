@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 
 import { HhSearchService } from '../hh/hh-search.service';
 import type { HhSearchItem } from '../hh/hh.interfaces';
+import type { HhDescriptionResult } from '../hh/hh.type';
+import { CompanyLogoService } from '../logos/company-logo.service';
 import { VACANCY_AI_BATCH_SIZE_ENV_KEY } from '../vacancy-ai/vacancy-ai.constants';
 import { VacancyAiService } from '../vacancy-ai/vacancy-ai.service';
 import { buildDedupKey, derivePublishedOn, serializeDedupKey } from './vacancy-lead-key.helpers';
@@ -27,6 +29,7 @@ import {
 } from './vacancy-search.constants';
 import type {
   ScanRunHandle,
+  VacancyLeadLogoSource,
   VacancyScanDetailsBudget,
   VacancyScanSurvivor,
   VacancySearchSettingsSnapshot,
@@ -36,6 +39,26 @@ import type { ScanStoppedReason, VacancyMatchMode, VacancyPrefilterMode } from '
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * §4.10 (шаг №26 §14): логотип компании лида берётся из той же страницы вакансии,
+ * что hhSearch.fetchVacancyDescription уже загрузила ради описания (§4.11.7) — оба
+ * поля результата заполняются вместе (HhSearchService), поэтому null здесь означает
+ * «источник логотип не дал», а не «данные неполные».
+ */
+function resolveLeadLogoSource(descriptionResult: HhDescriptionResult): VacancyLeadLogoSource | null {
+  if (!descriptionResult.ok) {
+    return null;
+  }
+
+  const { logoUrl, logoAllowedHostPattern } = descriptionResult;
+
+  if (logoUrl === null || logoAllowedHostPattern === null) {
+    return null;
+  }
+
+  return { logoUrl, allowedHostPattern: logoAllowedHostPattern };
 }
 
 /**
@@ -94,6 +117,7 @@ export class VacancyScanService {
     private readonly hhSearch: HhSearchService,
     private readonly leadsService: VacancyLeadsService,
     private readonly aiService: VacancyAiService,
+    private readonly logos: CompanyLogoService,
     configService: ConfigService,
   ) {
     this.maxPages = configService.getOrThrow<number>(VACANCY_SCAN_MAX_PAGES_ENV_KEY);
@@ -286,8 +310,9 @@ export class VacancyScanService {
     for (const decision of toProcess) {
       if (decision.matchSource === MATCH_SOURCE.KEYWORDS) {
         // §4.11.4: без ИИ (выключен или батч не ответил) описание не грузим —
-        // этапы 3–4 пропускаются целиком, вакансия сразу идёт на вставку.
-        await this.insertLead(decision, handle, null);
+        // этапы 3–4 пропускаются целиком, вакансия сразу идёт на вставку. Страница
+        // вакансии не открывалась вовсе, поэтому логотипа взять неоткуда (§4.10).
+        await this.insertLead(decision, handle, null, null);
         continue;
       }
 
@@ -426,6 +451,7 @@ export class VacancyScanService {
         { ...decision, matchSource: MATCH_SOURCE.KEYWORDS, matchedKeywords: matchedInDescription },
         handle,
         null,
+        resolveLeadLogoSource(descriptionResult),
       );
 
       return;
@@ -437,14 +463,21 @@ export class VacancyScanService {
       return;
     }
 
-    await this.insertLead(decision, handle, aiResult.reason);
+    const logo = resolveLeadLogoSource(descriptionResult);
+
+    await this.insertLead(decision, handle, aiResult.reason, logo);
   }
 
-  /** §4.11.4 этап 5: INSERT ... ON CONFLICT DO NOTHING. Ошибка одной строки не срывает прогон (§4.6). */
+  /**
+   * §4.11.4 этап 5: INSERT ... ON CONFLICT DO NOTHING. Ошибка одной строки не срывает прогон (§4.6).
+   * Логотип скачивается СТРОГО после успешной вставки — attachCompanyLogo сам себя изолирует
+   * (§4.10, шаг №26 §14), сбой скачивания не превращает created в failed.
+   */
   private async insertLead(
     decision: VacancyTitleDecision,
     handle: ScanRunHandle,
     aiDescriptionReason: string | null,
+    logo: VacancyLeadLogoSource | null,
   ): Promise<void> {
     const row = buildVacancyLeadRow({
       item: decision.item,
@@ -459,10 +492,14 @@ export class VacancyScanService {
     });
 
     try {
-      const inserted = await this.leadsService.insertIgnoringConflict(row);
+      const insertedId = await this.leadsService.insertIgnoringConflict(row);
 
-      if (inserted) {
+      if (insertedId !== null) {
         handle.increment('created');
+
+        if (logo !== null) {
+          await this.attachCompanyLogo(insertedId, logo);
+        }
       } else {
         // §4.11.5 эшелон 3: гонка с параллельной вставкой того же ключа — сам прогон один
         // (§4.11.10), но уникальный индекс остаётся источником истины, а не наш SELECT.
@@ -471,6 +508,29 @@ export class VacancyScanService {
     } catch (error) {
       handle.increment('failed');
       this.logger.warn(`Не удалось сохранить вакансию ${decision.item.externalId}: ${describeError(error)}`);
+    }
+  }
+
+  /**
+   * §4.10 (шаг №26 §14): собственный try/catch — сбой скачивания/записи логотипа не
+   * должен переводить уже созданный лид в failed, insertLead() к этому моменту уже
+   * учла created. CompanyLogoService.download() и так не бросает исключений, но
+   * defensive try/catch остаётся симметричным остальным местам конвейера (§4.6).
+   */
+  private async attachCompanyLogo(id: string, logo: VacancyLeadLogoSource): Promise<void> {
+    try {
+      const fileName = await this.logos.download({
+        fileKey: id,
+        logoUrl: logo.logoUrl,
+        allowedHostPattern: logo.allowedHostPattern,
+        acquireSlot: this.hhSearch.acquireRequestSlot,
+      });
+
+      if (fileName !== null) {
+        await this.leadsService.setCompanyLogoFile(id, fileName);
+      }
+    } catch (error) {
+      this.logger.warn(`Не удалось сохранить логотип компании лида ${id}: ${describeError(error)}`);
     }
   }
 }

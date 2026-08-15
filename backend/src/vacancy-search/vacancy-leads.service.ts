@@ -6,7 +6,11 @@ import type { SelectQueryBuilder } from 'typeorm';
 
 import { buildLikePattern } from '../common/like.helpers';
 import type { FindVacancyLeadsQueryDto } from './dto/find-vacancy-leads.query.dto';
-import { parseDedupKeyWithIdRow, serializeDedupKey } from './vacancy-lead-key.helpers';
+import {
+  parseDedupKeyWithIdRow,
+  readInsertedLeadId,
+  serializeDedupKey,
+} from './vacancy-lead-key.helpers';
 import { VacancyLead } from './vacancy-lead.entity';
 import {
   DEFAULT_VACANCY_LEADS_HIDDEN_FILTER,
@@ -135,15 +139,18 @@ export class VacancyLeadsService {
    * §4.11.5 эшелон 3: INSERT ... ON CONFLICT DO NOTHING — источник истины даже при
    * гонке с уникальным индексом (второй одновременный прогон исключён §4.11.10,
    * но индекс дешевле, чем доверять SELECT'у, сделанному страницу назад).
-   * Возвращает true, если строка реально вставлена (а не молча отброшена конфликтом).
+   * Возвращает id вставленной строки либо null, если строка молча отброшена конфликтом.
    *
    * result.identifiers для этого НЕ годится: TypeORM кладёт туда по одному элементу
    * на каждую переданную строку независимо от исхода — id генерируется базой, и при
    * пропуске строки через ON CONFLICT DO NOTHING клиенту просто нечем его заполнить,
    * элемент массива всё равно появляется. Единственный надёжный признак — сами строки,
    * фактически вернувшиеся через RETURNING (result.raw): пустой массив — строка не вставлена.
+   *
+   * §4.10 (шаг №26 §14): id нужен вызывающему (VacancyScanService) для скачивания
+   * логотипа лида — fileKey обязан быть id уже существующей строки.
    */
-  async insertIgnoringConflict(row: VacancyLeadInsertRow): Promise<boolean> {
+  async insertIgnoringConflict(row: VacancyLeadInsertRow): Promise<string | null> {
     const result = await this.leads
       .createQueryBuilder()
       .insert()
@@ -152,9 +159,16 @@ export class VacancyLeadsService {
       .orIgnore()
       .execute();
 
-    const raw: unknown = result.raw;
+    return readInsertedLeadId(result.raw);
+  }
 
-    return Array.isArray(raw) && raw.length > 0;
+  /**
+   * §4.10 (шаг №26 §14): узкий апдейт одной колонки после успешного скачивания
+   * логотипа — save() целой сущности здесь не нужен, лид только что вставлен и других
+   * несохранённых изменений на нём нет.
+   */
+  async setCompanyLogoFile(id: string, fileName: string): Promise<void> {
+    await this.leads.update({ id }, { companyLogoFile: fileName });
   }
 
   private buildFindQuery(query: FindVacancyLeadsQueryDto): SelectQueryBuilder<VacancyLead> {

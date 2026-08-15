@@ -12,9 +12,12 @@ import {
 } from '../common/common.constants';
 import { htmlToPlainText } from '../common/html.helpers';
 import type { VacancyRequestAttempt } from '../vacancies/vacancies.interfaces';
+import { resolveVacancyLogoUrl } from '../vacancies/vacancy-logo-url.helpers';
 import { describeTransportError, fetchWithRetries } from '../vacancies/vacancy-retry.helpers';
+import { readHhCompanyLogoSrc } from './hh-company-logo.helpers';
 import {
   HH_FORBIDDEN_MESSAGE,
+  HH_LOGO_ALLOWED_HOST_PATTERN,
   HH_MAX_RETRIES_ENV_KEY,
   HH_NOT_FOUND_MESSAGE,
   HH_RATE_LIMITED_MESSAGE,
@@ -59,6 +62,14 @@ export class HhSearchService {
     // элемента выдачи собирается каноническим, а не из links.desktop (региональный хост).
     this.siteBaseUrl = configService.getOrThrow<string>(HH_SITE_BASE_URL_ENV_KEY);
   }
+
+  /**
+   * §4.11.2, §4.10 (шаг №26 §14): скачивание логотипа компании лида идёт через тот же
+   * троттл, что и запрос страницы вакансии — иначе прогон поиска обходил бы общий лимит
+   * частоты к hh.ru. Стрелка, а не обычный метод — тот же приём, что у HhApiService:
+   * CompanyLogoDownloadRequest.acquireSlot ждёт функцию без привязанного this.
+   */
+  readonly acquireRequestSlot = (): Promise<void> => this.throttle.acquire();
 
   fetchSearchPage(searchText: string, page: number): Promise<HhSearchPageResult> {
     const url = buildHhSearchUrl(this.searchUrlTemplate, searchText, page);
@@ -185,7 +196,21 @@ export class HhSearchService {
         };
       }
 
-      return { result: { ok: true, description: htmlToPlainText(rawDescription) }, retryable: false };
+      // §4.10 (шаг №26 §14): та же страница вакансии уже загружена ради описания —
+      // логотип компании лида разбирается из неё же, без отдельного HTTP-запроса.
+      const logoSrc = typeof payload === 'string' ? readHhCompanyLogoSrc(payload) : null;
+      const logoUrl = resolveVacancyLogoUrl(logoSrc, this.siteBaseUrl, HH_LOGO_ALLOWED_HOST_PATTERN);
+      const logoAllowedHostPattern = logoUrl === null ? null : HH_LOGO_ALLOWED_HOST_PATTERN;
+
+      return {
+        result: {
+          ok: true,
+          description: htmlToPlainText(rawDescription),
+          logoUrl,
+          logoAllowedHostPattern,
+        },
+        retryable: false,
+      };
     }
 
     if (status === NOT_FOUND_STATUS) {

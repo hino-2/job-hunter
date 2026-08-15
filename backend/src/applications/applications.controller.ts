@@ -6,7 +6,6 @@ import {
   Header,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -15,8 +14,8 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 
+import { readCompanyLogoOrFail } from '../logos/company-logo-response.helpers';
 import {
-  COMPANY_LOGO_DISPOSITION,
   CONTENT_TYPE_OPTIONS_HEADER,
   CONTENT_TYPE_OPTIONS_NOSNIFF,
   LOGO_CACHE_CONTROL_HEADER,
@@ -31,7 +30,6 @@ import {
   APPLICATION_SYNC_ROUTE,
   APPLICATIONS_ROUTE,
   APPLICATIONS_SYNC_OPEN_ROUTE,
-  COMPANY_LOGO_NOT_FOUND_MESSAGE,
 } from './applications.constants';
 import { ApplicationsService } from './applications.service';
 import { ApplicationDto } from './dto/application.dto';
@@ -113,22 +111,7 @@ export class ApplicationsController {
   async findLogo(@Param(APPLICATION_ID_PARAM, ParseUUIDPipe) id: string): Promise<StreamableFile> {
     const entity = await this.applicationsService.findOneOrFail(id);
 
-    if (entity.companyLogoFile === null) {
-      throw new NotFoundException(COMPANY_LOGO_NOT_FOUND_MESSAGE);
-    }
-
-    const content = await this.companyLogoService.read(entity.companyLogoFile);
-
-    if (content === null) {
-      // Файл пропал с диска (эфемерный каталог, §4.10) — та же ошибка, что «нет логотипа».
-      throw new NotFoundException(COMPANY_LOGO_NOT_FOUND_MESSAGE);
-    }
-
-    return new StreamableFile(content.buffer, {
-      type: content.contentType,
-      disposition: COMPANY_LOGO_DISPOSITION,
-      length: content.length,
-    });
+    return readCompanyLogoOrFail(this.companyLogoService, entity.companyLogoFile);
   }
 
   @Get(APPLICATION_BY_ID_ROUTE)

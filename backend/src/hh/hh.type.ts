@@ -7,5 +7,14 @@ import type { HhSearchPage } from './hh.interfaces';
  */
 export type HhSearchPageResult = { ok: true; page: HhSearchPage } | { ok: false; message: string };
 
-/** §4.11.7: описание уже приведено к plain text (common/html.helpers.ts), не обрезано. */
-export type HhDescriptionResult = { ok: true; description: string } | { ok: false; message: string };
+/**
+ * §4.11.7, §4.10 (шаг №26 §14): описание уже приведено к plain text
+ * (common/html.helpers.ts), не обрезано. logoUrl/logoAllowedHostPattern — тот же
+ * логотип компании, что и у синхронизации (Vacancy.logoUrl): страница вакансии здесь
+ * уже загружена ради описания, поэтому её же HTML разбирается и на логотип, без
+ * лишнего сетевого запроса. Пара заполняется вместе, как и в Vacancy — logoUrl без
+ * allow-list'а не бывает.
+ */
+export type HhDescriptionResult =
+  | { ok: true; description: string; logoUrl: string | null; logoAllowedHostPattern: RegExp | null }
+  | { ok: false; message: string };

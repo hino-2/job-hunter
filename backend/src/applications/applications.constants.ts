@@ -119,9 +119,6 @@ export const VACANCY_EXTERNAL_ID_COLUMN_LENGTH = 32;
 export const VACANCY_SOURCE_COLUMN_LENGTH = 16;
 export const SYNC_OUTCOME_COLUMN_LENGTH = 32;
 
-/** §4.10: uuid записи (36) + разделитель (1) + расширение из белого списка (≤4). */
-export const COMPANY_LOGO_FILE_COLUMN_LENGTH = 64;
-
 /** §5.1: допустимые значения query-параметра sort. */
 export const APPLICATION_SORT_FIELDS = [
   'createdAt',
@@ -182,9 +179,6 @@ export const APPLICATION_SEARCH_CONDITION =
   ` OR ${APPLICATIONS_ALIAS}.notes ILIKE :search)`;
 
 export const APPLICATION_NOT_FOUND_MESSAGE = 'Запись не найдена';
-
-/** §4.10, §5.1: отдаётся и когда у записи нет логотипа, и когда файл пропал с диска. */
-export const COMPANY_LOGO_NOT_FOUND_MESSAGE = 'Логотип компании не сохранён';
 
 /** Страховка на случай, если валидация DTO пропустит непарсящуюся дату. */
 export const INVALID_DATE_MESSAGE =

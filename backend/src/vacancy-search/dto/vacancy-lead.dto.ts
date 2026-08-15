@@ -20,6 +20,7 @@ export class VacancyLeadDto {
   externalId!: string;
   position!: string;
   company!: string;
+  hasCompanyLogo!: boolean;
   vacancyUrl!: string;
   publishedAt!: string | null;
   publishedOn!: string;
@@ -48,6 +49,8 @@ export class VacancyLeadDto {
     dto.externalId = entity.externalId;
     dto.position = entity.position;
     dto.company = entity.company;
+    // Имя файла наружу не уходит — только признак наличия (§4.10, шаг №26 §14).
+    dto.hasCompanyLogo = entity.companyLogoFile !== null;
     dto.vacancyUrl = entity.vacancyUrl;
     dto.publishedAt = toIsoOrNull(entity.publishedAt);
     dto.publishedOn = entity.publishedOn;

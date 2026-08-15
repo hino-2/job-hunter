@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { HhModule } from '../hh/hh.module';
+import { LogosModule } from '../logos/logos.module';
 import { VacancyAiModule } from '../vacancy-ai/vacancy-ai.module';
 import { VacancyAiCheckService } from './vacancy-ai-check.service';
 import { VacancyLead } from './vacancy-lead.entity';
@@ -18,10 +19,17 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
  * (§3.6, §5.7) и разбор выдачи/описания (hh/). Фаза B6/B7 — конвейер отбора
  * (§4.11.4, vacancy-scan.service.ts), асинхронный прогон (§4.11.9) и контроллер
  * vacancy-leads (§5.7). Зависимость модулей — VacancySearchModule → { HhModule,
- * VacancyAiModule } — циклов нет: ни hh/, ни vacancy-ai/ не импортируют vacancy-search/.
+ * VacancyAiModule, LogosModule } — циклов нет: ни hh/, ни vacancy-ai/, ни logos/
+ * не импортируют vacancy-search/. LogosModule добавлен шагом №26 (§14, §4.10) —
+ * CompanyLogoService нужен VacancyScanService для скачивания логотипа лида.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([VacancyLead, VacancySearchSettings]), HhModule, VacancyAiModule],
+  imports: [
+    TypeOrmModule.forFeature([VacancyLead, VacancySearchSettings]),
+    HhModule,
+    VacancyAiModule,
+    LogosModule,
+  ],
   controllers: [VacancySearchSettingsController, VacancyLeadsController],
   providers: [
     VacancySearchSettingsService,

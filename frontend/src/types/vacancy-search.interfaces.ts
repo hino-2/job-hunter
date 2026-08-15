@@ -21,6 +21,7 @@ export interface VacancyLead {
   externalId: string;
   position: string;
   company: string;
+  hasCompanyLogo: boolean;
   vacancyUrl: string;
   publishedAt: string | null;
   publishedOn: string;

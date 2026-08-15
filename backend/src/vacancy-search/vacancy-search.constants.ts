@@ -35,6 +35,7 @@ export const VACANCY_LEAD_COLUMN = {
   AI_MODEL: 'ai_model',
   AI_TITLE_REASON: 'ai_title_reason',
   AI_DESCRIPTION_REASON: 'ai_description_reason',
+  COMPANY_LOGO_FILE: 'company_logo_file',
   HIDDEN_AT: 'hidden_at',
   FIRST_SEEN_AT: 'first_seen_at',
   LAST_SEEN_AT: 'last_seen_at',
@@ -139,12 +140,15 @@ export const VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_DESCRIPTION_MESS
 /** Общий делитель для бюджета по возрасту (§4.11.6, VACANCY_SCAN_MAX_AGE_DAYS). */
 export const MS_IN_DAY = 86_400_000;
 
-/** §5.7: маршруты VacancyLeadsController. scan/scan-status ОБЯЗАНЫ идти выше ':id' (то же правило, что у sync-open). */
+/** §5.7: маршруты VacancyLeadsController. scan/scan-status/:id/logo ОБЯЗАНЫ идти выше ':id' (то же правило, что у sync-open). */
 export const VACANCY_LEADS_ROUTE = 'vacancy-leads';
 export const VACANCY_LEAD_ID_PARAM = 'id';
 export const VACANCY_LEAD_BY_ID_ROUTE = ':id';
 export const VACANCY_LEADS_SCAN_ROUTE = 'scan';
 export const VACANCY_LEADS_SCAN_STATUS_ROUTE = 'scan/status';
+
+/** §4.10, §4.11, §5.7: та же логика порядка маршрутов, что у APPLICATION_LOGO_ROUTE. */
+export const VACANCY_LEAD_LOGO_ROUTE = `${VACANCY_LEAD_BY_ID_ROUTE}/logo`;
 
 export const VACANCY_LEADS_ALIAS = 'vacancyLead';
 

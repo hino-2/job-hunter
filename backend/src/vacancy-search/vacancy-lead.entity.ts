@@ -11,6 +11,7 @@ import {
 import { VACANCY_SOURCE } from '../applications/applications.constants';
 import type { VacancySource } from '../applications/applications.type';
 import { COLUMN_TYPE, PRIMARY_KEY_STRATEGY } from '../database/database.constants';
+import { COMPANY_LOGO_FILE_COLUMN_LENGTH } from '../logos/company-logo.constants';
 import {
   DEFAULT_MATCH_SOURCE,
   VACANCY_LEAD_AI_MODEL_LENGTH,
@@ -198,6 +199,19 @@ export class VacancyLead {
     nullable: true,
   })
   aiDescriptionReason!: string | null;
+
+  /**
+   * §4.10, §4.11: имя файла логотипа на диске (каталог COMPANY_LOGO_DIR), тот же
+   * механизм, что у applications.company_logo_file — качается один раз, при вставке
+   * лида скана (шаг №26 §14), а не при каждом повторном прогоне.
+   */
+  @Column({
+    type: COLUMN_TYPE.VARCHAR,
+    name: VACANCY_LEAD_COLUMN.COMPANY_LOGO_FILE,
+    length: COMPANY_LOGO_FILE_COLUMN_LENGTH,
+    nullable: true,
+  })
+  companyLogoFile!: string | null;
 
   /** §3.5, §5.7: null — видима. Удаления нет, только скрытие. */
   @Column({ type: COLUMN_TYPE.TIMESTAMPTZ, name: VACANCY_LEAD_COLUMN.HIDDEN_AT, nullable: true })

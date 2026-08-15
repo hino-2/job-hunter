@@ -109,6 +109,17 @@ export interface VacancyScanSurvivor {
   dedupKey: VacancyLeadDedupKey;
 }
 
+/**
+ * §4.10, §4.11: логотип компании лида, разобранный из уже загруженной страницы
+ * вакансии (§4.11.7). Оба поля непустые — отсутствие логотипа выражается значением
+ * `VacancyLeadLogoSource | null` целиком, а не null отдельных полей (тот же принцип,
+ * что у Vacancy.logoUrl/logoAllowedHostPattern).
+ */
+export interface VacancyLeadLogoSource {
+  logoUrl: string;
+  allowedHostPattern: RegExp;
+}
+
 /** §4.11.4: итог этапа 1 (ИИ по названию либо детерминированный фолбэк на ключевые слова). */
 export interface VacancyTitleDecision {
   item: HhSearchItem;

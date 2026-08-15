@@ -48,7 +48,19 @@ export const COMPANY_LOGO_EXTENSION_CONTENT_TYPES = {
   gif: 'image/gif',
 } as const;
 
-/** fileKey — это application.id, то есть всегда UUID (§4.10). */
+/**
+ * §4.10, §4.11: ширина колонки company_logo_file — общая для applications и
+ * vacancy_leads (uuid записи (36) + разделитель (1) + расширение из белого списка (≤4)).
+ * Переехала сюда из applications.constants.ts (шаг №26 §14): значение принадлежит
+ * этому модулю, а не конкретной таблице, дублировать его в vacancy-search.constants.ts
+ * запрещено (§10).
+ */
+export const COMPANY_LOGO_FILE_COLUMN_LENGTH = 64;
+
+/** §4.10, §4.11, §5.1: отдаётся и когда у записи нет логотипа, и когда файл пропал с диска. */
+export const COMPANY_LOGO_NOT_FOUND_MESSAGE = 'Логотип компании не сохранён';
+
+/** fileKey — это id записи (application.id либо vacancy_leads.id), то есть всегда UUID (§4.10). */
 export const COMPANY_LOGO_FILE_KEY_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
