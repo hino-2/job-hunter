@@ -40,9 +40,9 @@ export const DEFAULT_SYNC_CONCURRENCY = 3;
 export const DEFAULT_SYNC_MIN_DELAY_MS = 200;
 
 /**
- * §4.10. Каталог логотипов эфемерный (tmpdir, без docker-volume) — после
- * пересоздания контейнера файлы теряются, а колонка company_logo_file самолечится
- * ближайшей синхронизацией.
+ * §4.10. Дефолт под дев-режим, где приложение работает на хосте: в Docker
+ * COMPANY_LOGO_DIR указывает на именованный том logos, потому что /tmp контейнера
+ * пропадает при каждом пересоздании вместе со всеми скачанными логотипами.
  */
 export const COMPANY_LOGO_DIR_NAME = 'job-hunter-logos';
 export const DEFAULT_COMPANY_LOGO_DIR = join(tmpdir(), COMPANY_LOGO_DIR_NAME);

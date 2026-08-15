@@ -52,8 +52,11 @@ services:
       SYNC_MIN_DELAY_MS: ${SYNC_MIN_DELAY_MS:-200}
       SCHEDULED_SYNC_ENABLED: ${SCHEDULED_SYNC_ENABLED:-true}
       SCHEDULED_SYNC_INTERVAL_MS: ${SCHEDULED_SYNC_INTERVAL_MS:-1800000}
-      # Каталог эфемерный (§4.10) — docker-volume не заводим намеренно.
-      COMPANY_LOGO_DIR: ${COMPANY_LOGO_DIR:-/tmp/job-hunter-logos}
+      # §4.10: каталог логотипов лежит на именованном томе logos (см. volumes ниже),
+      # а не в /tmp: /tmp пересоздаётся вместе с контейнером, и после каждого релиза
+      # шапки всех записей показывали букву-фолбэк, пока запись не синхронизируют заново
+      # (у закрытых записей — никогда, их не трогает ни «Обновить все открытые», ни §4.7).
+      COMPANY_LOGO_DIR: ${COMPANY_LOGO_DIR:-/var/lib/job-hunter/logos}
       COMPANY_LOGO_REQUEST_TIMEOUT_MS: ${COMPANY_LOGO_REQUEST_TIMEOUT_MS:-5000}
       # --- Поиск, отбор и отображение вакансий с hh.ru (§4.11, §4.12) ---
       HH_MAX_REQUESTS_PER_SECOND: ${HH_MAX_REQUESTS_PER_SECOND:-2}
@@ -72,6 +75,10 @@ services:
       VACANCY_AI_BATCH_SIZE: ${VACANCY_AI_BATCH_SIZE:-10}
       VACANCY_AI_TIMEOUT_MS: ${VACANCY_AI_TIMEOUT_MS:-120000}
       VACANCY_AI_DESCRIPTION_MAX_CHARS: ${VACANCY_AI_DESCRIPTION_MAX_CHARS:-6000}
+    volumes:
+      # Путь совпадает с дефолтом COMPANY_LOGO_DIR выше; каталог создан в образе
+      # с владельцем node, поэтому свежий том достаётся процессу доступным на запись.
+      - logos:/var/lib/job-hunter/logos
     # Порт наружу не публикуется: снаружи доступен только web.
     healthcheck:
       test: ['CMD-SHELL', 'wget -q -O- http://127.0.0.1:3000/api/health | grep -q ''"db":"up"''']
@@ -130,4 +137,5 @@ services:
 
 volumes:
   pgdata:
+  logos:
   ollama-models:

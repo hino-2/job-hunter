@@ -33,6 +33,12 @@ RUN npm ci --omit=dev --workspace=backend \
 
 COPY --from=build /app/backend/dist backend/dist
 
+# §4.10: каталог логотипов компаний — точка монтирования именованного тома. Создаётся
+# в образе и передаётся пользователю node ДО USER node: свежий том наследует владельца
+# и права каталога из образа, а без этого шага Docker создал бы его root:root, и процесс
+# под node не смог бы туда писать — логотипы молча перестали бы скачиваться.
+RUN mkdir -p /var/lib/job-hunter/logos && chown -R node:node /var/lib/job-hunter
+
 WORKDIR /app/backend
 USER node
 EXPOSE 3000
