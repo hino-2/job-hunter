@@ -22,41 +22,16 @@ strings stay Russian per §10.
 
 ## Development pipeline
 
-### Step 0 — effort estimate (never skipped)
+The pipeline itself — step 0 effort estimate, the `architect` →
+`backend-developer`/`frontend-developer` → `code-reviewer` chain, and the rule that a
+not-small task never gets a "small fix on the side" — is defined once in the user-level
+`~/.claude/CLAUDE.md` and is not repeated here. Project specifics only:
 
-Before any task, make a **shallow** estimate: how many files and modules are touched, whether
-new entities/endpoints/migrations are needed, one layer or both, whether public contracts
-change (§3 data model, §5 REST API). A glance at file names plus a couple of reads — not a
-full analysis. Then route:
-
-- **Small** — edit directly, no agents. Signs: 1–2 files, one layer, no data-model or API
-  contract change, no new module or migration, and the logic is obvious from code already
-  read. Typical: a typo, a text or comment fix, a local fix inside one function, a constant
-  update, a documentation edit.
-- **Not small** — run the full agent chain. Signs: a new feature, a refactor, a migration, a
-  new module or endpoint, a data-model or contract change, an edit spanning backend and
-  frontend at once, non-obvious consequences for adjacent code.
-- **Unsure** — treat as not small.
-
-State the estimate to the user in one or two lines before starting.
-
-### Agent chain (tasks that are not small)
-
-No "small fixes on the side" — drive the work through the chain:
-
-1. **`architect`** — always first. Reads the relevant spec sections and current code, returns a
-   blueprint: files, types, data flows, module boundaries. Writes no code.
-2. **`backend-developer` / `frontend-developer`** — implement strictly per the blueprint. Never
-   hand backend code to the frontend agent or vice versa.
-3. **`code-reviewer`** — immediately after every implementation. Hunts real bugs, §10
-   violations and divergences from the blueprint; changes no code, returns a report.
-4. The same developer agent fixes what the reviewer found; review again until the report is
-   clean.
-
-### Gates (both paths)
-
-`npm run lint` / `typecheck` / `test` / `build` must pass, and a CHANGELOG.md entry must be
-added when application behaviour changes. Only then — commit the step.
+- The public contracts whose change makes a task **not small** are §3 (data model) and §5
+  (REST API).
+- `code-reviewer` checks §10 conventions in addition to the blueprint.
+- **Gates:** `npm run lint` / `typecheck` / `test` / `build` must pass, and an entry must be
+  added to CHANGELOG.md when application behaviour changes. Only then — commit the step.
 
 ## Commands
 
