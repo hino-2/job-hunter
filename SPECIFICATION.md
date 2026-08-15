@@ -1,301 +1,293 @@
-# Job Hunter — спецификация проекта
+# Job Hunter — project specification
 
-**Версия:** 1.0
-**Дата:** 2026-08-06
-**Статус:** утверждена к разработке
+**Version:** 1.0
+**Date:** 2026-08-06
+**Status:** approved for development
 
-Этот документ — единственный источник истины по требованиям. Он предназначен для агента-архитектора, который декомпозирует его на задачи и передаст агентам-разработчикам. Всё, что не описано здесь, считается **вне скоупа** (см. §12).
-
----
-
-## 1. Назначение и контекст
-
-### 1.1 Что это
-
-Персональный трекер отправленных отзывов на вакансии. Пользователь ведёт список вакансий, на которые он откликнулся, фиксирует по каждой контакты, даты собеседований, заметки и итоговый результат. Статус вакансий (открыта / снята с публикации) подтягивается автоматически со страницы вакансии источника (hh.ru или getmatch.ru).
-
-### 1.2 Условия эксплуатации
-
-- Один пользователь (владелец), одна инсталляция.
-- Запуск **локально в Docker** через `docker compose up`.
-- Доступ через браузер на десктопе. Мобильная адаптация не требуется.
-- Многопользовательности, ролей, регистрации, шаринга — **нет**.
-- Нагрузка: единицы запросов в минуту, объём данных — сотни записей максимум.
-
-### 1.3 Ключевой принцип
-
-**Максимальная простота.** Никаких абстракций «на будущее», микросервисов, event sourcing, кэш-слоёв, feature flags, i18n-фреймворков. Прямолинейный CRUD + один внешний интегратор.
+This document is the single source of truth for requirements. Anything not described here is
+**out of scope** (see §12). Development history lives in `CHANGELOG.md`.
 
 ---
 
-## 2. Технологический стек
+## 1. Purpose and context
 
-> Версии ниже — фактически установленные и проверенные на сборке (см. `package-lock.json`).
-> Инфраструктура уже развёрнута: монорепо, тулинг, Docker и health-эндпоинт работают.
+### 1.1 What this is
+
+A personal tracker of submitted job applications: contacts, interview dates, notes and the final
+result per entry. Vacancy status (open / withdrawn) is pulled automatically from the source vacancy
+page (hh.ru or getmatch.ru).
+
+### 1.2 Operating conditions
+
+- Single user (the owner), single installation; runs **locally in Docker** via `docker compose up`.
+- Desktop browser access. No mobile adaptation. **No** multi-tenancy, roles, registration or sharing.
+- Load: a few requests per minute; hundreds of records at most.
+
+### 1.3 Key principle
+
+**Maximum simplicity.** No "for the future" abstractions, microservices, event sourcing, cache
+layers, feature flags or i18n frameworks. Straightforward CRUD plus one external integrator.
+
+---
+
+## 2. Technology stack
+
+> Versions below are the ones actually installed and verified on build (see `package-lock.json`).
 
 ### 2.1 Backend
 
-| Компонент      | Выбор                                             | Примечание                                                          |
-| -------------- | ------------------------------------------------- | ------------------------------------------------------------------- |
-| Язык           | TypeScript **5.9.3** (strict)                     | `strict: true`, `noUncheckedIndexedAccess: true`. Не 7.x — см. §2.4 |
-| Runtime        | Node.js 22 LTS                                    |                                                                     |
-| Framework      | NestJS 11.1                                       | REST, без GraphQL                                                   |
-| ORM            | TypeORM **1.1.x**                                 | `synchronize: false`, только миграции                               |
-| БД             | PostgreSQL 16                                     | сервис в docker-compose                                             |
-| HTTP-клиент    | `@nestjs/axios` 4                                 | загрузка страницы вакансии источника (hh.ru, getmatch.ru)           |
-| Валидация      | `class-validator` + `class-transformer`           | глобальный `ValidationPipe`                                         |
-| Логирование    | встроенный `Logger` NestJS                        | без внешних агрегаторов                                             |
-| Тесты          | Jest 30 + ts-jest                                 | unit для парсера URL и сервисов; e2e для контроллеров               |
-| Сборка / watch | `tsc` + `node --watch --require ts-node/register` | `@nestjs/cli` намеренно не используется — см. §2.4                  |
+| Component     | Choice                                            | Note                                                             |
+| ------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
+| Language      | TypeScript **5.9.3** (strict)                     | `strict: true`, `noUncheckedIndexedAccess: true`. Not 7.x — §2.4 |
+| Runtime       | Node.js 22 LTS                                    |                                                                  |
+| Framework     | NestJS 11.1                                       | REST, no GraphQL                                                 |
+| ORM           | TypeORM **1.1.x**                                 | `synchronize: false`, migrations only                            |
+| DB            | PostgreSQL 16                                     | docker-compose service                                           |
+| HTTP client   | `@nestjs/axios` 4                                 | fetches the source vacancy page (hh.ru, getmatch.ru)             |
+| Validation    | `class-validator` + `class-transformer`           | global `ValidationPipe`                                          |
+| Logging       | built-in NestJS `Logger`                          | no external aggregators                                          |
+| Tests         | Jest 30 + ts-jest                                 | unit for URL parser and services; e2e for controllers            |
+| Build / watch | `tsc` + `node --watch --require ts-node/register` | `@nestjs/cli` deliberately unused — §2.4                         |
 
 ### 2.2 Frontend
 
-| Компонент        | Выбор                                                             | Примечание                                                 |
-| ---------------- | ----------------------------------------------------------------- | ---------------------------------------------------------- |
-| Язык             | TypeScript **5.9.3** (strict)                                     | `verbatimModuleSyntax: true`                               |
-| Framework        | React 19                                                          |                                                            |
-| Сборка           | Vite **8**                                                        |                                                            |
-| UI               | MUI **v9** (`@mui/material`) + Emotion                            | тема по умолчанию, light                                   |
-| Иконки           | `@mui/icons-material` 9                                           |                                                            |
-| Даты             | `@mui/x-date-pickers` **9** + `dayjs` (AdapterDayjs, локаль `ru`) | `DateTimePicker`                                           |
-| Работа с API     | `axios` + TanStack Query v5                                       | серверное состояние только в React Query                   |
-| Глобальный state | **нет** (Redux/Zustand не использовать)                           | локальный `useState` + React Query кэш                     |
-| Роутинг          | **нет** (single screen)                                           |                                                            |
-| Тесты            | Vitest 4 + React Testing Library                                  | покрыть форму создания и автосейв — _отложено, см. §13.20_ |
+| Component    | Choice                                                            | Note                                                    |
+| ------------ | ----------------------------------------------------------------- | ------------------------------------------------------- |
+| Language     | TypeScript **5.9.3** (strict)                                     | `verbatimModuleSyntax: true`                            |
+| Framework    | React 19                                                          |                                                         |
+| Build        | Vite **8**                                                        |                                                         |
+| UI           | MUI **v9** (`@mui/material`) + Emotion                            | default theme, light                                    |
+| Icons        | `@mui/icons-material` 9                                           |                                                         |
+| Dates        | `@mui/x-date-pickers` **9** + `dayjs` (AdapterDayjs, locale `ru`) | `DateTimePicker`                                        |
+| API access   | `axios` + TanStack Query v5                                       | server state lives only in React Query                  |
+| Global state | **none** (do not use Redux/Zustand)                               | local `useState` + React Query cache                    |
+| Routing      | **none** (single screen)                                          |                                                         |
+| Tests        | Vitest 4 + React Testing Library                                  | cover the create form and autosave — _deferred, §13.20_ |
 
-### 2.3 Инфраструктура
+### 2.3 Infrastructure
 
-- `docker-compose.yml` — 3 сервиса: `db`, `api`, `web`.
-- `web` — nginx, раздаёт собранный статик React и проксирует `/api/*` на `api`.
-- Один вход для пользователя: `http://127.0.0.1:8080`.
+- `docker-compose.yml` — 3 services: `db`, `api`, `web`.
+- `web` — nginx, serves the built React static files and proxies `/api/*` to `api`.
+- Single user entry point: `http://127.0.0.1:8080`.
 
-### 2.4 Зафиксированные технические решения
+### 2.4 Fixed technical decisions
 
-Эти выборы уже сделаны и проверены — не пересматривать без причины.
+Already made and verified — must not be revisited without cause.
 
-1. **TypeScript 5.9, а не 7.x.** Актуальный релиз TS — 7.x, но `typescript-eslint` поддерживает
-   `typescript <6.1.0`, а `ts-jest` — `<7`. На TS 7 проект остался бы без линтера и без
-   бэкенд-тестов, то есть без двух обязательных требований §10 и §13. Ровно 5.9.3 тянет
-   внутри себя NestJS 11 — это протестированная им версия.
-2. **`@stylistic/padding-line-between-statements`, а не ядровое правило ESLint.** Ядровое
-   помечено deprecated с ESLint 8.53 и удаляется в ESLint 11 (`availableUntil: 11.0.0`).
-   Опции и поведение идентичны; конфигурация одна для обоих воркспейсов — `eslint.shared.mjs`.
-   `eslint-config-prettier` это правило не отключает (проверено).
-3. **Без `@nestjs/cli`.** Он приносит ~400 dev-пакетов (webpack и прочее), а нужны от него
-   только `build` и `watch`. Их закрывают `tsc -p tsconfig.build.json` и
-   `node --watch --require ts-node/register src/main.ts`. `ts-node` всё равно нужен
-   для TypeORM CLI. Использовать esbuild/swc/tsx для дева **нельзя**: они не поддерживают
-   `emitDecoratorMetadata`, без которой ломается DI в Nest и маппинг в TypeORM.
-4. **`consistent-type-imports` выключен на бэкенде.** С `emitDecoratorMetadata` класс,
-   используемый только как тип параметра конструктора (например `DataSource`), обязан
-   импортироваться как значение — иначе Nest не соберёт DI. На фронте правило включено.
-5. **`data-source.ts` экспортирует ровно ОДИН `DataSource`.** TypeORM 1.x падает с
-   `Given data source file must contain only one export of DataSource instance`, если в файле
-   есть и именованный, и default-экспорт. Сейчас там только `export default`.
-6. **Общий тулинг живёт в корневых `devDependencies`** (TypeScript, ESLint, Prettier,
-   typescript-eslint, @stylistic), чтобы версии не разъезжались между воркспейсами.
-   Специфичные зависимости — в своём воркспейсе.
-7. **Страница вакансии разбирается регексом + `JSON.parse`, без HTML-библиотеки.**
-   У hh.ru нужны ровно две лексические операции (тело `<script type="application/ld+json">` —
-   raw text element, и поиск токенов `archived`); структурного обхода DOM нет,
-   а cheerio/jsdom строили бы полное дерево из 772 КБ на каждый запрос при
-   конкурентности 3. Тот же принцип распространён на getmatch.ru (§4.9): его страница
-   отдаёт данные не в JSON-LD, а в RSC/flight-payload Next.js (`self.__next_f.push(...)`),
-   и разбор — та же пара операций: регекс, достающий чанки payload, плюс `JSON.parse`
-   собранного из них JSON-объекта (посимвольный скан баланса скобок, а не регекс,
-   которым такой объект неограниченной глубины не выделить безопасно).
-8. **Планировщик (§4.7) — `@nestjs/schedule` в самом процессе `api`, интервал
-   регистрируется динамически через `SchedulerRegistry`, а не декоратором `@Interval`.**
-   Декоратору нужен литерал на этапе объявления класса, а интервал и выключатель
-   приходят из env — статическое расписание нельзя ни выключить, ни переопределить без
-   пересборки. Системный cron и отдельный контейнер-планировщик отвергнуты: это второе
-   место конфигурации, собственные креды Basic Auth для вызова эндпоинта и никакой
-   защиты от наложения, которая внутри процесса стоит одного булева флага.
-   `ScheduleModule.forRoot()` вызывается ровно один раз, в `scheduler/scheduler.module.ts`
-   (тот же принцип, что `TypeOrmModule.forRootAsync` в `database.module.ts`, а не в
-   `app.module.ts`). Свой хук уборки интервала не заводится:
-   `SchedulerOrchestrator.beforeApplicationShutdown()` чистит интервалы по ключам реестра
-   сам, а повторный `deleteInterval` бросил бы исключение на `app.close()`.
+1. **TypeScript exactly 5.9.3, not 7.x.** `typescript-eslint` supports `typescript <6.1.0`, `ts-jest`
+   supports `<7`; on TS 7 the project loses the linter and the backend tests (§10, §13). 5.9.3 is the
+   version NestJS 11 pulls in and tests against.
+2. **`@stylistic/padding-line-between-statements`, not the core ESLint rule** — the core rule is
+   deprecated since ESLint 8.53 and removed in ESLint 11 (`availableUntil: 11.0.0`). Behaviour is
+   identical; one config for both workspaces — `eslint.shared.mjs`. `eslint-config-prettier` does not
+   disable it (verified).
+3. **No `@nestjs/cli`** (~400 dev packages for `build` + `watch` only). Build is
+   `tsc -p tsconfig.build.json`, dev is `node --watch --require ts-node/register src/main.ts`;
+   `ts-node` is needed for the TypeORM CLI anyway. esbuild/swc/tsx **must not** be used for dev: no
+   `emitDecoratorMetadata`, without which Nest DI and TypeORM mapping break.
+4. **`consistent-type-imports` is disabled on the backend** — with `emitDecoratorMetadata` a class
+   used only as a constructor parameter type (e.g. `DataSource`) must be imported as a value, or Nest
+   cannot build DI. The rule is enabled on the frontend.
+5. **`data-source.ts` exports exactly ONE `DataSource`** (only `export default`). TypeORM 1.x fails
+   with `Given data source file must contain only one export of DataSource instance` if the file has
+   both a named and a default export.
+6. **Shared tooling lives in the root `devDependencies`** (TypeScript, ESLint, Prettier,
+   typescript-eslint, @stylistic) so versions do not drift between workspaces; specific dependencies
+   stay in their own workspace.
+7. **The vacancy page is parsed with a regex + `JSON.parse`, without an HTML library.** hh.ru needs
+   exactly two lexical operations (the body of `<script type="application/ld+json">` — a raw text
+   element — and a search for `archived` tokens); cheerio/jsdom would build a full tree from 772 KB
+   per request at concurrency 3. Same for getmatch.ru (§4.9), whose page carries data in the Next.js
+   RSC/flight payload (`self.__next_f.push(...)`): a regex extracting the payload chunks plus
+   `JSON.parse` of the object assembled from them, delimited by a character-by-character brace-balance
+   scan — a regex cannot safely delimit an object of unbounded depth.
+8. **The scheduler (§4.7) is `@nestjs/schedule` inside the `api` process, with the interval registered
+   dynamically through `SchedulerRegistry`, not the `@Interval` decorator** — the decorator needs a
+   literal at class-declaration time, while interval and on/off switch come from env, so a static
+   schedule could be neither disabled nor overridden without a rebuild. System cron and a separate
+   scheduler container are rejected: a second configuration site, own Basic Auth credentials, and no
+   overlap protection (one boolean flag in-process). `ScheduleModule.forRoot()` is called exactly
+   once, in `scheduler/scheduler.module.ts` (same principle as `TypeOrmModule.forRootAsync` living in
+   `database.module.ts`, not `app.module.ts`). No custom interval-cleanup hook:
+   `SchedulerOrchestrator.beforeApplicationShutdown()` clears intervals by registry key itself, and a
+   second `deleteInterval` would throw on `app.close()`.
 
 ---
 
-## 3. Модель данных
+## 3. Data model
 
-### 3.1 Таблица `applications`
+### 3.1 Table `applications`
 
-| Поле (БД)             | Тип БД         | Обяз. | Default             | Описание                                                                  |
-| --------------------- | -------------- | ----- | ------------------- | ------------------------------------------------------------------------- |
-| `id`                  | `uuid` PK      | да    | `gen_random_uuid()` | Идентификатор записи                                                      |
-| `company`             | `varchar(255)` | да    | —                   | Название компании                                                         |
-| `position`            | `varchar(255)` | нет   | `null`              | Название должности/вакансии. Автозаполняется из hh.ru                     |
-| `vacancy_url`         | `text`         | нет   | `null`              | Ссылка на страницу с описанием вакансии                                   |
-| `resume_url`          | `text`         | нет   | `null`              | Ссылка на резюме, которым откликнулся                                     |
-| `interview_url`       | `text`         | нет   | `null`              | Ссылка на созвон по собеседованию (Google Meet, Zoom и т. п.)             |
-| `status`              | `varchar(16)`  | да    | `'OPEN'`            | Статус вакансии. Enum, см. §3.2                                           |
-| `result`              | `varchar(32)`  | да    | `'IN_PROGRESS'`     | Итог общения. Enum, см. §3.3                                              |
-| `employer_contact`    | `text`         | нет   | `null`              | Свободный текст: имя, телефон, telegram, email HR                         |
-| `hr_interview_at`     | `timestamptz`  | нет   | `null`              | Дата/время HR-собеса                                                      |
-| `tech_interview_at`   | `timestamptz`  | нет   | `null`              | Дата/время тех-собеса                                                     |
-| `notes`               | `text`         | нет   | `null`              | Свободные заметки                                                         |
-| `vacancy_source`      | `varchar(16)`  | нет   | `null`              | Источник вакансии. Enum, см. §4.8 (`'HH'` \| `'GETMATCH'` \| `null`)      |
-| `vacancy_external_id` | `varchar(32)`  | нет   | `null`              | ID вакансии у источника, извлечённый из `vacancy_url`                     |
-| `vacancy_archived`    | `boolean`      | нет   | `null`              | Последнее значение признака архивности от источника                       |
-| `company_logo_file`   | `varchar(64)`  | нет   | `null`              | Имя файла логотипа компании на диске (`COMPANY_LOGO_DIR`, §4.10), не URL  |
-| `last_synced_at`      | `timestamptz`  | нет   | `null`              | Время последней **успешной** синхронизации                                |
-| `last_sync_outcome`   | `varchar(32)`  | нет   | `null`              | Результат последней попытки синхронизации. Enum, см. §4.5                 |
-| `last_sync_error`     | `text`         | нет   | `null`              | Человекочитаемое сообщение об ошибке последней попытки; `null` при успехе |
-| `created_at`          | `timestamptz`  | да    | `now()`             | Когда запись добавлена                                                    |
-| `updated_at`          | `timestamptz`  | да    | `now()`             | Автообновление при любом изменении                                        |
+| Column (DB)           | DB type        | Req. | Default             | Description                                                           |
+| --------------------- | -------------- | ---- | ------------------- | --------------------------------------------------------------------- |
+| `id`                  | `uuid` PK      | yes  | `gen_random_uuid()` | Record identifier                                                     |
+| `company`             | `varchar(255)` | yes  | —                   | Company name                                                          |
+| `position`            | `varchar(255)` | no   | `null`              | Position/vacancy title. Auto-filled from hh.ru                        |
+| `vacancy_url`         | `text`         | no   | `null`              | Link to the vacancy description page                                  |
+| `resume_url`          | `text`         | no   | `null`              | Link to the résumé used to apply                                      |
+| `interview_url`       | `text`         | no   | `null`              | Link to the interview call (Google Meet, Zoom, …)                     |
+| `status`              | `varchar(16)`  | yes  | `'OPEN'`            | Vacancy status. Enum, see §3.2                                        |
+| `result`              | `varchar(32)`  | yes  | `'IN_PROGRESS'`     | Outcome of the conversation. Enum, see §3.3                           |
+| `employer_contact`    | `text`         | no   | `null`              | Free text: HR name, phone, telegram, email                            |
+| `hr_interview_at`     | `timestamptz`  | no   | `null`              | HR interview date/time                                                |
+| `tech_interview_at`   | `timestamptz`  | no   | `null`              | Tech interview date/time                                              |
+| `notes`               | `text`         | no   | `null`              | Free-form notes                                                       |
+| `vacancy_source`      | `varchar(16)`  | no   | `null`              | Vacancy source. Enum, see §4.8 (`'HH'` \| `'GETMATCH'` \| `null`)     |
+| `vacancy_external_id` | `varchar(32)`  | no   | `null`              | Source-side vacancy ID extracted from `vacancy_url`                   |
+| `vacancy_archived`    | `boolean`      | no   | `null`              | Last archived flag value reported by the source                       |
+| `company_logo_file`   | `varchar(64)`  | no   | `null`              | Company logo file name on disk (`COMPANY_LOGO_DIR`, §4.10), not a URL |
+| `last_synced_at`      | `timestamptz`  | no   | `null`              | Time of the last **successful** sync                                  |
+| `last_sync_outcome`   | `varchar(32)`  | no   | `null`              | Result of the last sync attempt. Enum, see §4.5                       |
+| `last_sync_error`     | `text`         | no   | `null`              | Human-readable error message of the last attempt; `null` on success   |
+| `created_at`          | `timestamptz`  | yes  | `now()`             | When the record was added                                             |
+| `updated_at`          | `timestamptz`  | yes  | `now()`             | Auto-updated on any change                                            |
 
-**Индексы:**
+**Indexes:**
 
-- PK по `id`.
-- Индекс по `status` (фильтрация списка и выборка для массовой синхронизации).
-- Индекс по `created_at DESC` (сортировка по умолчанию).
-- **Уникальности по `vacancy_external_id` нет** — пользователь может откликнуться на одну вакансию дважды разными резюме, а разные источники в принципе могут отдавать совпадающие числовые ID.
+- PK on `id`.
+- Index on `status` (list filtering and selection for bulk sync).
+- Index on `created_at DESC` (default sort).
+- **No uniqueness on `vacancy_external_id`** — the user may apply to one vacancy twice with
+  different résumés, and different sources may in principle return colliding numeric IDs.
 
-**Удаление:** физическое (`DELETE`). Soft delete не нужен.
+**Deletion:** physical (`DELETE`). No soft delete.
 
 ### 3.2 Enum `ApplicationStatus`
 
-| Значение | Подпись в UI (ru) |
-| -------- | ----------------- |
-| `OPEN`   | Открыта           |
-| `CLOSED` | Закрыта           |
+| Value    | UI label (ru) |
+| -------- | ------------- |
+| `OPEN`   | Открыта       |
+| `CLOSED` | Закрыта       |
 
-`OPEN` — начальное значение при создании записи.
+`OPEN` is the initial value on record creation.
 
 ### 3.3 Enum `ApplicationResult`
 
-| Значение              | Подпись в UI (ru) |
-| --------------------- | ----------------- |
-| `IN_PROGRESS`         | В процессе        |
-| `OFFER`               | Оффер             |
-| `REJECTED_BY_COMPANY` | Отказ компании    |
-| `DECLINED_BY_ME`      | Отказался сам     |
-| `NO_RESPONSE`         | Нет ответа        |
-| `VACANCY_WITHDRAWN`   | Вакансия снята    |
+| Value                 | UI label (ru)  |
+| --------------------- | -------------- |
+| `IN_PROGRESS`         | В процессе     |
+| `OFFER`               | Оффер          |
+| `REJECTED_BY_COMPANY` | Отказ компании |
+| `DECLINED_BY_ME`      | Отказался сам  |
+| `NO_RESPONSE`         | Нет ответа     |
+| `VACANCY_WITHDRAWN`   | Вакансия снята |
 
-`IN_PROGRESS` — начальное значение при создании записи.
+`IN_PROGRESS` is the initial value on record creation.
 
-### 3.4 Требования к размещению кода (обязательно)
+### 3.4 Code placement requirements (mandatory)
 
-Согласно код-конвенциям проекта (§10):
+Per the project code conventions (§10):
 
-- Enum-значения и их ru-подписи, лимиты длины, дефолты, регексы, таймауты, лимиты конкурентности — **только** в `*.constants.ts` соответствующего модуля.
-- Типы — в `*.type.ts`, интерфейсы — в `*.interfaces.ts` соответствующего модуля. Инлайн-объявления типов/интерфейсов в имплементационных файлах запрещены.
-- Enum-ы статуса, результата и **источника вакансии (`VacancySource`, §4.8)** определяются один раз на бэкенде и **дублируются вручную** на фронте в его собственном `*.constants.ts` (общий shared-пакет создавать не надо — это лишняя сложность для монорепо из двух приложений; несоответствие ловится e2e-тестом на список допустимых значений).
+- Enum values and their ru labels, length limits, defaults, regexes, timeouts, concurrency limits —
+  **only** in the `*.constants.ts` of the corresponding module.
+- Types in `*.type.ts`, interfaces in `*.interfaces.ts` of the corresponding module. Inline
+  type/interface declarations in implementation files are forbidden.
+- The status, result and **vacancy source (`VacancySource`, §4.8)** enums are defined once on the
+  backend and **duplicated by hand** on the frontend in its own `*.constants.ts` (no shared package —
+  needless complexity for a two-app monorepo; a mismatch is caught by an e2e test on the list of
+  allowed values).
 
-### 3.5 Таблица `vacancy_leads`
+### 3.5 Table `vacancy_leads`
 
-Вакансии-кандидаты, найденные поиском по hh.ru (§4.11). Таблица **независима** от
-`applications`: лид — это ещё не отклик, внешнего ключа между таблицами нет и не будет.
-Пользователь, решивший откликнуться, заводит запись в «Откликах» обычным путём (§7.4),
-вставив ссылку из списка вакансий; автоматического превращения лида в отклик нет (§12).
+Candidate vacancies found by the hh.ru search (§4.11). The table is **independent** of
+`applications`: a lead is not yet an application, and there is no foreign key between the tables and
+never will be. A user who decides to apply creates an entry in «Отклики» the normal way (§7.4);
+there is no automatic lead-to-application conversion (§12).
 
-| Поле (БД)               | Тип БД         | Обяз. | Default             | Описание                                                                                                                                                                                  |
-| ----------------------- | -------------- | ----- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                    | `uuid` PK      | да    | `gen_random_uuid()` | Идентификатор записи                                                                                                                                                                      |
-| `source`                | `varchar(16)`  | да    | `'HH'`              | Источник вакансии, тот же enum `VacancySource` (§4.8). Пока всегда `'HH'`                                                                                                                 |
-| `external_id`           | `varchar(32)`  | да    | —                   | ID вакансии у источника, взятый из выдачи                                                                                                                                                 |
-| `position`              | `varchar(255)` | да    | —                   | Название вакансии = должность, как её отдал источник (обрезано по ширине)                                                                                                                 |
-| `company`               | `varchar(255)` | да    | —                   | Название компании из выдачи (обрезано по ширине)                                                                                                                                          |
-| `position_key`          | `varchar(255)` | да    | —                   | Нормализованная должность — часть ключа дедупликации (§4.11.5)                                                                                                                            |
-| `company_key`           | `varchar(255)` | да    | —                   | Нормализованная компания — часть ключа дедупликации (§4.11.5)                                                                                                                             |
-| `published_on`          | `date`         | да    | —                   | Дата публикации в календаре источника — часть ключа дедупликации (§4.11.6)                                                                                                                |
-| `published_at`          | `timestamptz`  | нет   | `null`              | Полная отметка времени публикации (сортировка и показ). Наружу уходит в UTC-ISO, как все даты §5; исходное смещение `+03:00` не сохраняется — за календарную дату отвечает `published_on` |
-| `vacancy_url`           | `text`         | да    | —                   | Канонический адрес `{HH_SITE_BASE_URL}/vacancy/{external_id}`, без query                                                                                                                  |
-| `area_name`             | `varchar(128)` | нет   | `null`              | Регион вакансии из выдачи (`area.name`)                                                                                                                                                   |
-| `salary_from`           | `integer`      | нет   | `null`              | Зарплата «от» (`compensation.from`)                                                                                                                                                       |
-| `salary_to`             | `integer`      | нет   | `null`              | Зарплата «до» (`compensation.to`)                                                                                                                                                         |
-| `salary_currency`       | `varchar(8)`   | нет   | `null`              | Код валюты (`compensation.currencyCode`: `RUR`, `USD`, `UZS`, …)                                                                                                                          |
-| `salary_gross`          | `boolean`      | нет   | `null`              | Указана ли сумма до вычета налога (`compensation.gross`)                                                                                                                                  |
-| `experience`            | `varchar(32)`  | нет   | `null`              | Требуемый опыт (`workExperience`: `noExperience`, `between1And3`, …)                                                                                                                      |
-| `employment_form`       | `varchar(32)`  | нет   | `null`              | Форма занятости (`employmentForm`: `FULL`, `PART`, `PROJECT`, …)                                                                                                                          |
-| `work_formats`          | `varchar(64)`  | нет   | `null`              | Формат работы через запятую (`REMOTE`, `HYBRID`, `ON_SITE`)                                                                                                                               |
-| `matched_keywords`      | `text`         | нет   | `null`              | Сработавшие ключевые слова через запятую (детерминированный отбор, §4.11.4)                                                                                                               |
-| `match_source`          | `varchar(16)`  | да    | `'KEYWORDS'`        | Кто подтвердил соответствие: `'KEYWORDS'` \| `'AI'` (§4.12)                                                                                                                               |
-| `ai_model`              | `varchar(64)`  | нет   | `null`              | Модель, вынесшая вердикт (для сравнения качества между моделями)                                                                                                                          |
-| `ai_title_reason`       | `varchar(500)` | нет   | `null`              | Краткое обоснование модели по названию вакансии (§4.12)                                                                                                                                   |
-| `ai_description_reason` | `varchar(500)` | нет   | `null`              | Краткое обоснование модели по описанию вакансии (§4.12)                                                                                                                                   |
-| `company_logo_file`     | `varchar(64)`  | нет   | `null`              | Имя файла логотипа компании на диске (`COMPANY_LOGO_DIR`, §4.10), не URL. Заполняется только для лидов, дошедших до загрузки страницы вакансии (§4.11.7); для лидов keyword-only пути остаётся `null` навсегда |
-| `hidden_at`             | `timestamptz`  | нет   | `null`              | Когда пользователь скрыл вакансию (§5.7). `null` — видима                                                                                                                                 |
-| `first_seen_at`         | `timestamptz`  | да    | `now()`             | Когда вакансия впервые попала в выдачу нашего прогона                                                                                                                                     |
-| `last_seen_at`          | `timestamptz`  | да    | `now()`             | Когда вакансия последний раз встретилась в выдаче (обновляется на дубликате)                                                                                                              |
-| `created_at`            | `timestamptz`  | да    | `now()`             |                                                                                                                                                                                           |
-| `updated_at`            | `timestamptz`  | да    | `now()`             | Автообновление при любом изменении                                                                                                                                                        |
+| Column (DB)             | DB type        | Req. | Default             | Description                                                                                                                                                                             |
+| ----------------------- | -------------- | ---- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                    | `uuid` PK      | yes  | `gen_random_uuid()` | Record identifier                                                                                                                                                                       |
+| `source`                | `varchar(16)`  | yes  | `'HH'`              | Vacancy source, same `VacancySource` enum (§4.8). Always `'HH'` for now                                                                                                                 |
+| `external_id`           | `varchar(32)`  | yes  | —                   | Source-side vacancy ID taken from the search results page                                                                                                                               |
+| `position`              | `varchar(255)` | yes  | —                   | Vacancy title = position as the source returned it (truncated to width)                                                                                                                 |
+| `company`               | `varchar(255)` | yes  | —                   | Company name from the search results page (truncated to width)                                                                                                                          |
+| `position_key`          | `varchar(255)` | yes  | —                   | Normalized position — part of the deduplication key (§4.11.5)                                                                                                                           |
+| `company_key`           | `varchar(255)` | yes  | —                   | Normalized company — part of the deduplication key (§4.11.5)                                                                                                                            |
+| `published_on`          | `date`         | yes  | —                   | Publication date in the source's calendar — part of the dedup key (§4.11.6)                                                                                                             |
+| `published_at`          | `timestamptz`  | no   | `null`              | Full publication timestamp (sorting and display). Exposed as UTC-ISO like all §5 dates; the original `+03:00` offset is not preserved — the calendar date is owned by `published_on`    |
+| `vacancy_url`           | `text`         | yes  | —                   | Canonical address `{HH_SITE_BASE_URL}/vacancy/{external_id}`, no query                                                                                                                  |
+| `area_name`             | `varchar(128)` | no   | `null`              | Vacancy region from the search results page (`area.name`)                                                                                                                               |
+| `salary_from`           | `integer`      | no   | `null`              | Salary "from" (`compensation.from`)                                                                                                                                                     |
+| `salary_to`             | `integer`      | no   | `null`              | Salary "to" (`compensation.to`)                                                                                                                                                         |
+| `salary_currency`       | `varchar(8)`   | no   | `null`              | Currency code (`compensation.currencyCode`: `RUR`, `USD`, `UZS`, …)                                                                                                                     |
+| `salary_gross`          | `boolean`      | no   | `null`              | Whether the amount is before tax (`compensation.gross`)                                                                                                                                 |
+| `experience`            | `varchar(32)`  | no   | `null`              | Required experience (`workExperience`: `noExperience`, `between1And3`, …)                                                                                                               |
+| `employment_form`       | `varchar(32)`  | no   | `null`              | Employment form (`employmentForm`: `FULL`, `PART`, `PROJECT`, …)                                                                                                                        |
+| `work_formats`          | `varchar(64)`  | no   | `null`              | Comma-separated work format (`REMOTE`, `HYBRID`, `ON_SITE`)                                                                                                                             |
+| `matched_keywords`      | `text`         | no   | `null`              | Comma-separated matched keywords (deterministic screening, §4.11.4)                                                                                                                     |
+| `match_source`          | `varchar(16)`  | yes  | `'KEYWORDS'`        | What confirmed the match: `'KEYWORDS'` \| `'AI'` (§4.12)                                                                                                                                |
+| `ai_model`              | `varchar(64)`  | no   | `null`              | Model that issued the verdict (to compare quality across models)                                                                                                                        |
+| `ai_title_reason`       | `varchar(500)` | no   | `null`              | Short model rationale on the vacancy title (§4.12)                                                                                                                                      |
+| `ai_description_reason` | `varchar(500)` | no   | `null`              | Short model rationale on the vacancy description (§4.12)                                                                                                                                |
+| `company_logo_file`     | `varchar(64)`  | no   | `null`              | Company logo file name on disk (`COMPANY_LOGO_DIR`, §4.10), not a URL. Filled only for leads that reached the vacancy page fetch (§4.11.7); stays `null` forever for keyword-only leads |
+| `hidden_at`             | `timestamptz`  | no   | `null`              | When the user hid the vacancy (§5.7). `null` — visible                                                                                                                                  |
+| `first_seen_at`         | `timestamptz`  | yes  | `now()`             | When the vacancy first appeared in one of our runs                                                                                                                                      |
+| `last_seen_at`          | `timestamptz`  | yes  | `now()`             | When the vacancy was last seen in the results (updated on a duplicate)                                                                                                                  |
+| `created_at`            | `timestamptz`  | yes  | `now()`             |                                                                                                                                                                                         |
+| `updated_at`            | `timestamptz`  | yes  | `now()`             | Auto-updated on any change                                                                                                                                                              |
 
-**Колонки `description` нет намеренно.** Описание вакансии скачивается и отдаётся модели
-(§4.11.7), но в БД не сохраняется: читать его пользователь будет на hh.ru по ссылке,
-а хранение мегабайтов чужого HTML ради этого не нужно. От модели остаётся только
-короткое обоснование (`ai_description_reason`).
+**There is deliberately no `description` column.** The description is downloaded and fed to the model
+(§4.11.7) but never stored; only the short rationale (`ai_description_reason`) is kept.
 
-**Индексы:**
+**Indexes:**
 
-- PK по `id`.
-- **UNIQUE (`company_key`, `position_key`, `published_on`)** — материализованное правило
-  дедупликации §4.11.5. Именно уникальный индекс, а не проверка в коде: вставка идёт
-  `ON CONFLICT DO NOTHING`, и это единственная защита от гонки ручного и планового
-  прогонов.
-- Индекс по `published_on DESC` — сортировка списка по умолчанию (§5.7).
-- Отдельного индекса под `hidden_at` нет: таблица в реальном использовании — сотни
-  строк, фильтр `hidden_at IS NULL` на таком объёме дешевле индекса.
+- PK on `id`.
+- **UNIQUE (`company_key`, `position_key`, `published_on`)** — the materialized deduplication rule
+  of §4.11.5. A unique index rather than a code check: insertion uses `ON CONFLICT DO NOTHING`, and
+  this is the only protection against a race between the manual and the scheduled run.
+- Index on `published_on DESC` — default list sort (§5.7).
+- No separate index for `hidden_at`: the table is hundreds of rows, and the `hidden_at IS NULL`
+  filter is cheaper than an index at that size.
 
-**Уникальности по `external_id` нет намеренно.** Одна и та же вакансия публикуется
-отдельным ID на каждый регион: на живой выдаче встречены `136238361`…`136238364` —
-одинаковые название, компания и время публикации, четыре разных ID. Ключ «должность +
-компания + дата» схлопывает их в одну строку, ключ по ID — нет.
+**No uniqueness on `external_id`, deliberately** — the same vacancy is published under a separate ID
+per region (observed live: `136238361`…`136238364`, same title, company and publication time). The
+"position + company + date" key collapses them into one row; an ID key does not.
 
-**Источник в ключ дедупликации не входит.** Пока источник ровно один (`'HH'`), а если
-появится второй, вакансия с той же тройкой на другом джоб-борде — это та же вакансия.
+**The source is not part of the deduplication key**: a vacancy with the same triple on another job
+board is the same vacancy.
 
-**Удаления нет, есть скрытие.** `DELETE` не выставлен наружу (§5.7): удалённая строка
-унесла бы с собой ключ дедупликации, и вакансия вернулась бы ближайшим прогоном.
-Скрытие ставит `hidden_at` и убирает запись из списка по умолчанию, оставляя ключ на месте.
+**There is no deletion, there is hiding.** `DELETE` is not exposed (§5.7): a deleted row would take
+the dedup key with it and the vacancy would return on the next run. Hiding sets `hidden_at` and
+removes the record from the default list while leaving the key in place.
 
-### 3.6 Таблица `vacancy_search_settings`
+### 3.6 Table `vacancy_search_settings`
 
-Настройки поиска, которые пользователь правит **на фронте** (§7.9), а не в `.env`:
-поисковая строка, ключевые слова и два промпта для ИИ. В env остаётся только
-инфраструктура (адреса, лимиты, бюджеты, §8) — то, что не меняется от настроения
-и требует перезапуска по существу.
+Search settings the user edits **in the frontend** (§7.9), not in `.env`: search text, keywords and
+the two AI prompts. Env keeps only infrastructure (addresses, limits, budgets, §8).
 
-Таблица — **ровно одна строка**: `id smallint PK` с `CHECK (id = 1)`. Это дешевле
-и честнее, чем key-value-таблица настроек: набор полей известен, типы разные,
-а «вторая конфигурация поиска» в скоупе не значится (§12).
+The table holds **exactly one row**: `id smallint PK` with `CHECK (id = 1)`. Not a key-value settings
+table: the field set is known, the types differ, and "a second search configuration" is out of scope
+(§12).
 
-| Поле (БД)            | Тип БД         | Обяз. | Default   | Описание                                                                      |
-| -------------------- | -------------- | ----- | --------- | ----------------------------------------------------------------------------- |
-| `id`                 | `smallint` PK  | да    | `1`       | Всегда `1` (`CHECK (id = 1)`)                                                 |
-| `search_text`        | `varchar(512)` | да    | см. ниже  | Подставляется в `{text}` шаблона ссылки (§4.11.1), URL-энкодится при сборке   |
-| `keywords`           | `text`         | да    | см. ниже  | Ключевые слова через запятую: и для детерминированного отбора, и для промптов |
-| `exclude_keywords`   | `text`         | нет   | `null`    | Стоп-слова через запятую (§4.11.4)                                            |
-| `title_prompt`       | `text`         | да    | см. §4.12 | Промпт этапа 1 — оценка названия вакансии                                     |
-| `description_prompt` | `text`         | да    | см. §4.12 | Промпт этапа 2 — оценка описания вакансии                                     |
-| `ai_enabled`         | `boolean`      | да    | `false`   | Включён ли ИИ-отбор (§4.12). Выключен — работает только отбор по словам       |
-| `updated_at`         | `timestamptz`  | да    | `now()`   |                                                                               |
+| Column (DB)          | DB type        | Req. | Default   | Description                                                                         |
+| -------------------- | -------------- | ---- | --------- | ----------------------------------------------------------------------------------- |
+| `id`                 | `smallint` PK  | yes  | `1`       | Always `1` (`CHECK (id = 1)`)                                                       |
+| `search_text`        | `varchar(512)` | yes  | see below | Substituted into `{text}` of the link template (§4.11.1), URL-encoded on assembly   |
+| `keywords`           | `text`         | yes  | see below | Comma-separated keywords: used both for deterministic screening and for the prompts |
+| `exclude_keywords`   | `text`         | no   | `null`    | Comma-separated exclude keywords (§4.11.4)                                          |
+| `title_prompt`       | `text`         | yes  | see §4.12 | Stage 1 prompt — vacancy title evaluation                                           |
+| `description_prompt` | `text`         | yes  | see §4.12 | Stage 2 prompt — vacancy description evaluation                                     |
+| `ai_enabled`         | `boolean`      | yes  | `false`   | Whether AI screening (§4.12) is on. Off — keyword screening only                    |
+| `updated_at`         | `timestamptz`  | yes  | `now()`   |                                                                                     |
 
-Строка создаётся **самой миграцией** (`INSERT … ON CONFLICT DO NOTHING`) с дефолтными
-значениями, а не кодом при первом обращении: сервис, читающий настройки, не должен
-уметь их создавать — иначе появляется второй путь появления данных и гонка на старте.
+The row is created **by the migration itself** (`INSERT … ON CONFLICT DO NOTHING`) with default
+values, not by code on first access: the service reading the settings must not be able to create
+them, otherwise there is a second data-creation path and a race at startup.
 
-Дефолт `search_text` — `fullstack`; дефолты ключевых слов и промптов — в §4.11.4 и §4.12.
+Default `search_text` is `fullstack`; keyword and prompt defaults are in §4.11.4 and §4.12.
 
 ---
 
-## 4. Интеграция с источниками вакансий
+## 4. Integration with vacancy sources
 
-Данные вакансии подтягиваются со страницы **источника** — hh.ru или getmatch.ru
-(§4.8 вводит понятие источника, реестр провайдеров и правило диспетчеризации по
-колонке `vacancy_source`; §4.9 описывает специфику getmatch.ru). §§4.1–4.7 ниже
-описывают исходно реализованную интеграцию с hh.ru — она остаётся первым
-источником и эталоном по формату (правила §4.3/§4.5/§4.6 общие для всех
-источников, специфика хостов/путей и формата страницы — своя у каждого).
+Vacancy data is pulled from the page of a **source** — hh.ru or getmatch.ru. §4.8 defines the source
+concept, the provider registry and dispatch by `vacancy_source`; §4.9 covers getmatch.ru; §§4.1–4.7
+describe hh.ru. §4.3/§4.5/§4.6 are common to all sources; hosts, paths and page format are per-source.
 
-### 4.1 Что используем (hh.ru)
+### 4.1 What we use (hh.ru)
 
-Источник данных — **публичная HTML-страница вакансии hh.ru**, без OAuth и без токена
-пользователя:
+The **public HTML vacancy page**, without OAuth and without a user token (anonymous
+`GET https://api.hh.ru/vacancies/{id}` answers `403`; OAuth is out of scope, §12):
 
 ```
 GET {HH_SITE_BASE_URL}/vacancy/{vacancy_id}
@@ -306,541 +298,313 @@ responseType: text
 Редиректы следуются (302 → 200)
 ```
 
-**Почему не JSON API.** Анонимный `GET https://api.hh.ru/vacancies/{id}` отвечает `403` —
-поддержка публичного API для роли «соискатель» прекращена, а OAuth вне скоупа (§12).
-Единственный оставшийся источник — та же страница, которую видит пользователь в браузере.
+- archived flag — consensus of tokens `"archived":true|false` (incl. HTML-escaped `&quot;`/`&#34;`) and
+  the marker `data-qa="vacancy-title-archived-text"` (archived pages only). No signal, or contradicting
+  tokens → outcome `ERROR` (fail-loud).
+- `title` and `hiringOrganization.name` from `<script type="application/ld+json">`
+  (`schema.org/JobPosting`) → `position` and `company`, degrading softly to `null`. **Not available:**
+  `type.id` (`open`/`closed`/`anonymous`/`direct`).
+- **robots.txt:** `Disallow: *?*` for `User-agent: *` — the URL must be strictly canonical, no query
+  parameters. A vacancy is identical across regional domains (`spb.hh.ru`, `hh.kz`, …), so the request
+  always goes to `HH_SITE_BASE_URL`, never the domain of the user's link.
+- **Out of scope** (§12): `/negotiations`, OAuth flow, refresh tokens, account linking, browser
+  emulation, anti-bot evasion. `result` is filled only by the user.
 
-**Что извлекаем:**
+### 4.2 Extracting source and external ID from a URL
 
-- признак архивности — консенсус токенов `"archived":true|false` (в т. ч.
-  HTML-экранированных `&quot;`/`&#34;`) и маркера `data-qa="vacancy-title-archived-text"`
-  (есть только на архивной странице). Отсутствие сигнала или противоречие между
-  токенами — исход `ERROR` (fail-loud: односигнальный детектор ломался бы тихо при
-  малейшей правке вёрстки hh.ru);
-- `title` и `hiringOrganization.name` из блока `<script type="application/ld+json">`
-  (`schema.org/JobPosting`) → поля `position` и `company`. Деградируют мягко: страница
-  без JSON-LD или без нужного поля в нём — не ошибка, просто `null` (§4.4 — необязательный
-  сервис, а не условие успеха синхронизации).
+One pure parser per source; shared link normalization (trim, prepend `https://` when the scheme is
+missing, reject non-http(s) protocols) lives in one common helper (§4.8).
 
-**Что недоступно:** `type.id` (`open`/`closed`/`anonymous`/`direct`) — страница его не
-содержит, поле было только в JSON API.
+- **hh.ru** hosts (regex in `*.constants.ts`), path `/vacancy/{digits}`, external ID = digit group:
+  `^([a-z0-9-]+\.)*(hh\.ru|hh\.kz|hh\.uz|hh1\.az|rabota\.by|headhunter\.ge|headhunter\.kg)$`
+- **getmatch.ru** host `^(www\.)?getmatch\.ru$`, path `/vacancies/{digits}` with optional `-{slug}` and
+  trailing slash, external ID = digit group; the slug is not needed in the source request.
+- A parser must accept query strings, trailing slash, fragment, `http://`, missing slug, surrounding
+  whitespace and a missing scheme (assume `https://`); it returns `null` (never throws) on an empty
+  string, invalid URL, foreign host or unrecognized path.
 
-**Ограничение robots.txt:** `Disallow: *?*` для `User-agent: *` — URL строго канонический,
-без query-параметров.
+`vacancy_source`/`vacancy_external_id` are computed on the backend **on every create and every change of
+`vacancy_url`**, including clearing it to `null`; the frontend must not send them. The parser yields only
+the external ID — the request host always comes from the source's `*_SITE_BASE_URL`, never from the
+region/subdomain in the user's URL.
 
-Вакансия одна и та же для всех региональных доменов (`spb.hh.ru`, `hh.kz`, …) — запрос
-всегда уходит на базовый хост из `HH_SITE_BASE_URL`, домен из исходной ссылки пользователя
-не используется.
+### 4.3 Rules for applying a sync result
 
-> **Явно вне скоупа:** endpoint `/negotiations` (статусы моих откликов: приглашение/отказ), OAuth-flow, refresh-токены, привязка аккаунта hh.ru, эмуляция браузера и обход анти-бот защиты (см. §12). Поле `result` заполняется только вручную пользователем.
+Common to all sources, applied to the result already normalized to the common shape (§4.8). On a
+successful fetch:
 
-### 4.2 Извлечение источника и внешнего ID из URL
+1. Write `vacancy_archived`, `last_synced_at`, `OK`, `last_sync_error = null`, `position` (item 4).
+2. `archived === true` → `status = 'CLOSED'`; `archived === false` → do **not** change `status` (a manual
+   close must not be rolled back).
+3. `result` is **never** changed automatically — only the user owns it.
+4. On `OK`, `position` is **always overwritten** with the source's title, even if edited manually; if the
+   source gave no title (`null`, or empty after `trim()`), `position` must be left alone, never nulled.
+   The title is normalized by one helper (`trim` + clamp to the `position` column width) shared with
+   preview §4.4 — otherwise an over-long title gives a 500 instead of a §4.5 outcome. `company` is
+   **not** overwritten by sync; autofill for it works only in §4.4.
+5. The company logo (`company_logo_file`, §4.10) is downloaded only on `OK`, only if the source gave a
+   logo URL, and only if no file exists on disk yet — the patch key must be **conditional**, so a missing
+   logo or an existing file does not touch the column.
 
-Отдельный чистый парсер на источник (без unit-тестов у getmatch — см. §4.9),
-общая нормализация ссылки (трим, подстановка `https://` без схемы, отбраковка
-не-http(s) протоколов) — в одном общем хелпере (§4.8). `VacancyProviderRegistry`
-перебирает провайдеров и возвращает первый распознанный источник + внешний ID.
+The close signal is only `archived`; neither source exposes a `type.id` analogue. "Vacancy does not
+exist" (hh.ru — HTTP 404; getmatch.ru — HTTP 200 with `initialVacancy: null`): `status = 'CLOSED'`,
+`last_sync_outcome = 'NOT_FOUND'`, `last_synced_at = now()`, `last_sync_error` = explanatory text — a
+normal outcome, not an error.
 
-**hh.ru.** Допустимые хосты (регекс в `*.constants.ts`):
+### 4.4 Autofill on create
 
-```
-^([a-z0-9-]+\.)*(hh\.ru|hh\.kz|hh\.uz|hh1\.az|rabota\.by|headhunter\.ge|headhunter\.kg)$
-```
-
-Допустимый путь: `/vacancy/{digits}` — внешний ID = группа цифр.
-
-**getmatch.ru** (§4.9). Допустимый хост: `^(www\.)?getmatch\.ru$`. Допустимый путь:
-`/vacancies/{digits}` с необязательным `-{slug}` и замыкающим слешем — внешний ID =
-группа цифр; слаг в запросе к источнику не нужен (§4.9).
-
-Парсер каждого источника обязан корректно обрабатывать:
-
-- `https://hh.ru/vacancy/12345678`
-- `https://spb.hh.ru/vacancy/12345678?query=node&from=vacancy_search_list`
-- `https://hh.kz/vacancy/12345678/`
-- `http://hh.ru/vacancy/12345678#responses`
-- `https://getmatch.ru/vacancies/35683-middle-fullstack-razrabotchik`
-- `https://getmatch.ru/vacancies/35683` (без слага — тоже валиден, §4.9)
-- URL с ведущими/замыкающими пробелами (тримить)
-- URL без схемы: `hh.ru/vacancy/12345678`, `getmatch.ru/vacancies/35683` → считать `https://`
-
-Возвращает `null` (не бросает исключение) для: пустой строки, невалидного URL, чужого
-хоста (`career.habr.com`, `linkedin.com`, …), пути без распознаваемого шаблона.
-
-`vacancy_source`/`vacancy_external_id` вычисляются и записываются на бэкенде **при
-каждом создании и при каждом изменении `vacancy_url`** (включая очистку в `null`).
-Фронт эти поля не присылает.
-
-Парсер извлекает из ссылки только внешний ID — хост самого запроса к источнику
-всегда берётся из его `*_SITE_BASE_URL` (например, `HH_SITE_BASE_URL`), а не из
-региона/поддомена в исходном URL пользователя (§4.1, §4.9).
-
-### 4.3 Правила применения результата синхронизации
-
-Правила общие для всех источников — применяются к результату, который источник (hh.ru
-или getmatch.ru) уже привёл к общему виду (§4.8). При успешном получении вакансии:
-
-1. Записать `vacancy_archived`, `last_synced_at`, `OK`, `last_sync_error = null` и `position` (см. п. 5).
-2. Если `archived === true` → `status = 'CLOSED'`.
-3. Если `archived === false` → не менять `status`. (Ручное закрытие пользователем не должно откатываться назад.)
-4. Поле `result` **никогда** не изменяется автоматически — им владеет только пользователь.
-5. Поле `position` при успешном получении вакансии (`OK`) **всегда перезаписывается** заголовком вакансии из источника — даже если пользователь правил должность вручную. Если источник заголовка не дал (`null` либо пусто после `trim()`), должность не трогается: в `null` она не затирается. Заголовок нормализуется единым хелпером (`trim` + срез по ширине колонки `position`) — тем же, что питает preview §4.4, иначе слишком длинный заголовок источника дал бы 500 вместо штатного исхода §4.5. Поле `company` при синхронизации, наоборот, **не перезаписывается** (пользователь мог отредактировать его под себя) — для него автозаполнение работает только в сценарии §4.4.
-6. Логотип компании (`company_logo_file`, §4.10) скачивается только при `OK`, только если источник дал URL логотипа, и только если файла для записи ещё нет на диске — правило-зеркало п. 5: ключ в патче условный, отсутствие логотипа у источника или уже скачанный файл колонку не трогают.
-
-> Правило по `type.id === 'closed'` снято вместе с исчезновением этого поля из источника
-> hh.ru (§4.1) — страница вакансии его не содержит, признак закрытия теперь только
-> `archived`. У getmatch.ru аналога `type.id` тоже нет (§4.9).
-
-При «вакансии не существует» (у hh.ru — HTTP 404, у getmatch.ru — HTTP 200 с
-`initialVacancy: null`, см. §4.9): `status = 'CLOSED'`, `last_sync_outcome = 'NOT_FOUND'`,
-`last_synced_at = now()`, `last_sync_error` = поясняющий текст. Это штатный, а не
-ошибочный исход, независимо от того, каким сигналом источник его выразил.
-
-### 4.4 Автозаполнение при добавлении
-
-Отдельный endpoint (§5.3, `POST /api/vacancies/preview`), общий для всех источников,
-который по присланному URL возвращает распарсенные данные **без сохранения в БД**.
-Используется фронтом в форме создания записи: пользователь вставляет ссылку → фронт
-вызывает preview → подставляет `company` и `position` в поля формы, если пользователь их
-ещё не заполнил вручную (не перетирать введённое). Пользователь может изменить
-подставленные значения до сохранения.
-
-Триггер вызова: `onBlur` поля «Ссылка на вакансию» в форме создания, при условии что URL
-распознан одним из источников (§4.2). Во время запроса — индикатор загрузки на поле.
-
-`position` в ответе preview проходит ту же нормализацию, что и при синхронизации (§4.3 п. 5):
-подсказка формы всегда сохраняема как есть и не отбивается `@MaxLength` при создании записи.
-Ошибка preview не блокирует сохранение записи и показывается как неблокирующее
-уведомление.
-
-Поле `vacancyType`, которое раньше всегда было `null` (страница hh.ru не содержит
-`type.id`), из контракта preview убрано целиком — ни у hh.ru, ни у getmatch.ru аналога
-у него нет (§4.9).
+`POST /api/vacancies/preview` (§5.3), common to all sources, returns parsed data **without saving to the
+DB**. The frontend calls it from `onBlur` of the «Ссылка на вакансию» field in the create form when the
+URL is recognized (§4.2), shows a loading indicator on the field, and fills `company`/`position` only if
+the user has not typed them; suggestions stay editable. `position` gets the §4.3 item 4 normalization. A
+preview error must not block saving and is shown as a non-blocking notification. `vacancyType` is not in
+the preview contract — neither source has an analogue.
 
 ### 4.5 Enum `SyncOutcome`
 
-| Значение              | Смысл                                                                                              | Подпись в UI (ru)           |
-| --------------------- | -------------------------------------------------------------------------------------------------- | --------------------------- |
-| `OK`                  | Данные получены и применены (включая перезапись `position`, §4.3 п. 5)                             | Обновлено                   |
-| `NOT_FOUND`           | Вакансия снята/удалена: 404 у hh.ru, `"initialVacancy":null` у getmatch.ru (§4.9)                  | Вакансия не найдена (снята) |
-| `SKIPPED_UNSUPPORTED` | В `vacancy_url` нет распознаваемого источника, либо `vacancy_source` записи неизвестен коду (§4.8) | Источник не поддерживается  |
-| `RATE_LIMITED`        | Источник вернул 429 после всех ретраев                                                             | Лимит запросов источника    |
-| `ERROR`               | Сетевая ошибка, таймаут, 5xx, `403`, нераспознанная страница источника                             | Ошибка обновления           |
+| Value                 | Meaning                                                                                 | UI label (ru)               |
+| --------------------- | --------------------------------------------------------------------------------------- | --------------------------- |
+| `OK`                  | Data fetched and applied (including the `position` overwrite, §4.3)                     | Обновлено                   |
+| `NOT_FOUND`           | Vacancy withdrawn/deleted: 404 at hh.ru, `"initialVacancy":null` at getmatch.ru (§4.9)  | Вакансия не найдена (снята) |
+| `SKIPPED_UNSUPPORTED` | No recognizable source in `vacancy_url`, or `vacancy_source` unknown to the code (§4.8) | Источник не поддерживается  |
+| `RATE_LIMITED`        | The source returned 429 after all retries                                               | Лимит запросов источника    |
+| `ERROR`               | Network error, timeout, 5xx, `403`, unrecognized source page                            | Ошибка обновления           |
 
-### 4.6 Надёжность запросов к источникам
+### 4.6 Request reliability
 
-- Таймаут запроса: **10 000 мс** (свой на источник: `HH_REQUEST_TIMEOUT_MS`/`GETMATCH_REQUEST_TIMEOUT_MS`).
-- Ретраи: до **2** повторов на 429 и 5xx, экспоненциальный backoff (500 мс, 1500 мс). На 4xx кроме 429 (включая `403`) — без ретраев. Число ретраев — своё на источник (`HH_MAX_RETRIES`/`GETMATCH_MAX_RETRIES`), backoff и лимиты — общие константы (§4.8).
-- Массовая синхронизация: конкурентность **не более 3** одновременных запросов, между стартами запросов пауза **не менее 200 мс** (`SYNC_CONCURRENCY`/`SYNC_MIN_DELAY_MS` — общие для всех источников: прогон может смешивать записи с разными `vacancy_source`).
-- Ошибка по одной записи **не прерывает** массовую синхронизацию — она фиксируется в `last_sync_outcome`/`last_sync_error` этой записи и попадает в сводку ответа.
-- Ответ ограничен по размеру (`VACANCY_MAX_RESPONSE_BYTES`, 4 МиБ, общий лимит): страница
-  вакансии hh.ru — около 164 КБ по проводу с gzip и около 772 КБ несжатых; страница
-  getmatch.ru — около 300 КБ несжатых. Лимит — запас с большим кратным множителем для обеих.
-- Все параметры выше — константы в `*.constants.ts` (общие — в `vacancies/`, per-source —
-  в `hh/`/`getmatch/`), переопределяемые через env (см. §8).
+- Timeout **10 000 ms** (`HH_REQUEST_TIMEOUT_MS`/`GETMATCH_REQUEST_TIMEOUT_MS`). Retries: up to **2** on
+  429 and 5xx, exponential backoff (500 ms, 1500 ms); none on 4xx other than 429 (including `403`). Count
+  is per source (`HH_MAX_RETRIES`/`GETMATCH_MAX_RETRIES`); backoff and limits are shared (§4.8).
+- Bulk sync: concurrency **at most 3**, **at least 200 ms** between request starts
+  (`SYNC_CONCURRENCY`/`SYNC_MIN_DELAY_MS` — shared, since a run may mix `vacancy_source` values).
+- An error on one record **must not** abort a bulk run: it lands in that record's
+  `last_sync_outcome`/`last_sync_error` and in the response summary.
+- `VACANCY_MAX_RESPONSE_BYTES` = 4 MiB (hh.ru page ≈ 164 KB gzipped / 772 KB raw; getmatch ≈ 300 KB).
+- All of the above are constants in `*.constants.ts` (shared in `vacancies/`, per-source in
+  `hh/`/`getmatch/`), overridable via env (§8).
 
-### 4.7 Фоновая синхронизация
+### 4.7 Background sync
 
-Прогон запускается автоматически по расписанию внутри процесса `api` — тот же
-`VacancySyncService.syncOpen()`, что у `POST /api/applications/sync-open` (§5.2), с
-правилами §4.3 и ограничениями §4.6. Планировщик — `@nestjs/schedule` в самом процессе,
-модуль `scheduler/` (§11), без системного cron, очередей, воркеров и отдельного
-контейнера-планировщика (§2.4 п. 8).
+A run starts on a schedule inside the `api` process — the same `VacancySyncService.syncOpen()` as
+`POST /api/applications/sync-open` (§5.2), with §4.3 rules and §4.6 limits. Scheduler is
+`@nestjs/schedule` in-process, module `scheduler/` (§11): no system cron, queues, workers or separate
+scheduler container (§2.4 item 8).
 
-- **Интервал и выключатель.** `SCHEDULED_SYNC_INTERVAL_MS` (дефолт `1 800 000` мс =
-  30 минут, диапазон `60 000`…`86 400 000`) и `SCHEDULED_SYNC_ENABLED` (`'true'`/`'false'`,
-  дефолт `'true'`) — обе переменные в §8. Интервал регистрируется динамически через
-  `SchedulerRegistry.addInterval()`, а не декоратором `@Interval` (§2.4 п. 8).
-- **Первый прогон — через интервал после старта, а не при старте.** Рестарт-петля
-  (`restart: unless-stopped`) иначе превратилась бы в серию полных прогонов по чужим
-  источникам, а долгий прогон конкурировал бы с прогревом контейнера и healthcheck.
-- **Прогоны не накладываются.** Защита — булев флаг в памяти процесса: экземпляр `api`
-  ровно один (§9.1), Node однопоточен, advisory-локи в БД были бы абстракцией на будущее.
-  Тик, застающий предыдущий прогон незавершённым, пропускается с уровнем `warn`.
-- **Ручной запуск не блокируется и не блокирует.** `POST /sync-open` из UI и плановый
-  тик независимы: кратко возможны до `2 × SYNC_CONCURRENCY` одновременных запросов
-  к источникам. Блокировать кнопку пользователя ради фонового прогона — худший обмен.
-- **Ошибки не выходят наружу.** Сбой одной записи фиксируется по правилам §4.6 (в
-  `last_sync_outcome`/`last_sync_error` этой записи), а неожиданное исключение самого
-  прогона уходит в `error`-лог и не роняет процесс.
-- **Логи скупые.** `log` один раз при старте (включён/выключен), `debug` на каждый тик,
-  `warn` на пропуск наложившегося тика, `error` на исключение прогона. Итоги самого
-  прогона (счётчики исходов, число закрытых) пишет `VacancySyncService.syncOpen()` —
-  дублировать их в планировщике не нужно.
-- **Остановка контейнера обрывает идущий прогон**; необработанные на этот момент
-  записи попадут в следующий тик.
-- **Состояние планировщика в API не публикуется** — эндпоинта статуса нет, фронт
-  о расписании не знает и ничего не опрашивает (§12).
+- `SCHEDULED_SYNC_INTERVAL_MS` (default `1 800 000` ms = 30 min, range `60 000`…`86 400 000`) and
+  `SCHEDULED_SYNC_ENABLED` (`'true'`/`'false'`, default `'true'`), both in §8. Registered dynamically via
+  `SchedulerRegistry.addInterval()`, not the `@Interval` decorator (§2.4 item 8).
+- **First run one interval after start, not at start** — a restart loop (`restart: unless-stopped`) would
+  otherwise become a series of full runs against third parties.
+- **Runs must not overlap**: an in-memory boolean flag suffices (one `api` instance §9.1, single-threaded
+  Node). A tick finding the previous run unfinished is skipped with `warn`.
+- **Manual runs neither block nor are blocked**: briefly up to `2 × SYNC_CONCURRENCY` simultaneous
+  requests are possible.
+- **Errors must not escape**: per-record failures follow §4.6; an unexpected run exception goes to the
+  `error` log and must not crash the process.
+- Logs: `log` once at startup (enabled/disabled), `debug` per tick, `warn` on a skipped tick, `error` on
+  a run exception. Run totals are written by `syncOpen()`, not the scheduler.
+- Stopping the container aborts the current run; leftovers are picked up next tick. **Scheduler state is
+  not exposed in the API** — no status endpoint, no frontend polling (§12).
 
-### 4.8 Источники и провайдеры
+### 4.8 Sources and providers
 
-Понятие **источника вакансии** (`VacancySource`, значения `'HH'` | `'GETMATCH'`)
-обобщает hh.ru и getmatch.ru за общим контрактом.
+`VacancySource` (values `'HH'` | `'GETMATCH'`) generalizes both sites behind one contract.
 
-- **Enum `VacancySource`** живёт в `applications/applications.constants.ts`, рядом
-  с `SyncOutcome` и по тому же правилу: это значение колонки `vacancy_source` таблицы
-  `applications`, а зависимость по модулям идёт `vacancies`/`hh`/`getmatch` → `applications`
-  — обратная ссылка дала бы цикл.
-- **Контракт провайдера** (`VacancySourceProvider`, в `vacancies/`): `source` (сам
-  `VacancySource`), `parseUrl(url): string | null` (чистая функция, никогда не бросает)
-  и `fetchVacancy(externalId): Promise<VacancyFetchResult>` (исключений наружу не
-  выпускает — любой сбой превращается в исход §4.5). Реализуют его сами API-сервисы
-  источников (`HhApiService`, `GetmatchApiService`) — отдельных классов-обёрток нет.
-- **Реестр провайдеров** (`VacancyProviderRegistry`) — единственная точка
-  диспетчеризации: `resolveByUrl(url)` перебирает провайдеров и возвращает первый
-  распознанный источник + внешний ID (наборы хостов не пересекаются, порядок
-  перебора не критичен); `find(source)` возвращает провайдер по значению колонки
-  `vacancy_source` записи.
-- **Неизвестный источник — не 500.** Если `vacancy_source` записи не входит в текущий
-  `VacancySource` (например, старая БД с версией кода, знавшей больше источников),
-  `find` возвращает `null`, и синхронизация штатно даёт `SKIPPED_UNSUPPORTED`, а не
-  падает с ошибкой.
-- **Ретраи, лимиты и опции HTTP-клиента — общий каркас** (`vacancies/`): backoff,
-  таймаут ответа, потолок размера, `validateStatus`. Per-source остаются только
-  env-ключи (базовый URL, User-Agent, свой таймаут/ретраи), путь страницы и тексты
-  сообщений об ошибках.
+- The enum lives in `applications/applications.constants.ts` next to `SyncOutcome`: module dependency
+  runs `vacancies`/`hh`/`getmatch` → `applications`, so a back-reference would be a cycle.
+- **`VacancySourceProvider`** (in `vacancies/`): `source`, `parseUrl(url): string | null` (pure, never
+  throws), `fetchVacancy(externalId): Promise<VacancyFetchResult>` (never lets an exception escape — any
+  failure becomes a §4.5 outcome). Implemented by `HhApiService`/`GetmatchApiService` themselves.
+- **`VacancyProviderRegistry` is the single dispatch point**: `resolveByUrl(url)` returns the first
+  recognized source + external ID (host sets do not overlap, so order does not matter); `find(source)`
+  returns the provider for a record's `vacancy_source`. **An unknown source is not a 500**: `find` returns
+  `null` and sync yields `SKIPPED_UNSUPPORTED`.
+- **Retries, limits and HTTP client options are a shared framework** (`vacancies/`): backoff, timeout,
+  size cap, `validateStatus`. Per-source: env keys (base URL, User-Agent, own timeout/retries), page
+  path, error texts.
 
-### 4.9 Источник getmatch.ru
+### 4.9 The getmatch.ru source
 
-**URL.** Путь страницы вакансии — `/vacancies/{id}-{slug}`; слаг необязателен —
-`/vacancies/{id}` без слага отдаёт ту же страницу без редиректа. Канонический запрос
-к источнику всегда строится без слага: `GET {GETMATCH_SITE_BASE_URL}/vacancies/{id}`,
-без query-параметров (в отличие от hh.ru строгого запрета в `robots.txt` нет, но он
-и не нужен). Публичного JSON API у getmatch.ru нет — источник только HTML-страница,
-как и у hh.ru.
+Page path `/vacancies/{id}-{slug}`; the slug is optional — `/vacancies/{id}` serves the same page with no
+redirect, and the canonical request is always slug-free and query-free:
+`GET {GETMATCH_SITE_BASE_URL}/vacancies/{id}`. No public JSON API — HTML page only, and JSON-LD is
+unusable (present only for active vacancies, gone for withdrawn ones). The reliable source is the
+**Next.js RSC/flight payload**: several `<script>self.__next_f.push([1,"…escaped JSON…"])</script>` tags
+whose second array elements are chunks of one text that must be joined (the key may straddle two chunks),
+then searched for the literal key `"initialVacancy":`:
 
-**Откуда берутся данные.** У getmatch.ru нет надёжного `<script type="application/ld+json">`
-(он есть только у активных вакансий и пропадает у снятых — то есть ровно в сценарии,
-для которого синхронизация и существует). Надёжный источник — **RSC/flight-payload
-Next.js**: несколько тегов `<script>self.__next_f.push([1,"…escaped JSON…"])</script>`
-на странице, чьи вторые элементы массива — куски одного текста, который надо склеить
-(ключ, который нас интересует, может лежать на стыке двух чанков). В склеенном тексте
-ищется литеральный ключ `"initialVacancy":`, а дальше по значению — три состояния:
+| `"initialVacancy":`     | Parse state  | Outcome §4.5                       |
+| ----------------------- | ------------ | ---------------------------------- |
+| object                  | `PARSED`     | `OK` (+ `archived = !is_active`)   |
+| `null`                  | `ABSENT`     | `NOT_FOUND` — HTTP status is `200` |
+| key absent / unparsable | `UNPARSABLE` | `ERROR` (fail-loud)                |
 
-| `"initialVacancy":`      | Состояние разбора | Исход §4.5                               |
-| ------------------------ | ----------------- | ---------------------------------------- |
-| объект                   | `PARSED`          | `OK` (+ `archived = !is_active`)         |
-| `null`                   | `ABSENT`          | `NOT_FOUND` — HTTP-статус при этом `200` |
-| ключа нет / не разобрать | `UNPARSABLE`      | `ERROR` (fail-loud)                      |
+**A nonexistent vacancy returns HTTP 200**, not 404, so `NOT_FOUND` comes from the page parser, not the
+response status; the three-way state collapses into an ordinary `VacancyFetchResult`, leaving the §4.8
+contract unchanged. Extracted from `initialVacancy`: `is_active` (boolean, required — absence or wrong
+type → `ERROR`, fail-loud) → `archived = !is_active`; `position` → `position`; `company.name` → `company`
+(both text fields degrade softly). The object is delimited by a character-wise brace-balance scan honoring
+strings and escaping, not a regex — a regex cannot safely delimit unbounded-depth JSON without
+catastrophic backtracking (§2.4 item 7). The external ID is clamped to the `vacancy_external_id` column
+width. Unlike `HH_USER_AGENT` (required — hh.ru answers `400` without it), `GETMATCH_USER_AGENT` is
+optional with a safe default.
 
-Ключевое отличие от hh.ru: **несуществующая вакансия отдаёт HTTP 200**, а не 404 —
-признак «нет вакансии» целиком в содержимом payload, поэтому исход `NOT_FOUND`
-у getmatch.ru рождается в парсере страницы, а не по статусу ответа. Общий контракт
-(§4.8) от этого не меняется: `VacancyFetchResult` всё так же несёт `NOT_FOUND` как
-исход, а не как HTTP-код — трёхзначность существует только внутри разбора страницы
-getmatch.ru и схлопывается в обычный `VacancyFetchResult` уже в `GetmatchApiService`.
+### 4.10 Company logo
 
-**Извлекаемые поля** объекта `initialVacancy`: `is_active` (boolean, обязателен —
-как признак архивности у hh.ru, его отсутствие или неверный тип даёт `ERROR`,
-fail-loud) → `archived = !is_active`; `position` → `position`; `company.name` →
-`company`. Оба текстовых поля деградируют мягко (как `title`/`hiringOrganization.name`
-у hh.ru).
+During sync (§4.3) the backend also downloads the company logo to a file on disk; the DB stores only the
+**file name** (`company_logo_file`, §3.1), never a URL or bytes, and `ApplicationResponse` exposes only a
+boolean `hasCompanyLogo`.
 
-**Чего нет.** Аналога `type.id` (`open`/`closed`/`anonymous`/`direct`) у getmatch.ru
-нет, как и у hh.ru после перехода на разбор страницы (§4.1).
+| Source      | Where the logo address lives                                           |
+| ----------- | ---------------------------------------------------------------------- |
+| hh.ru       | page state: `"logos":{"logo":[{"@type":…,"@url":"/employer-logo/…"}]}` |
+| getmatch.ru | `<img src="…">` inside `div.b-company-logotype`                        |
 
-**Надёжность и безопасность разбора** (§4.6, §2.4 п.7). Извлечение JSON-объекта
-`initialVacancy` — посимвольный скан баланса фигурных скобок с учётом строк и
-экранирования (внутри `offer_description` встречаются и `{`/`}`, и `\"`), а не
-регекс — регекс не может безопасно выделить JSON-объект неограниченной глубины
-без риска катастрофического бэктрекинга. Склейка чанков — конкатенация массива
-частей, а не `+=` в цикле, чтобы не получить квадратичную сложность на 10–15 чанках.
-Внешний ID клампится по ширине колонки `vacancy_external_id`, как и у hh.ru.
+At hh.ru the **state** is parsed, not the markup — the `<img>` inside `div[data-qa="vacancy-company-logo"]`
+has no `src` in the server response. The state JSON arrives HTML-escaped (`&#34;`), so
+`HH_COMPANY_LOGO_ENTRY_PATTERN` catches all three quote forms, like `HH_ARCHIVED_FLAG_PATTERN`. The first
+occurrence of each type is taken; the type is chosen by `HH_COMPANY_LOGO_TYPE_PRIORITY`: `vacancyPage` →
+`medium` → `employerPage` → `searchResultsPage` → `small` → `ORIGINAL` (`ORIGINAL` last on purpose —
+unscaled it easily exceeds the size limit). These two constants in `hh/hh.constants.ts` are the **single
+edit point** when hh.ru changes format.
 
-**User-Agent.** В отличие от `HH_USER_AGENT` (обязателен — hh.ru отвечает `400` без
-него), `GETMATCH_USER_AGENT` опционален с безопасным дефолтом: 403 от getmatch.ru
-на обычный браузерный User-Agent не наблюдался.
+The address is absolutized against the source's `*_SITE_BASE_URL` and checked against its host allow-list
+(`hhcdn.ru`/`hh.ru`; `getmatch.ru`) — this blocks SSRF and guarantees e2e against local stubs
+(`127.0.0.1`) downloads nothing. The result (absolute http(s) URL from a trusted host, or `null`) is
+`Vacancy.logoUrl`, degrading softly, with the allow-list pattern as `Vacancy.logoAllowedHostPattern`.
+`CompanyLogoService.download` follows up to `COMPANY_LOGO_MAX_REDIRECTS` (3) redirects, and a CDN could
+`3xx` to an arbitrary host — so the allow-list **must** be re-checked on **every** redirect hop via
+`beforeRedirect`, not only the initial URL; a host outside it aborts the download with `null`.
 
-### 4.10 Логотип компании
+`CompanyLogoService` takes a `fileKey` (record id) and an absolute URL and returns a file name or `null`;
+it **never throws** — any failure (timeout, CDN 404, non-image, no directory permission) becomes `null`
+and leaves the sync outcome unchanged.
 
-При синхронизации (§4.3) бэкенд, помимо `position`/`archived`, пытается скачать
-логотип компании и положить его в файл на диске; в БД пишется только **имя файла**
-(колонка `company_logo_file`, §3.1), а не URL и не байты. Наружу в `ApplicationResponse`
-уходит булево `hasCompanyLogo` — признак наличия, а не путь и не имя файла.
+- `COMPANY_LOGO_DIR`: default `os.tmpdir()/job-hunter-logos` for host dev; in Docker
+  `/var/lib/job-hunter/logos` on the **named volume** `logos`. The directory is created in the image owned
+  by `node`, so a fresh volume inherits that owner instead of `root:root`.
+- If a file vanishes the column stays filled, the endpoint answers `404`, the summary row shows the letter
+  fallback, and the next sync re-downloads.
+- Writes are atomic: `writeFile` to a `.tmp` file with a suffix unique per `download()` call, then
+  `rename` — a manual 🔄 and a scheduled run may write the same file concurrently, and a unique `.tmp`
+  path stops one write renaming another's half-written buffer into the final file. The `.tmp` file is
+  cleaned up on `writeFile`/`rename` failure too.
+- **Content-Type → extension allow-list:** `image/png`, `image/jpeg`, `image/webp`, `image/gif`.
+  **`image/svg+xml` is not supported** — SVG can carry script and both sources deliver raster logos;
+  responses also carry `X-Content-Type-Options: nosniff`.
+- Limits: `COMPANY_LOGO_REQUEST_TIMEOUT_MS` (default 5000 ms, no retries), file size ≤ 512 KiB, download
+  at most once per record (until the file is deleted).
 
-**Откуда берётся URL.** Каждый парсер страницы источника (§4.2) вытаскивает адрес
-логотипа из своего места в ответе сервера:
+`GET /api/applications/:id/logo` (§5.1): `200` with bytes and correct `Content-Type`,
+`Cache-Control: private, max-age=3600`; `404` — no record, no logo, or file gone; `400` — invalid UUID;
+`401` — no Basic Auth (global guard, like all `/api/*`, supplied by the browser for `<img>` within the
+same protection space, §6).
 
-| Источник    | Где лежит адрес                                                                           |
-| ----------- | ----------------------------------------------------------------------------------------- |
-| hh.ru       | встроенное состояние страницы: `"logos":{"logo":[{"@type":…,"@url":"/employer-logo/…"}]}` |
-| getmatch.ru | `<img src="…">` внутри `div.b-company-logotype`                                           |
+**Vacancy lead logo (step #26, §14).** The same `logos/` module (same allow-list, storage, limits) serves
+`vacancy_leads` (`company_logo_file`, §3.5) with no extra HTTP request:
+`HhSearchService.fetchVacancyDescription` (§4.11.7) already downloads the vacancy page, parsed by the same
+`readHhCompanyLogoSrc`. The download starts **only after** the row is inserted
+(`VacancyLeadsService.insertIgnoringConflict`) — `fileKey` must be an existing record id
+(`COMPANY_LOGO_FILE_KEY_PATTERN`) — and a duplicate causes no repeat download. A lead-logo failure does
+not count into `created`/`failed` (§4.11.11); only `logger.warn` with the record id, no URL. **Deliberate
+limitation:** vacancies selected keyword-only without AI (§4.11.4, `matchSource = 'KEYWORDS'`) never get a
+logo, and no backfill is done. `VacancyLeadDto` exposes boolean `hasCompanyLogo`; bytes come from
+`GET /api/vacancy-leads/:id/logo` (§5.7), behaving identically to the applications endpoint including
+status codes, headers and Basic Auth.
 
-У hh.ru разбирается именно состояние, а не разметка: у `<img>` внутри
-`div[data-qa="vacancy-company-logo"]` в ответе сервера атрибута `src` нет — картинку
-подставляет клиентский JS из того же блока состояния, поэтому в DevTools `src` виден,
-а в исходном HTML его нет. JSON состояния приезжает HTML-экранированным (`&#34;`),
-и `HH_COMPANY_LOGO_ENTRY_PATTERN` ловит все три формы кавычек — как
-`HH_ARCHIVED_FLAG_PATTERN`. Из каждого типа берётся первое вхождение (работодатель
-самой вакансии идёт в состоянии раньше похожих вакансий с чужими логотипами),
-а тип выбирается по приоритету `HH_COMPANY_LOGO_TYPE_PRIORITY`:
-`vacancyPage` → `medium` → `employerPage` → `searchResultsPage` → `small` →
-`ORIGINAL`. `ORIGINAL` последний осознанно: он не масштабирован и легко не проходит
-лимит размера файла, а тогда логотипа не будет вовсе.
+### 4.11 Vacancy search on hh.ru
 
-Найденный адрес немедленно абсолютизируется относительно `*_SITE_BASE_URL` источника
-и проверяется по allow-list его хоста (`hhcdn.ru`/`hh.ru` у hh.ru, `getmatch.ru` у
-getmatch.ru) — это отсекает SSRF и гарантирует, что e2e против локальных заглушек
-(`127.0.0.1`) логотипы не качают вовсе. Итоговое значение (абсолютный http(s)-URL
-с доверенного хоста либо `null`) — новое поле `Vacancy.logoUrl`, деградирует мягко,
-как `name`/`employerName`; тот же allow-list-паттерн летит рядом полем
-`Vacancy.logoAllowedHostPattern`.
+A pipeline separate from sync (§4.3): it does not update existing applications but **finds new vacancies**
+into `vacancy_leads` (§3.5) for a separate tab (§7.9). Module `vacancy-search/`, dependencies
+`VacancySearchModule → { HhModule, VacancyAiModule }`, no back-references.
 
-Проверка allow-list на этом не заканчивается: `CompanyLogoService.download`
-разрешает до `COMPANY_LOGO_MAX_REDIRECTS` (3) редиректов, и CDN мог бы ответить
-`3xx` на произвольный, не проверенный хост — allow-list источника проверяется
-повторно на **каждом** хопе редиректа через `beforeRedirect` axios/follow-redirects,
-а не только на исходном URL; хост вне allow-list обрывает скачивание тем же
-`null`, что и любой другой сбой сети.
+#### 4.11.1 Search results source and link template
 
-> **Единственная точка правки при смене формата hh.ru** — `HH_COMPANY_LOGO_ENTRY_PATTERN`
-> и `HH_COMPANY_LOGO_TYPE_PRIORITY` в `hh/hh.constants.ts`; остальной конвейер
-> (абсолютизация, allow-list, скачивание, отдача байт) от формата источника
-> не зависит. Проверено на живых страницах: относительный `/employer-logo/{id}.png`
-> и `/employer-logo-round/{id}.png` абсолютизируются в `https://hh.ru/…`, отдаются
-> с `image/png` и укладываются в лимит размера. У getmatch.ru схема та же, только
-> адрес берётся прямо из `src` (`/uploads/companies_logos/{uuid}.png`).
-
-**Правило «качать или нет»** — единственное место, `vacancy-sync.service.ts` (§4.3):
-скачивание запускается только при исходе `OK`, только если источник дал `logoUrl`,
-и только если на диске ещё нет файла для этой записи (`companyLogoFile !== null`
-и файл существует) — иначе каждый прогон по всем открытым записям заново качал бы
-уже скачанные логотипы. Как и `position` (§4.3 п. 5), ключ в патче условный: если
-источник логотип не дал или файл уже есть, колонка не трогается — `null` в патче
-затёр бы уже сохранённый логотип.
-
-**Хранение.** Модуль `logos/` (`CompanyLogoService`) не знает ни про `Application`,
-ни про правила §4.3: принимает `fileKey` (id записи) и абсолютный URL, возвращает
-имя файла на диске либо `null`, и **никогда не бросает исключение** — любой сбой
-(таймаут, 404 у CDN, не-картинка, нет прав на каталог) превращается в `null`, а исход
-синхронизации остаётся тем же, что и без логотипа. Каталог — `COMPANY_LOGO_DIR`
-(дефолт `os.tmpdir()/job-hunter-logos` для дев-режима на хосте; в Docker —
-`/var/lib/job-hunter/logos` на **именованном томе** `logos`). Раньше том под каталог
-не заводился намеренно, со ставкой на самолечение ближайшей синхронизацией, — ставка
-не сыграла: каждое пересоздание контейнера (то есть каждый релиз) стирало логотипы
-всех записей разом, а закрытые записи не трогают ни «Обновить все открытые», ни
-плановый прогон §4.7, поэтому у них буква-фолбэк оставалась навсегда. Каталог создан
-в образе с владельцем `node` — свежий том наследует владельца из образа, иначе Docker
-отдал бы его `root:root` и процесс под `node` не смог бы туда писать. Если файл
-всё-таки пропал с диска (ручная чистка тома, миграция на новую машину), поведение
-прежнее: колонка остаётся заполненной, эндпоинт отвечает `404`, шапка показывает
-букву-фолбэк, а ближайшая синхронизация записи скачивает логотип заново.
-Запись на диск атомарна (`writeFile` во временный файл с суффиксом `.tmp` и
-уникальным суффиксом на каждый вызов `download()`, затем `rename`) — тот же файл
-может параллельно писаться ручным 🔄 и плановым прогоном (§4.7): уникальный `.tmp`-
-путь у каждого скачивания не даёт двум параллельным записям интерферировать друг
-с другом и переименовать в финальный файл чужой недописанный буфер. `.tmp`-файл
-подчищается и на сбое `writeFile`/`rename`, чтобы в каталоге логотипов не копился
-мусор.
-
-**Белый список Content-Type → расширение файла:** `image/png`, `image/jpeg`,
-`image/webp`, `image/gif`. **`image/svg+xml` не поддерживается** — SVG умеет
-нести скрипт, а логотипы обоих источников приходят растровыми форматами; ответ
-эндпоинта дополнительно снабжается заголовком `X-Content-Type-Options: nosniff`.
-Лимиты: таймаут запроса к CDN — `COMPANY_LOGO_REQUEST_TIMEOUT_MS` (дефолт 5000 мс,
-без ретраев), размер файла — не более 512 КиБ, скачивание — максимум один раз на
-запись (пока файл не удалён с диска).
-
-**Отдача байт** — `GET /api/applications/:id/logo` (§5.1): `200` с байтами и
-верным `Content-Type`, `Cache-Control: private, max-age=3600`; `404` — либо нет
-записи, либо у неё нет логотипа, либо файл пропал с диска; `400` — невалидный
-UUID; `401` — без Basic Auth (эндпоинт закрыт глобальным guard'ом, как весь `/api/*`).
-Basic Auth для `<img>` подставляет сам браузер — авторизация уже прошла на
-`GET /api/applications`, и запрос идёт в ту же protection space (§6).
-
-**Логотип лида (шаг №26 §14).** Тот же `logos/` (`CompanyLogoService`, тот же
-allow-list, тот же формат хранения и лимиты) обслуживает и `vacancy_leads`
-(`company_logo_file`, §3.5): отдельного HTTP-запроса ради логотипа лида нет —
-`HhSearchService.fetchVacancyDescription` (§4.11.7) и так уже скачивает страницу
-вакансии ради описания для ИИ, и та же страница разбирается на логотип тем же
-`readHhCompanyLogoSrc`, что и парсер описания. Скачивание запускается **только
-после** вставки строки в БД (`VacancyLeadsService.insertIgnoringConflict`) —
-`fileKey` обязан быть id уже существующей записи (`COMPANY_LOGO_FILE_KEY_PATTERN`),
-а на дубликате (запись уже есть) повторного скачивания не происходит. Сбой
-скачивания или записи логотипа лида не входит в счётчики `created`/`failed`
-прогона (§4.11.11) — только `logger.warn` с id записи, без URL. **Ограничение,
-принятое осознанно:** вакансии, отобранные keyword-only-путём без ИИ (§4.11.4,
-`matchSource = 'KEYWORDS'` без обращения к странице), логотипа не получают
-никогда — страница вакансии для них не открывается вовсе, и backfill для уже
-существующих записей не делается. Наружу в `VacancyLeadDto` уходит булево
-`hasCompanyLogo`, тот же принцип, что у `ApplicationResponse.hasCompanyLogo`.
-Байты отдаются `GET /api/vacancy-leads/:id/logo` (§5.7) — идентичное поведение
-`GET /api/applications/:id/logo`, включая коды ответа, заголовки и Basic Auth.
-
-### 4.11 Поиск вакансий на hh.ru
-
-Отдельный от синхронизации (§4.3) конвейер: он не обновляет существующие отклики, а
-**находит новые вакансии** и складывает их в `vacancy_leads` (§3.5) для просмотра на
-отдельной вкладке (§7.9). Модуль — `vacancy-search/`, зависимости идут
-`VacancySearchModule → { HhModule, VacancyAiModule }`, обратных ссылок нет.
-
-#### 4.11.1 Источник выдачи и шаблон ссылки
-
-Источник — публичная HTML-страница поиска, которую видит пользователь:
-
-```
-GET {шаблон из HH_SEARCH_URL_TEMPLATE, {text} и {page} подставлены}
-Headers:
-  User-Agent: <HH_USER_AGENT>          # тот же, что у страницы вакансии (§4.1)
-  Accept: text/html,application/xhtml+xml
-responseType: text
-Редиректы следуются
-```
-
-**Шаблон ссылки** (env `HH_SEARCH_URL_TEMPLATE`, дефолт):
+The public HTML search page, requested with the same `User-Agent` and `Accept` headers as the vacancy page
+(§4.1), `responseType: text`, redirects followed. Template (env `HH_SEARCH_URL_TEMPLATE`, default):
 
 ```
 https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}
 ```
 
-- `{text}` — поисковая строка из настроек (§3.6, поле `search_text`), редактируется
-  **на фронте** (§7.9) и подставляется через `encodeURIComponent`. Именно она, а не весь
-  шаблон, меняется часто, поэтому она в БД, а шаблон — в env.
-- `{page}` — номер страницы, `0, 1, 2, …`, подставляется автоматически.
-- Оба плейсхолдера обязательны: шаблон без любого из них роняет старт приложения с
-  внятной ошибкой. Шаблон без `{page}` означал бы бесконечное чтение первой страницы.
+- `{text}` — the search string from settings (§3.6, `search_text`), edited on the frontend (§7.9) and
+  substituted via `encodeURIComponent`; it changes often, hence DB, while the template is env. `{page}` —
+  `0, 1, 2, …`, substituted automatically. Both placeholders are mandatory: a template missing either must
+  fail startup with a clear error (without `{page}` the run would read the first page forever).
+- **`order_by=publication_time` is mandatory in substance:** it gives "newest first", on which the early
+  stop by age (§4.11.6) depends; with relevance sorting the rule never fires and a run always reaches
+  `VACANCY_SCAN_MAX_PAGES`.
+- The regional host `ekaterinburg.hh.ru` is harmless: state content is domain-independent, and
+  `vacancy_url` always stores the canonical address on `HH_SITE_BASE_URL`.
+- **Depth ceiling — 40 pages** (`paging.lastPage.page = 39`; hh.ru serves at most 2000 positions per
+  query). A run stops at `min(paging.lastPage.page, VACANCY_SCAN_MAX_PAGES - 1)`.
+- **Verified on live results (14.08.2026):** anonymous request → `200`, ~1.3 MB HTML, **50 vacancies per
+  page**, all metadata in the page state block, not the markup.
 
-**Проверено на живой выдаче (14.08.2026):** анонимный запрос отдаёт `200`, ~1.3 МБ HTML,
-**50 вакансий на страницу**, и вся нужная мета-информация лежит в блоке состояния
-страницы, а не в разметке (тот же приём, что для логотипов hh.ru, §4.10).
+**Working without an hh.ru login is fixed.** `resume=` is ignored anonymously; `api.hh.ru` answers `403`
+anonymously and "job seeker" API support ended 15.12.2025. No cookie session, headless browser or captcha
+solving exists in the project (§12); the selection is reproduced with **explicit filters** in `text` and
+the template, and a captcha page is outcome `ERROR`. **The `robots.txt` constraint is a deliberate
+exception:** the search page exists only with query parameters, while the vacancy page request stays
+strictly canonical (§4.1); compensation is an honest `User-Agent` with contact info, a hard rate ceiling
+(§4.11.2), run budgets (§4.11.8) and no parallel runs.
 
-**Работаем без логина в hh.ru — зафиксированное решение.** Параметр `resume=`, дающий
-в браузере подборку «под резюме», в анонимном запросе игнорируется: в разобранном
-состоянии `criteria.resume === null`, а `totalResults` = 599 984 (вся выдача по графику
-5/2, первая страница — «Администратор», «Бухгалтер», «Оператор чата поддержки»).
-Официальный API вариантом не является: `api.hh.ru` анонимно отвечает `403`
-(проверено на `/vacancies` и `/vacancies/{id}`), а поддержка API для роли «соискатель»
-прекращена 15.12.2025 — OAuth-приложение на dev.hh.ru проблему не решает.
-Оставался бы только перенос cookie сессии (`hhuid` + `hhtoken`) из браузера в env —
-**этот путь отклонён пользователем**: он нарушает условия использования hh.ru и рискует
-блокировкой того самого аккаунта, с которого идут настоящие отклики. Ни cookie-сессии,
-ни headless-браузера, ни решения капчи в проекте нет (§12).
+> **Known consequences of the default template.** No `search_field=name` (hh.ru also matches `text` in
+> description and company name — more noise) and no `search_period` (freshness is cut by
+> `VACANCY_SCAN_MAX_AGE_DAYS`). Both are accepted anonymously and are the cheapest speedup.
 
-Отсюда: подборку «под резюме» повторяем **явными фильтрами** в `text` и в шаблоне.
-Проверено, что анонимно они применяются: у запроса
-`text=fullstack&search_field=name&order_by=publication_time&search_period=7`
-в `proxiedSearchFormParams` приезжают все четыре параметра, `totalResults` = 179,
-и в выдаче действительно fullstack-вакансии.
+#### 4.11.2 Request rate and the shared hh.ru throttle
 
-**`order_by=publication_time` в дефолте обязателен по смыслу.** Он даёт порядок
-«свежие сверху», а на нём держится ранняя остановка по возрасту (§4.11.6): как только
-страница целиком уходит в просроченные, листать дальше бессмысленно. При сортировке
-по релевантности (значение hh.ru по умолчанию) это правило не срабатывает, и прогон
-всегда доходит до `VACANCY_SCAN_MAX_PAGES`.
+**No more than 2 requests per second to hh.ru**, across all requests, not just search. Hence a
+**process-wide throttle `HhRequestThrottle`** (module `hh/`) through which **every** outgoing hh.ru request
+passes: vacancy page on sync and preview, results page and vacancy page during search, logo downloads from
+`hhcdn.ru`. It is a minimum interval between request starts (`1000 / HH_MAX_REQUESTS_PER_SECOND`, default
+`2` → 500 ms); the slot is reserved **synchronously before the `await`**, as in `mapWithConcurrency`
+(§4.6), otherwise all waiters start at once. The throttle only delays: it never cancels a request and never
+changes §4.5 outcomes; the accepted side effect is slower scheduled sync (50 open records ≈ 25 s instead of
+≈ 10 s). In e2e it is effectively disabled (`applyTestEnvironment` sets a large
+`HH_MAX_REQUESTS_PER_SECOND`). Other limits are the shared §4.6 ones: `HH_REQUEST_TIMEOUT_MS`, retries only
+on 429/5xx (`HH_MAX_RETRIES`, backoff 500/1500 ms), `VACANCY_MAX_RESPONSE_BYTES` (4 MiB; measured page
+1.3 MB). Search run concurrency is **1** — pages are fetched strictly sequentially, because whether to page
+further depends on parsing the previous page.
 
-> **Последствия дефолтного шаблона, о которых надо знать.** В нём нет
-> `search_field=name` (hh.ru ищет `text` ещё и в описании и в названии компании — шума
-> больше) и нет `search_period` (ищем по всей истории, а не за N дней; отсечку по
-> свежести делает уже наш `VACANCY_SCAN_MAX_AGE_DAYS`). Это компенсируется отбором на
-> нашей стороне, но стоит лишних страниц выдачи и лишней работы модели. Добавить оба
-> параметра в `HH_SEARCH_URL_TEMPLATE` — самый дешёвый способ ускорить прогон; hh.ru
-> принимает их анонимно, это проверено.
+#### 4.11.3 Parsing the search results page
 
-**Региональный хост в шаблоне — не проблема.** `ekaterinburg.hh.ru` в дефолте оставлен
-как есть: содержимое состояния от домена не зависит, а вакансия одна и та же для всех
-региональных доменов (§4.1). В `vacancy_url` всё равно пишется канонический адрес на
-`HH_SITE_BASE_URL`.
+State sits in `<template id="HH-Lux-InitialState">…</template>`, HTML-escaped. Order: extract the tag
+contents with a regex (no HTML libraries, §2.4 item 7); unescape `&quot;`/`&#34;` → `"`, `&#39;` → `'`,
+`&lt;` → `<`, `&gt;` → `>`, and **`&amp;` → `&` last** (otherwise `&amp;quot;` becomes a quote and breaks
+the JSON); `JSON.parse`; narrow `unknown` → `HhSearchState` with explicit predicates (§10 item 5); take
+`vacancySearchResult.vacancies[]` and `vacancySearchResult.paging.lastPage.page`. **Fail-loud**: no tag,
+unparsable JSON or missing `vacancySearchResult.vacancies` → outcome `ERROR` and the run stops — never
+"found 0 vacancies".
 
-**Ограничение `robots.txt` — осознанное отступление.** Для `User-agent: *` hh.ru
-объявляет `Disallow: *?*`, а страница выдачи существует только с query-параметрами.
-Запрос страницы вакансии остаётся строго каноническим (§4.1), поиск — единственное
-место, где мы ходим по URL с query. Компенсация: честный `User-Agent` с контактом,
-жёсткий потолок частоты (§4.11.2), бюджеты прогона (§4.11.8), отсутствие параллельных
-прогонов. Страница с капчей — это исход `ERROR`, а не повод её решать (§12).
+| State field                                          | Destination                         | Requirement                             |
+| ---------------------------------------------------- | ----------------------------------- | --------------------------------------- |
+| `vacancyId`                                          | `external_id`                       | required, else item skipped             |
+| `name`                                               | `position`, screening input §4.11.4 | required                                |
+| `company.name`                                       | `company`                           | required                                |
+| `creationTime` (ISO with offset)                     | `published_at` / `published_on`     | required (fallback `publicationTime.$`) |
+| `area.name`                                          | `area_name`                         | soft-degrades to `null`                 |
+| `compensation.{from,to,currencyCode,gross}`          | `salary_*`                          | soft-degrades to `null`                 |
+| `workExperience` (`noExperience`, `between1And3`, …) | `experience`                        | soft-degrades to `null`                 |
+| `employmentForm` (`FULL`, `PART`, `PROJECT`, …)      | `employment_form`                   | soft-degrades to `null`                 |
+| `workFormats[].workFormatsElement[]`                 | `work_formats` (comma-separated)    | soft-degrades to `null`                 |
+| `links.desktop`                                      | unused                              | —                                       |
 
-**Потолок глубины — 40 страниц.** В состоянии выдачи `paging.lastPage.page = 39`: hh.ru
-отдаёт максимум 2000 позиций на любой запрос, сколько бы ни было `totalResults`. Прогон
-останавливается на `min(paging.lastPage.page, VACANCY_SCAN_MAX_PAGES - 1)`.
+- A missing **required** field skips only that item: counter `skippedInvalid`, logged at `debug`.
+- **`company.name` falls back to `company.visibleName`** — anonymous employers have no `name`; safe for
+  the deduplication key, since a depersonalized name does not change between runs.
+- **`paging.lastPage` may be `null`** (filled only for long pagination) and is **not** fail-loud:
+  fail-loud triggers on a missing `vacancies` array or missing `paging`, while `lastPage: null` only means
+  "depth unknown" — the run continues to the page budget or an empty page.
+- `links.desktop` is ignored deliberately (regional host); `vacancy_url` stores canonical
+  `{HH_SITE_BASE_URL}/vacancy/{external_id}`. All other state fields (tags, labels, application counters,
+  address, contacts, promo properties) are neither extracted nor stored (§12).
 
-#### 4.11.2 Частота запросов и общий троттлинг hh.ru
+#### 4.11.4 Screening pipeline
 
-Требование — **не более 2 запросов в секунду к hh.ru**, и оно относится ко всем запросам
-к источнику, а не только к поиску: плановая синхронизация (§4.7) со своими
-`SYNC_CONCURRENCY = 3` и `SYNC_MIN_DELAY_MS = 200` дала бы вместе с поиском заметно больше.
-
-Поэтому вводится **общий на процесс троттл `HhRequestThrottle`** (модуль `hh/`), через
-который проходит **каждый** исходящий запрос к hh.ru: страница вакансии при синхронизации
-и preview, страница выдачи и страница вакансии при поиске, скачивание логотипа с
-`hhcdn.ru`. Реализация — минимальный интервал между стартами запросов
-(`1000 / HH_MAX_REQUESTS_PER_SECOND`, дефолт `2` → 500 мс); слот резервируется
-синхронно до `await`, как в `mapWithConcurrency` (§4.6), иначе все ждущие стартуют
-одновременно. Троттл только задерживает запросы: он не отменяет их и не меняет исходы §4.5.
-
-Побочный эффект, принятый осознанно: плановая синхронизация становится медленнее
-(50 открытых записей ≈ 25 с вместо ≈ 10 с). Это фоновая операция без дедлайна, а ручной
-🔄 по одной записи задержку в полсекунды не замечает. В e2e троттл фактически отключается
-(`applyTestEnvironment` ставит заведомо большое `HH_MAX_REQUESTS_PER_SECOND`) — заглушка
-локальная, а 58 e2e с полусекундными паузами шли бы минутами.
-
-Прочие ограничения запроса выдачи — общие из §4.6: таймаут `HH_REQUEST_TIMEOUT_MS`,
-ретраи только на 429 и 5xx (`HH_MAX_RETRIES`, backoff 500/1500 мс), потолок размера ответа
-`VACANCY_MAX_RESPONSE_BYTES` (4 МиБ; измеренная страница выдачи — 1.3 МБ несжатых).
-Конкурентность прогона поиска — **1**: страницы листаются строго последовательно, потому
-что решение «листать ли дальше» зависит от разбора предыдущей страницы.
-
-#### 4.11.3 Разбор страницы выдачи
-
-Состояние лежит в `<template id="HH-Lux-InitialState">…</template>`, содержимое
-HTML-экранировано. Порядок разбора:
-
-1. Достать содержимое тега регексом (без HTML-библиотек, §2.4 п. 7).
-2. Снять HTML-экранирование: `&quot;`/`&#34;` → `"`, `&#39;` → `'`, `&lt;` → `<`,
-   `&gt;` → `>`, и **`&amp;` → `&` последним** — иначе `&amp;quot;` превратится в кавычку
-   и сломает JSON.
-3. `JSON.parse`, затем сузить `unknown` → `HhSearchState` явными предикатами (§10 п. 5).
-4. Взять `vacancySearchResult.vacancies[]` и `vacancySearchResult.paging.lastPage.page`.
-
-**Fail-loud, как у признака архивности (§4.1).** Нет тега, не разобрался JSON, нет
-`vacancySearchResult.vacancies` — исход `ERROR` и остановка прогона, а не «нашли 0
-вакансий». Молчаливый ноль при смене вёрстки hh.ru выглядел бы как «новых вакансий нет»
-и не был бы замечен неделями.
-
-Из каждого элемента выдачи берутся (формы полей проверены на живой странице):
-
-| Поле состояния                                       | Куда идёт                       | Обязательность                            |
-| ---------------------------------------------------- | ------------------------------- | ----------------------------------------- |
-| `vacancyId`                                          | `external_id`                   | обязателен, иначе элемент пропускается    |
-| `name`                                               | `position`, вход отбора §4.11.4 | обязателен                                |
-| `company.name`                                       | `company`                       | обязателен                                |
-| `creationTime` (ISO со смещением)                    | `published_at` / `published_on` | обязателен (фолбэк — `publicationTime.$`) |
-| `area.name`                                          | `area_name`                     | мягкая деградация в `null`                |
-| `compensation.{from,to,currencyCode,gross}`          | `salary_*`                      | мягкая деградация в `null`                |
-| `workExperience` (`noExperience`, `between1And3`, …) | `experience`                    | мягкая деградация в `null`                |
-| `employmentForm` (`FULL`, `PART`, `PROJECT`, …)      | `employment_form`               | мягкая деградация в `null`                |
-| `workFormats[].workFormatsElement[]`                 | `work_formats` (через запятую)  | мягкая деградация в `null`                |
-| `links.desktop`                                      | не используется                 | —                                         |
-
-Пропуск элемента из-за отсутствия **обязательного** поля — не ошибка прогона: элемент
-идёт в счётчик `skippedInvalid` и логируется на `debug`. Это мягкая деградация в
-противоположность п. 4 выше: там ломается разбор целиком, здесь — одна строка из
-пятидесяти. Необязательные поля деградируют в `null` поодиночке.
-
-Два уточнения, найденные на живой выдаче при реализации:
-
-- **`company.name` берётся с фолбэком на `company.visibleName`.** У анонимных
-  работодателей `name` отсутствует, а `visibleName` содержит обезличенное название.
-  Без фолбэка такие вакансии выпадали бы из выдачи целиком — а их заметная доля.
-  Для ключа дедупликации это безопасно: обезличенное имя у конкретной вакансии
-  между прогонами не меняется.
-- **`paging.lastPage` может быть `null`.** hh.ru заполняет его только при длинной
-  пагинации; на узком запросе (сотня-другая результатов) там `null`. Это **не**
-  fail-loud: сам объект `paging` в выдаче есть всегда (проверено на живом трафике),
-  и fail-loud срабатывает на отсутствии массива `vacancies` либо объекта `paging`,
-  а `lastPage: null` означает лишь «глубину не знаем» — прогон продолжается
-  до бюджета по страницам или до пустой страницы.
-
-`links.desktop` осознанно игнорируется: он несёт региональный хост
-(`https://ekaterinburg.hh.ru/vacancy/136117743`). В `vacancy_url` пишется канонический
-`{HH_SITE_BASE_URL}/vacancy/{external_id}` — то же правило, что в §4.1.
-
-Все прочие поля состояния (теги, метки, счётчики откликов, адрес, контакты, рекламные
-свойства) не извлекаются и не хранятся (§12).
-
-#### 4.11.4 Конвейер отбора
-
-Отбор двухступенчатый и работает над двумя разными текстами: сначала **название**
-вакансии из выдачи, потом **описание** со страницы вакансии. Оба этапа судит одна и та же
-модель, но разными промптами из настроек (§3.6, §4.12).
+Two stages over two texts: the **title** from the results page, then the **description** from the vacancy
+page. Both are judged by the same model, with different prompts from settings (§3.6, §4.12).
 
 ```
 элемент выдачи
@@ -853,243 +617,157 @@ HTML-экранировано. Порядок разбора:
    └─5─ INSERT … ON CONFLICT DO NOTHING        ── created
 ```
 
-**Этап 0 — стоп-слова, всегда.** Совпадение любого слова из `exclude_keywords` (§3.6)
-отбрасывает вакансию до всякого ИИ. Он бесплатный, мгновенный и снимает с модели самую
-скучную часть работы («1С», «Java», «стажёр»). Включающие ключевые слова на этом этапе
-**не проверяются**: именно их семантику (синонимы, «Node.js» ≈ «бэкенд на TS»,
-«Lead/Senior fullstack») и должна оценивать модель, а жёсткий фильтр по ним обесценил бы
-этап 1. Режим настраивается: `VACANCY_PREFILTER_MODE` = `exclude_only` (дефолт) |
-`full` (проверять и включающие — дешёвый режим, когда ИИ выключен или тормозит) | `off`.
+- **Stage 0.** Any match from `exclude_keywords` (§3.6) drops the vacancy before any AI; including keywords
+  are **not** checked here — their semantics is exactly what the model must judge. `VACANCY_PREFILTER_MODE`
+  = `exclude_only` (default) | `full` (also check including keywords) | `off`.
+- **Stage 1.** A batch of up to `VACANCY_AI_BATCH_SIZE` titles (§4.12) with settings keywords substituted;
+  verdict = boolean + `ai_title_reason`.
+- **Stage 2** (§4.11.5) must run **before** stage 3: the publication date is already known from the results
+  page (§4.11.6), so a known vacancy is filtered out without opening its page.
+- **Stage 3** (§4.11.7) goes through the same throttle. **Stage 4** is one request per vacancy
+  (descriptions must not be batched — each is thousands of characters); verdict = boolean +
+  `ai_description_reason`.
 
-**Этап 1 — ИИ по названию.** Батч до `VACANCY_AI_BATCH_SIZE` названий (§4.12) с
-подстановкой ключевых слов из настроек. Вердикт — булево плюс короткое обоснование
-(`ai_title_reason`).
+**When AI is disabled** (`ai_enabled = false`) **or unavailable**, the pipeline degenerates into
+deterministic keyword screening (word-boundary matching, `VACANCY_MATCH_MODE` = `any` | `all`), and stages
+3–4 are **skipped entirely**. Such leads get `match_source = 'KEYWORDS'` and a filled `matched_keywords`.
+**Word normalization** (stage 0 and the no-AI mode): `trim`, lowercase, `ё` → `е`, collapse whitespace
+runs. Comparison is by **word boundaries**, not substring (`go` inside "Django", `qa` inside "Аква") and
+not whole-string equality. A key with a space or hyphen (`full stack`, `full-stack`) is allowed and matches
+as a phrase. Default `keywords`: `fullstack, full-stack, full stack, node.js, nodejs, react, typescript`;
+default `exclude_keywords`: `1С, 1C, php, java, стажёр, стажер, junior`.
 
-**Этап 2 — дедупликация до загрузки страницы** (§4.11.5). Порядок именно такой: дата
-публикации известна уже из выдачи (§4.11.6), поэтому известную вакансию отсеиваем
-**не открывая её страницу** — это главная экономия запросов к hh.ru, и на повторных
-прогонах этапы 3–4 почти не выполняются.
+#### 4.11.5 Deduplication
 
-**Этап 3 — загрузка страницы вакансии** (§4.11.7) через тот же троттл.
+The key is **normalized company + normalized position + publication date** (`company_key`, `position_key`,
+`published_on`), materialized by a unique index (§3.5). Normalization uses the §4.11.4 function plus a
+clamp to column width. Normalized values must be stored as **separate columns**, not an index expression
+(a functional index would need an `IMMUTABLE` DB function). Three echelons:
 
-**Этап 4 — ИИ по описанию.** Один запрос на вакансию (батчить описания нельзя — каждое
-на тысячи символов). Вердикт — булево плюс обоснование (`ai_description_reason`).
+1. **Within a run** — a `Set` of processed keys, applied **right after exclude keywords, before AI**: one
+   results page easily holds regional clones with identical title, company and date. A clone counts into
+   `duplicates`, not `rejectedTitle`.
+2. **Before fetching the page** — one `SELECT` over the page's keys
+   (`WHERE (company_key, position_key, published_on) IN (…)`), after the title AI, so the DB is touched
+   only for those that passed.
+3. **On insert** — `INSERT … ON CONFLICT DO NOTHING`; the unique index stays the source of truth.
 
-**Когда ИИ выключен** (`ai_enabled = false` в настройках) **или недоступен** — конвейер
-вырождается в детерминированный отбор по ключевым словам из настроек (совпадение по
-границам слов, режим `VACANCY_MATCH_MODE` = `any` | `all`), а этапы 3–4 **пропускаются
-целиком**: без модели описание оценивать нечем, и грузить страницу незачем. У таких лидов
-`match_source = 'KEYWORDS'` и заполненный `matched_keywords`.
+A duplicate is not silent: the existing row's `last_seen_at` is updated and it counts into `duplicates`.
+**A hidden vacancy is still a duplicate** — `hidden_at` must not affect deduplication, otherwise hidden
+entries would return every run. The date is part of the key on purpose: without it a re-publication of the
+same vacancy a month later would be collapsed.
 
-**Нормализация и сравнение слов** (этап 0 и режим без ИИ): `trim`, нижний регистр,
-`ё` → `е`, схлопывание пробельных серий. Сравнение — по **границам слов**, а не
-подстрокой: подстрока даёт ложные срабатывания (`go` внутри «Django», `qa` внутри
-«Аква»), а равенство целиком не сработает никогда — заголовки вида
-«Lead/Senior fullstack разработчик (React+Node.js)» состоят из пяти-шести токенов.
-Ключ с пробелом или дефисом (`full stack`, `full-stack`) допустим и матчится как фраза.
+#### 4.11.6 Publication date
 
-Дефолт `keywords`: `fullstack, full-stack, full stack, node.js, nodejs, react, typescript`.
-Дефолт `exclude_keywords`: `1С, 1C, php, java, стажёр, стажер, junior`.
+**The date is in the results state**: each vacancy has `creationTime` (`"2026-08-11T11:09:53.978+03:00"`)
+and `publicationTime` (`{"@timestamp": …, "$": "…"}`), so the vacancy page is never opened for the date —
+only for the description (§4.11.7), after deduplication. `published_on` is **the date from the ISO string
+as-is**, no timezone conversion (→ `2026-08-11`): the string already carries the hh.ru calendar offset, and
+converting to UTC would shift the date for everything published before 03:00 Moscow time and make the
+deduplication key depend on the container timezone. `published_at` keeps the full timestamp for sorting and
+display. Vacancies older than `VACANCY_SCAN_MAX_AGE_DAYS` (default 30) are dropped right after parsing,
+before any AI; since the default template sorts by publication date, a page consisting entirely of expired
+vacancies also stops the run (`stoppedReason = 'AGE_LIMIT'`).
 
-#### 4.11.5 Дедупликация
+#### 4.11.7 Vacancy description
 
-Ключ — тройка **нормализованная компания + нормализованная должность + дата публикации**
-(`company_key`, `position_key`, `published_on`), материализованная уникальным индексом (§3.5).
+From the vacancy page's `<script type="application/ld+json">` (`schema.org/JobPosting`), field
+`description` — an HTML string (~2.2 KB on a real vacancy).
 
-Нормализация ключевых колонок — та же функция, что в §4.11.4, плюс срез по ширине колонки.
-Нормализованные значения хранятся **отдельными колонками**, а не считаются выражением в
-индексе: функциональный индекс потребовал бы `IMMUTABLE`-функции в БД, а любое расхождение
-между реализацией в SQL и в TypeScript незаметно ломало бы уникальность.
+- Fetched **only** for vacancies that reached stage 3 (§4.11.4). Truncated at
+  `VACANCY_AI_DESCRIPTION_MAX_CHARS` (default 6000). **Not stored in the DB** (§3.5) — only the verdict and
+  `ai_description_reason` remain.
+- Before being sent to the model the HTML is **converted to plain text**: tags stripped,
+  `<li>`/`<p>`/`<br>` → newlines, entities expanded, whitespace runs collapsed. No sanitizer library is
+  needed — the string never reaches a browser and is never rendered as HTML.
+- Missing JSON-LD or `description`, or a request failure (timeout, 429 after retries, 5xx, captcha) → the
+  vacancy **fails** stage 4 and is not stored; counter `descriptionsFailed`. Fail-closed: it will be met
+  again next run since it is not in the DB.
+- The same page is parsed for the company logo (§4.10) — no separate request; the logo is downloaded after
+  the row is inserted, so a stage-4 failure also means no logo.
 
-Три эшелона:
+#### 4.11.8 Run budgets
 
-1. **Внутри прогона** — `Set` уже обработанных ключей, **сразу после стоп-слов, до ИИ**:
-   одна страница выдачи спокойно содержит четыре региональных клона подряд, и у них
-   тождественные название, компания и дата, то есть заведомо один и тот же вердикт
-   модели. Схлопывать их после инференса — платить за одинаковый ответ четырежды.
-   Клон считается в `duplicates`, а не в `rejectedTitle`.
-2. **Перед загрузкой страницы** — один `SELECT` по ключам страницы
-   (`WHERE (company_key, position_key, published_on) IN (…)`), уже после ИИ по названию:
-   БД трогаем только для тех, кто прошёл отбор.
-3. **На вставке** — `INSERT … ON CONFLICT DO NOTHING`. Второй одновременный прогон
-   невозможен (§4.11.10 — только ручной запуск, повторный даёт `409`), но уникальный
-   индекс остаётся источником истины: он дешевле, чем доверять результату `SELECT`,
-   сделанного страницу назад, и не сломается, если запуск когда-нибудь перестанет быть
-   единственным.
+| Limiter                        | Default   | Purpose                                                          |
+| ------------------------------ | --------- | ---------------------------------------------------------------- |
+| `VACANCY_SCAN_MAX_PAGES`       | `10`      | 500 positions per run; hh.ru's own ceiling is 40 pages (§4.11.1) |
+| `VACANCY_SCAN_MAX_DETAILS`     | `60`      | Vacancy pages opened per run — costs both requests and AI        |
+| `VACANCY_SCAN_MAX_AGE_DAYS`    | `30`      | Freshness cutoff (§4.11.6)                                       |
+| `VACANCY_SCAN_MAX_DURATION_MS` | `1800000` | Hard run deadline — 30 minutes                                   |
 
-Встреченный дубликат не молчит: у существующей строки обновляется `last_seen_at`, и он
-попадает в счётчик `duplicates`. **Скрытая вакансия остаётся дубликатом** — `hidden_at`
-на дедупликацию не влияет, иначе скрытое возвращалось бы каждым прогоном.
+Hitting a budget is not an error: the run reports `stoppedReason` and the next picks up the rest. One
+vacancy's error does not abort a run (§4.6): a description failure is `descriptionsFailed`, an insert
+failure is `failed`. Only an unparsable results page aborts a run (§4.11.3, fail-loud). The deadline is
+dominated by the local model, not hh.ru — hh.ru requests at 2 rps take ≈ 20 s.
 
-> Отклонённый вариант ключа — «должность + компания» без даты. Он схлопнул бы повторную
-> публикацию той же вакансии через месяц, а это как раз то, что стоит видеть: вакансия
-> висит — значит, её ещё не закрыли.
+#### 4.11.9 The run is asynchronous
 
-#### 4.11.6 Дата публикации
+Inference time means a run does **not** fit a synchronous HTTP response (unlike `POST /sync-open`).
 
-**Дата публикации есть прямо в выдаче** — глазами на странице её не видно, но в состоянии
-у каждой вакансии лежат `creationTime` (`"2026-08-11T11:09:53.978+03:00"`) и
-`publicationTime` (`{"@timestamp": 1786435793, "$": "…"}`). Проверено на всех 50 элементах
-страницы. Поэтому открывать страницу вакансии ради даты не нужно: она открывается только
-ради описания для ИИ (§4.11.7), и только после дедупликации.
+- `POST /api/vacancy-leads/scan` starts the run and answers `202 Accepted` **immediately** (§5.7). Overlap
+  is excluded by a boolean flag: a second `POST /scan` during a run answers `409` (§5.7).
+- Run state lives **in `api` process memory** — one instance (§9.1), single-threaded Node; a runs table and
+  advisory locks would be speculative abstraction (same reasoning as §4.7). A container restart aborts the
+  run; the status is then `IDLE` and created leads stay in the DB.
+- `GET /api/vacancy-leads/scan/status` returns status and current counters; the frontend polls every 2
+  seconds while `RUNNING` (§7.9). **Polling, not a queue or worker** — WebSocket/SSE, brokers and separate
+  containers stay out of scope (§12).
 
-`published_on` — **дата из ISO-строки как есть**, без пересчёта часовых поясов:
-`2026-08-11T11:09:53.978+03:00` → `2026-08-11`. Строка уже содержит смещение календаря
-hh.ru, взять первые 10 символов — детерминированно и не требует tz-базы. Пересчёт в UTC,
-наоборот, сдвигал бы дату у всего опубликованного до 03:00 по Москве, и ключ дедупликации
-зависел бы от таймзоны контейнера.
+#### 4.11.10 Manual start only
 
-`published_at` хранит полную отметку и используется для сортировки и показа.
+**A run starts exclusively from the frontend button** (`POST /api/vacancy-leads/scan`, §5.7, §7.9.2).
+`scheduler/` (§4.7) registers **no second interval**, §8 has no `VACANCY_SCAN_ENABLED` /
+`VACANCY_SCAN_INTERVAL_MS`, and this step does not touch `scheduler/` files; scheduled application sync is
+unchanged. A run loads the CPU with the local model (§4.12), so the user must pick the moment.
 
-Вакансии старше `VACANCY_SCAN_MAX_AGE_DAYS` (дефолт 30) отбрасываются сразу после разбора
-выдачи, до всякого ИИ. Поскольку дефолтный шаблон сортирует выдачу по дате публикации
-(§4.11.1), страница, целиком состоящая из просроченных вакансий, ещё и останавливает
-прогон (`stoppedReason = 'AGE_LIMIT'`) — дальше будут только более старые. Если из
-шаблона убрать `order_by=publication_time`, правило просто не срабатывает и прогон
-доходит до бюджета по страницам.
+#### 4.11.11 Run summary
 
-#### 4.11.7 Описание вакансии
-
-Описание берётся со страницы вакансии из уже разбираемого блока
-`<script type="application/ld+json">` (`schema.org/JobPosting`), поле `description` —
-HTML-строка (проверено: ~2.2 КБ на реальной вакансии).
-
-- Скачивается **только** для вакансий, дошедших до этапа 3 (§4.11.4): прошли стоп-слова,
-  прошли ИИ по названию, отсутствуют в БД.
-- Перед отправкой в модель HTML **превращается в plain text**: теги вырезаются,
-  `<li>`/`<p>`/`<br>` становятся переводами строк, HTML-сущности раскрываются, пробельные
-  серии схлопываются. Модели разметка не нужна, а лишние токены — это прямое время
-  инференса. Отдельная библиотека-санитайзер при этом не нужна: строка никогда не попадает
-  в браузер и не рендерится как HTML.
-- Текст обрезается по `VACANCY_AI_DESCRIPTION_MAX_CHARS` (дефолт 6000) — этого хватает
-  на требования и стек, а длинный «рассказ о компании» только замедляет инференс.
-- **В БД описание не сохраняется** (§3.5). Остаётся только вердикт и `ai_description_reason`.
-- Отсутствие JSON-LD или поля `description`, как и сбой запроса (таймаут, 429 после
-  ретраев, 5xx, капча) → вакансия считается **не прошедшей** этап 4 и в БД не попадает,
-  счётчик `descriptionsFailed`. Здесь fail-closed, а не fail-open: пропустить вакансию
-  дешевле, чем засорять список неотобранным, и на следующем прогоне она встретится снова
-  (в БД её нет, дедупликация не сработает).
-- Та же страница попутно разбирается и на логотип компании (§4.10, шаг №26 §14) —
-  отдельного запроса ради него нет. Логотип скачивается уже после вставки строки
-  в `vacancy_leads`, поэтому сбой этапа 4 (`descriptionsFailed`) означает и отсутствие
-  логотипа: без сохранённой строки скачивать было бы некуда.
-
-#### 4.11.8 Бюджеты прогона
-
-| Ограничитель                   | Дефолт    | Зачем                                                                  |
-| ------------------------------ | --------- | ---------------------------------------------------------------------- |
-| `VACANCY_SCAN_MAX_PAGES`       | `10`      | 500 позиций за прогон; потолок самого hh.ru — 40 страниц (§4.11.1)     |
-| `VACANCY_SCAN_MAX_DETAILS`     | `60`      | Сколько страниц вакансий открываем за прогон — расход и запросов, и ИИ |
-| `VACANCY_SCAN_MAX_AGE_DAYS`    | `30`      | Отсечка по свежести (§4.11.6)                                          |
-| `VACANCY_SCAN_MAX_DURATION_MS` | `1800000` | Жёсткий дедлайн прогона — 30 минут                                     |
-
-Достигнутый бюджет — не ошибка: прогон отдаёт `stoppedReason`, следующий доберёт остальное.
-Ошибка одной вакансии прогон не срывает (§4.6): сбой описания — `descriptionsFailed`, сбой
-вставки — `failed`. Срывает прогон только неразбираемая страница выдачи (§4.11.3, fail-loud).
-
-**Откуда 30 минут.** Запросы к hh.ru дают немного: 10 страниц выдачи + до 30 страниц
-вакансий при 2 rps ≈ 20 с. Время съедает локальная модель (§4.12): 500 названий батчами
-по 10 — это 50 запросов к модели, плюс до 30 запросов с описаниями на несколько тысяч
-токенов каждое. На CPU-инференсе это единицы-десятки минут, на GPU — минуты.
-
-#### 4.11.9 Прогон асинхронный
-
-Из-за времени инференса прогон **не** укладывается в синхронный HTTP-ответ (в отличие от
-`POST /sync-open`, §5.2). Поэтому:
-
-- `POST /api/vacancy-leads/scan` запускает прогон и **сразу** отвечает `202 Accepted`
-  (§5.7), не дожидаясь конца.
-- Состояние прогона живёт **в памяти процесса** `api` — экземпляр ровно один (§9.1),
-  Node однопоточен, отдельная таблица прогонов и advisory-локи были бы абстракцией
-  на будущее (то же рассуждение, что в §4.7).
-- `GET /api/vacancy-leads/scan/status` отдаёт статус и текущие счётчики; фронт опрашивает
-  его раз в 2 секунды, пока `RUNNING` (§7.9). Это **поллинг, а не очередь и не воркер** —
-  WebSocket/SSE, брокеры и отдельные контейнеры по-прежнему вне скоупа (§12).
-- Рестарт контейнера обрывает прогон; после старта статус — `IDLE`, а уже созданные лиды
-  остаются в БД. Незавершённое доберёт следующий запуск.
-- Наложение исключено булевым флагом: второй `POST /scan` при идущем прогоне отвечает
-  `409` (§5.7).
-
-#### 4.11.10 Запуск — только вручную
-
-**Прогон стартует исключительно по кнопке на фронте** (`POST /api/vacancy-leads/scan`,
-§5.7, §7.9.2). Автоматического запуска нет:
-
-- В модуле `scheduler/` (§4.7) **второй интервал не регистрируется**, переменных
-  `VACANCY_SCAN_ENABLED` / `VACANCY_SCAN_INTERVAL_MS` в §8 нет, и файлы `scheduler/`
-  этот шаг вообще не трогает. Плановая синхронизация откликов (§4.7) остаётся как есть.
-- Причина не только в вежливости к hh.ru: прогон грузит CPU локальной моделью (§4.12),
-  и пользователь должен сам выбирать момент, а не обнаруживать занятую машину.
-- Отсюда же следует, что расписание нельзя «включить env-переменной по ошибке» — кода
-  для него нет.
-
-> **Задел на будущее.** Автозапуск по расписанию признан возможной следующей задачей, но
-> в этот шаг не входит. Когда он понадобится, он ляжет на готовое место: `scan()` уже
-> идемпотентен относительно дубликатов (§4.11.5), уже защищён флагом от наложения
-> (§4.11.9) и уже не выпускает исключений наружу — регистрация интервала в `scheduler/`
-> по образцу §4.7 будет единственной новой частью. Проектировать сейчас «на всякий
-> случай» ничего не нужно.
-
-#### 4.11.11 Сводка прогона
-
-| Поле                  | Смысл                                                                                              |
+| Field                 | Meaning                                                                                            |
 | --------------------- | -------------------------------------------------------------------------------------------------- |
-| `pagesFetched`        | Сколько страниц выдачи прочитано                                                                   |
-| `itemsSeen`           | Сколько элементов выдачи разобрано                                                                 |
-| `skippedInvalid`      | Элементов без обязательных полей                                                                   |
-| `skippedOld`          | Отсечено по `VACANCY_SCAN_MAX_AGE_DAYS`                                                            |
-| `skippedExcluded`     | Отсечено стоп-словами (этап 0)                                                                     |
-| `rejectedTitle`       | Модель отклонила по названию (этап 1)                                                              |
-| `duplicates`          | Уже были в БД или в этом же прогоне                                                                |
-| `descriptionsFailed`  | Не удалось получить описание — вакансия не сохранена (§4.11.7)                                     |
-| `rejectedDescription` | Модель отклонила по описанию (этап 4)                                                              |
-| `created`             | Реально вставлено строк                                                                            |
-| `failed`              | Ошибок вставки                                                                                     |
-| `aiFallbacks`         | Сколько раз ИИ был недоступен и решение приняли ключевые слова (§4.12)                             |
+| `pagesFetched`        | Results pages read                                                                                 |
+| `itemsSeen`           | Results items parsed                                                                               |
+| `skippedInvalid`      | Items missing required fields                                                                      |
+| `skippedOld`          | Cut off by `VACANCY_SCAN_MAX_AGE_DAYS`                                                             |
+| `skippedExcluded`     | Cut off by exclude keywords (stage 0)                                                              |
+| `rejectedTitle`       | Model rejected by title (stage 1)                                                                  |
+| `duplicates`          | Already in the DB or in this same run                                                              |
+| `descriptionsFailed`  | Description unavailable — vacancy not stored (§4.11.7)                                             |
+| `rejectedDescription` | Model rejected by description (stage 4)                                                            |
+| `created`             | Rows actually inserted                                                                             |
+| `failed`              | Insert errors                                                                                      |
+| `aiFallbacks`         | Times AI was unavailable and keywords decided (§4.12)                                              |
 | `stoppedReason`       | `COMPLETED` \| `LAST_PAGE` \| `MAX_PAGES` \| `MAX_DETAILS` \| `DEADLINE` \| `AGE_LIMIT` \| `ERROR` |
-| `message`             | Пояснение при `ERROR`, иначе `null`                                                                |
+| `message`             | Explanation on `ERROR`, otherwise `null`                                                           |
 
-Те же счётчики отдаёт `GET …/scan/status` во время прогона — это и есть прогресс.
+`GET …/scan/status` returns the same counters during a run — that is the progress display.
 
-### 4.12 ИИ-отбор: локальная модель в Ollama
+### 4.12 AI screening: a local model in Ollama
 
-#### 4.12.1 Решение и почему оно такое
+#### 4.12.1 The decision
 
-**Выбран вариант «локальная модель в Ollama»**: отдельный контейнер `ollama`, модель
-класса **4B instruct** (дефолт `qwen3:4b-instruct`), общение по HTTP из процесса `api`.
-Ключи, квоты и утечка заголовков наружу отсутствуют как класс; стоимость прогона — только
-CPU/RAM своей машины, а значит, можно позволить себе второй этап по описанию, который на
-бесплатном облачном тире съел бы квоту за день.
+**A local model in Ollama**: a separate `ollama` container, a **4B instruct** class model (default
+`qwen3:4b-instruct`), over HTTP from the `api` process. No keys, quotas or outbound header leaks; a run
+costs only local CPU/RAM, which is what makes the second, description-based stage affordable. Cloud free
+tiers (Groq, OpenRouter `:free`, Gemini, Mistral, Cloudflare) remain a **fallback** needing no extra code:
+the adapter speaks two protocols (`VACANCY_AI_PROVIDER` = `ollama` | `openai`), so switching is three env
+variables.
 
-Заключение о применимости модели к задаче — в §4.12.6.
+#### 4.12.2 Two prompts
 
-Облачные бесплатные тиры (Groq, OpenRouter `:free`, Gemini, Mistral, Cloudflare) остаются
-**запасным** вариантом без дополнительного кода: адаптер умеет два протокола
-(`VACANCY_AI_PROVIDER` = `ollama` | `openai`), и переключение — это три переменные в env.
+Two prompts in settings (§3.6, §7.9): `title_prompt` (stage 1, the **title**) and `description_prompt`
+(stage 4, the **description**). Placeholders expanded before sending:
 
-#### 4.12.2 Два промпта
+| Placeholder     | Allowed in           | Replaced with                                          |
+| --------------- | -------------------- | ------------------------------------------------------ |
+| `{keywords}`    | both prompts         | The `keywords` list from settings, comma-separated     |
+| `{titles}`      | `title_prompt` only  | Numbered list of the batch's titles                    |
+| `{title}`       | `description_prompt` | Current vacancy title                                  |
+| `{company}`     | both prompts         | Company name                                           |
+| `{description}` | `description_prompt` | Description, converted to text and truncated (§4.11.7) |
 
-Пользователь задаёт **два промпта** в настройках (§3.6, §7.9):
-
-- `title_prompt` — этап 1, оценка **названия** вакансии;
-- `description_prompt` — этап 4, оценка **описания** вакансии.
-
-Плейсхолдеры, раскрываемые перед отправкой:
-
-| Плейсхолдер     | Где допустим          | Чем заменяется                                        |
-| --------------- | --------------------- | ----------------------------------------------------- |
-| `{keywords}`    | оба промпта           | Список `keywords` из настроек, через запятую          |
-| `{titles}`      | только `title_prompt` | Пронумерованный список названий батча                 |
-| `{title}`       | `description_prompt`  | Название текущей вакансии                             |
-| `{company}`     | оба промпта           | Название компании                                     |
-| `{description}` | `description_prompt`  | Описание, приведённое к тексту и обрезанное (§4.11.7) |
-
-Валидация при сохранении настроек (§5.7): в `title_prompt` обязаны быть `{keywords}` и
-`{titles}`, в `description_prompt` — `{keywords}` и `{description}`; иначе `400` с
-понятным сообщением. Промпт без плейсхолдера данных — это молчаливо работающий отбор,
-который на самом деле ничего не видит, и поймать это по результату почти невозможно.
-
-Дефолтные промпты (создаются миграцией, редактируются на фронте):
+Validation on saving settings (§5.7): `title_prompt` must contain `{keywords}` and `{titles}`,
+`description_prompt` must contain `{keywords}` and `{description}`; otherwise `400` with a clear message.
+Default prompts (created by a migration, editable on the frontend):
 
 ```
 title_prompt:
@@ -1106,17 +784,6 @@ React, Node.js, TypeScript или JavaScript.
 Ответь JSON-массивом по одному объекту на каждое название, в том же порядке.
 ```
 
-Первая редакция `title_prompt` была короче и описывала задачу общими словами («отклоняй
-другие специальности»). Замер на 40 реальных названиях с выдачи показал, чего это стоит:
-`qwen3:4b-instruct` терял 4 подходящие вакансии из 40 — те, где стек в названии назван
-не тот, — а лёгкая `qwen3:1.7b` пропускала тестировщиков и аналитиков со словом fullstack
-в названии, то есть ровно тот мусор, ради отсева которого ИИ и заводился. Нынешняя
-редакция называет признак прямо и перечисляет отклоняемые специальности поимённо;
-на том же наборе крупная модель теряет одну вакансию вместо четырёх и отвечает
-на 23 % быстрее. Прежний текст остаётся в миграции `CreateVacancySearchSettingsTable`
-как снимок на свой момент, а `SharpenVacancyTitlePrompt` переписывает его в базе —
-но только там, где пользователь не правил промпт руками.
-
 ```
 description_prompt:
 Ты помогаешь отбирать вакансии. Ключевые слова профиля: {keywords}.
@@ -1127,34 +794,26 @@ description_prompt:
 технологии как основные, а не упомянуты вскользь. Ответь JSON-объектом.
 ```
 
-#### 4.12.3 Формат ответа и надёжность
+The old text stays in migration `CreateVacancySearchSettingsTable` as a snapshot;
+`SharpenVacancyTitlePrompt` rewrites it in the DB, but only where the user has not edited it by hand.
 
-Ответ модели запрашивается **структурированным**: у Ollama это поле `format` с JSON Schema
-в `POST /api/chat` (у OpenAI-совместимых провайдеров — `response_format`). Свободный текст
-с «Конечно! Вот результат:» так не приезжает, и парсер не нужно защищать от прозы.
+#### 4.12.3 Response format and reliability
 
-Схема этапа 1 — массив `{ index: number, matches: boolean, reason: string }` длиной
-ровно в размер батча; этапа 4 — объект `{ matches: boolean, reason: string }`.
-`reason` обрезается по ширине колонки (500) перед записью.
+The response is requested **structured**: in Ollama the `format` field with a JSON Schema in
+`POST /api/chat`; for OpenAI-compatible providers `response_format`. Stage 1 schema — an array of
+`{ index: number, matches: boolean, reason: string }` of exactly the batch size; stage 4 — an object
+`{ matches: boolean, reason: string }`. `reason` is truncated to the column width (500) before writing.
+Other parameters: `temperature: 0`, `VACANCY_AI_TIMEOUT_MS` (default 120 000), no retries on timeout.
 
-Прочие параметры запроса: `temperature: 0` (нужна воспроизводимость, а не творчество),
-`VACANCY_AI_TIMEOUT_MS` (дефолт 120 000 — локальная модель на CPU отвечает секунды и
-десятки секунд, облачные 15 с здесь не годятся), без ретраев на таймаут (повтор к той же
-перегруженной модели только удвоит ожидание).
+**Any AI failure is not a run failure.** Timeout, unavailable container, invalid JSON, array length not
+matching the batch → that batch is decided by keywords (§4.11.4), `match_source = 'KEYWORDS'`, counter
+`aiFallbacks`, `warn` in the log. Fallback-selected vacancies do not go through stage 4. The model that
+issued the verdict is written to `ai_model`.
 
-**Любой сбой ИИ — не сбой прогона.** Таймаут, недоступный контейнер, невалидный JSON,
-несовпадение длины массива с размером батча → решение по этому батчу принимают ключевые
-слова (детерминированный отбор, §4.11.4), `match_source = 'KEYWORDS'`, счётчик
-`aiFallbacks`, `warn` в лог. Вакансии, отобранные фолбэком, этап 4 не проходят — описание
-без модели оценивать нечем.
+#### 4.12.4 Container and resources
 
-Модель, вынесшая вердикт, пишется в `ai_model` — иначе сравнить «как отбирала qwen3:4b и
-как gemma3:4b» будет не по чему.
-
-#### 4.12.4 Контейнер и ресурсы
-
-Сервис `ollama` в `docker-compose.yml` (§9.1) под compose-профилем `ai`, чтобы без ИИ
-инфраструктура оставалась прежней:
+Service `ollama` in `docker-compose.yml` (§9.1) under compose profile `ai`, so infrastructure is unchanged
+when AI is unused:
 
 ```
 ollama: image ollama/ollama
@@ -1165,178 +824,105 @@ ollama: image ollama/ollama
         deploy.resources.reservations.devices: nvidia/all/[gpu]
 ```
 
-- Модель качается один раз вручную: `docker compose exec ollama ollama pull qwen3:4b-instruct`.
-  Автоскачивание при старте `api` не делаем: это несколько гигабайт трафика по неявной
-  команде, и падение сети превратилось бы в бесконечный рестарт-цикл.
-- При `ai_enabled = true` бэкенд один раз при старте проверяет доступность модели
-  (`GET /api/tags`) и пишет `warn`, если её нет — но старт не роняет: ИИ опционален,
-  а фолбэк по ключевым словам работает без него.
-- Память: 4B в Q4_K_M — файл ~2.5 ГБ, в работе ~3.5–4 ГБ RAM. `OLLAMA_KEEP_ALIVE=5m`
-  возвращает эту память системе через 5 минут после прогона; поскольку прогон запускается
-  только вручную (§4.11.10), модель большую часть времени выгружена.
-- GPU **не требуется**, но пробрасывается, если он есть: на машине разработки стоит
-  NVIDIA RTX 5070 (12 ГБ), и `deploy.resources.reservations.devices` отдаёт её контейнеру.
-  Разница не косметическая — 4B на CPU считает секунды на вакансию, на этой карте
-  укладывается в десятые доли. На машине без NVIDIA-драйвера в Docker секцию `deploy`
-  надо убрать: контейнер с ней не стартует, а на CPU сервис работает без иных правок.
-  Прогон остаётся фоновым и асинхронным (§4.11.9) в обоих случаях.
-- Порт `11434` публикуется на `127.0.0.1` — по той же причине, что и у `db` (§9.1):
-  в compose-сети `api` ходит по имени `ollama`, но `npm run dev:api` работает на хосте
-  и это имя не резолвит, там нужен `VACANCY_AI_BASE_URL=http://127.0.0.1:11434`.
-  Хост-порт задаётся `OLLAMA_PORT_HOST` (дефолт `11434`); само приложение эту
-  переменную не читает — она только для compose.
+- The model is pulled once, manually: `docker compose exec ollama ollama pull qwen3:4b-instruct`. No
+  auto-pull at `api` startup — gigabytes on an implicit command, and a network failure would be an endless
+  restart loop.
+- With `ai_enabled = true` the backend checks availability once at startup (`GET /api/tags`) and logs
+  `warn` if the model is absent, but must not fail startup: AI is optional.
+- Memory: 4B Q4_K_M ≈ 2.5 GB file, ~3.5–4 GB RAM in use; `OLLAMA_KEEP_ALIVE=5m` frees it 5 min after a run.
+  A GPU is **not required** but is passed through if present; on a machine without an NVIDIA driver in
+  Docker the `deploy` section must be removed — the container will not start with it, and CPU works with no
+  other changes.
+- Port `11434` is published on `127.0.0.1` only (as `db`, §9.1): `api` reaches `ollama` by name inside the
+  compose network, but `npm run dev:api` runs on the host and needs
+  `VACANCY_AI_BASE_URL=http://127.0.0.1:11434`. Host port is `OLLAMA_PORT_HOST` (default `11434`), read
+  only by compose, never by the application.
 
-#### 4.12.5 Отклонённые варианты
+#### 4.12.5 Rejected alternatives
 
-- **ИИ вместо ключевых слов на этапе стоп-слов.** Стоп-слова бесплатны и мгновенны;
-  тратить на «1С-программист» секунду инференса незачем.
-- **Батчинг описаний.** Каждое описание — тысячи токенов; батч из десяти превратился бы
-  в запрос на десятки тысяч токенов с деградацией внимания к каждому. Описания идут
-  по одному.
-- **Кэш вердиктов в БД.** До этапа 4 доходят единицы вакансий за прогон, а названия
-  повторно оцениваются только у уже известных вакансий — их отсекает дедупликация
-  (этап 2) раньше, чем они дойдут до описания. Таблица кэша с инвалидацией стоила бы
-  больше, чем экономит.
-- **Локальные эмбеддинги вместо LLM** (`multilingual-e5-small`, косинусная близость):
-  дешевле по ресурсам, но обоснование вердикта отсутствует, порог подбирается вслепую,
-  и промптами пользователь управлять не сможет — а он этого просил явно.
-- **Одна модель на оба этапа против двух разных.** Разные модели под название и описание
-  дали бы второй набор env, второй `pull` и второй пик памяти ради сомнительного выигрыша.
+AI instead of keywords at the exclude stage; batching descriptions; a verdict cache in the DB; local
+embeddings (`multilingual-e5-small`, cosine similarity) instead of an LLM; two different models for the two
+stages. All rejected as costlier or weaker than the chosen design.
 
-#### 4.12.6 Заключение: справится ли локальная 4B-модель
+#### 4.12.6 Conclusion: is a local 4B model enough
 
-Задача этапа 1 — «дано название вакансии и список ключевых слов профиля; подходит ли» —
-для инструкционной модели класса 4B **простая**: вход в десяток слов, выход булев,
-рассуждений не требуется. Этап 4 тяжелее (несколько тысяч токенов описания), но и он
-остаётся классификацией по явному критерию, а не анализом.
-
-Что говорит в пользу этого класса моделей:
-
-- Qwen3-4B-Instruct по заявлениям разработчиков приближается к Qwen2.5-72B-Instruct на
-  общих задачах и держит 100+ языков; Gemma 3 4B заявляет 140+ языков. Русский заголовок
-  вакансии — не редкий язык и не длинный текст.
-- Есть русскоязычная адаптация `RuadaptQwen3-4B-Instruct` (заменённый токенизатор
-  - дообучение на русском корпусе, до +100 % к скорости генерации русского текста) —
-    разумный второй кандидат, если качество дефолтной модели не устроит.
-- Структурированный вывод по JSON Schema (§4.12.3) снимает главный практический риск
-  маленьких моделей — не «непонимание», а разъезжающийся формат ответа.
-- Ошибка модели здесь дёшева: ложноположительная вакансия видна в списке и скрывается
-  кнопкой, ложноотрицательная — потеря одной вакансии из выдачи, которая и так неполна.
-  Это не медицинская диагностика и не платёж.
-
-Что говорит против и как это закрыто:
-
-- Публичных бенчмарков именно на «русская классификация коротких текстов, 4B» мало;
-  из общих метрик (MMLU ~70 % у 4B-класса) точность на нашей задаче напрямую не
-  выводится. Поэтому в спеке предусмотрены `ai_model`, `ai_title_reason` и
-  `ai_description_reason`: качество проверяется на своих данных, а не на чужих таблицах.
-- Скорость на CPU — главный риск: генерация 4B Q4 на десктопном CPU идёт единицами
-  и десятками токенов в секунду, а описание на 6000 символов — это ещё и заметный prefill.
-  Закрыто асинхронным прогоном (§4.11.9), бюджетом `VACANCY_SCAN_MAX_DETAILS` и
-  дедупликацией до загрузки описания.
-- Маленькие модели склонны к «угодливости» — соглашаться, что вакансия подходит. Закрыто
-  формулировкой дефолтных промптов (явное требование отклонять смежные специальности)
-  и `temperature: 0`.
-
-**Вывод: да, 4B-модель для этой задачи достаточна**, и узким местом будет скорость
-на CPU, а не понимание. Рекомендуемый порядок действий: поднять `qwen3:4b-instruct`,
-прогнать один поиск, посмотреть `ai_title_reason` у отобранных и у отклонённых. Если
-решения на глаз неверны — сначала править промпты (это настройка на фронте, не код),
-и только потом менять модель на `gemma3:4b` / `RuadaptQwen3-4B` / 7–8B при наличии
-свободной памяти. Смена модели — одна переменная `VACANCY_AI_MODEL` и `ollama pull`.
+**A 4B model suffices**; the bottleneck is CPU speed, not comprehension. Structured output by JSON Schema
+(§4.12.3) removes the format-drift risk of small models; CPU speed is covered by the asynchronous run
+(§4.11.9), the `VACANCY_SCAN_MAX_DETAILS` budget and deduplication before description fetching. Recommended
+order: bring up `qwen3:4b-instruct`, run one search, inspect `ai_title_reason`. If verdicts look wrong, fix
+the prompts first (a frontend setting, not code), and only then switch to `gemma3:4b` / `RuadaptQwen3-4B` /
+a 7–8B if memory allows — one variable `VACANCY_AI_MODEL` plus an `ollama pull`.
 
 ---
 
 ## 5. REST API
 
-**База:** `/api`. Формат — JSON, UTF-8. Даты в теле запросов/ответов — строки **ISO 8601 с таймзоной** (`2026-08-06T14:30:00.000Z`). Хранение — UTC (`timestamptz`).
+**Base:** `/api`. JSON, UTF-8. Dates in bodies are **ISO 8601 with a timezone**
+(`2026-08-06T14:30:00.000Z`); storage is UTC (`timestamptz`). Record responses are DTOs with
+**camelCase** fields (`vacancyUrl`, `hrInterviewAt`, `lastSyncOutcome`, …).
 
-Все ответы про запись — DTO с полями в **camelCase** (`vacancyUrl`, `hrInterviewAt`, `lastSyncOutcome`, …). Маппинг snake_case ↔ camelCase — задача ORM/DTO-слоя.
-
-### 5.1 Ресурс `applications`
+### 5.1 Resource `applications`
 
 #### `GET /api/applications`
 
-Query-параметры (все опциональны):
+Query parameters, all optional:
 
-| Параметр | Тип                                                              | Дефолт      | Описание                                                              |
-| -------- | ---------------------------------------------------------------- | ----------- | --------------------------------------------------------------------- |
-| `status` | `OPEN` \| `CLOSED`                                               | —           | Фильтр по статусу; без параметра — все                                |
-| `result` | `ApplicationResult`                                              | —           | Фильтр по результату                                                  |
-| `search` | string                                                           | —           | Регистронезависимый поиск подстроки по `company`, `position`, `notes` |
-| `sort`   | `createdAt` \| `company` \| `hrInterviewAt` \| `techInterviewAt` | `createdAt` | Поле сортировки                                                       |
-| `order`  | `asc` \| `desc`                                                  | `desc`      | Направление                                                           |
+| Parameter | Type                                                             | Default     | Description                                                    |
+| --------- | ---------------------------------------------------------------- | ----------- | -------------------------------------------------------------- |
+| `status`  | `OPEN` \| `CLOSED`                                               | —           | Filter by status; absent — all                                 |
+| `result`  | `ApplicationResult`                                              | —           | Filter by result                                               |
+| `search`  | string                                                           | —           | Case-insensitive substring over `company`, `position`, `notes` |
+| `sort`    | `createdAt` \| `company` \| `hrInterviewAt` \| `techInterviewAt` | `createdAt` | Sort field                                                     |
+| `order`   | `asc` \| `desc`                                                  | `desc`      | Direction                                                      |
 
-Ответ `200`: `ApplicationDto[]` (плоский массив, без пагинации — объём данных мал).
+Response `200`: `ApplicationDto[]` — flat array, no pagination.
 
 #### `POST /api/applications`
 
-Тело — `CreateApplicationDto`:
-
-```json
-{
-  "company": "Acme", // required, 1..255, trim, non-empty
-  "position": "Node.js Developer", // optional, ≤255
-  "vacancyUrl": "https://hh.ru/vacancy/12345678", // optional, валидный URL, ≤2048
-  "resumeUrl": "https://hh.ru/resume/abc", // optional, валидный URL, ≤2048
-  "interviewUrl": "https://meet.google.com/abc-defg-hij", // optional, валидный URL, ≤2048
-  "status": "OPEN", // optional, дефолт OPEN
-  "result": "IN_PROGRESS", // optional, дефолт IN_PROGRESS
-  "employerContact": "HR Ольга, tg @olga", // optional, ≤2000
-  "hrInterviewAt": "2026-08-10T09:00:00.000Z", // optional, ISO 8601 | null
-  "techInterviewAt": null, // optional, ISO 8601 | null
-  "notes": "Просили тестовое" // optional, ≤10000
-}
-```
-
-Поведение: вычислить `vacancySource` и `vacancyExternalId` из `vacancyUrl` (§4.2, §4.8 — перебором провайдеров через `VacancyProviderRegistry`). Ответ `201`: `ApplicationDto`.
-
-`interviewUrl` принимается и в `POST`, и в `PATCH`, но форма создания (§7.4) его не показывает.
+Body — `CreateApplicationDto`: `company` (required, 1..255, trim, non-empty); `position` (≤255);
+`vacancyUrl`, `resumeUrl`, `interviewUrl` (valid URL, ≤2048); `status` (default `OPEN`); `result`
+(default `IN_PROGRESS`); `employerContact` (≤2000); `hrInterviewAt`, `techInterviewAt`
+(ISO 8601 | `null`); `notes` (≤10000). Every field except `company` is optional. Computes
+`vacancySource` and `vacancyExternalId` from `vacancyUrl` (§4.2, §4.8 — providers tried in turn via
+`VacancyProviderRegistry`). Response `201`: `ApplicationDto`. `interviewUrl` is accepted by `POST`
+and `PATCH`, but the create form (§7.4) does not show it.
 
 #### `GET /api/applications/:id`
 
-`200`: `ApplicationDto`. `404` если нет.
+`200`: `ApplicationDto`. `404` if absent.
 
 #### `PATCH /api/applications/:id`
 
-Тело — `UpdateApplicationDto` = все поля `CreateApplicationDto`, все опциональны. Частичное обновление: присланные поля обновляются, отсутствующие не трогаются. Явный `null` очищает nullable-поле.
-Поведение: если пришёл `vacancyUrl` — пересчитать `vacancySource` и `vacancyExternalId` (в том числе при очистке `vacancyUrl` в `null`, §4.2). Ответ `200`: `ApplicationDto`. `404` если нет.
+Body — `UpdateApplicationDto` = every `CreateApplicationDto` field, all optional. Sent fields are
+updated, absent fields untouched, explicit `null` clears a nullable field. If `vacancyUrl` arrives,
+`vacancySource` and `vacancyExternalId` are recomputed — including when it is cleared to `null`
+(§4.2). Response `200`: `ApplicationDto`. `404` if absent.
 
 #### `DELETE /api/applications/:id`
 
-`204` без тела. `404` если нет.
+`204` with no body. `404` if absent.
 
 #### `GET /api/applications/:id/logo`
 
-Байты логотипа компании (§4.10). `200` с телом и заголовком `Content-Type` из белого
-списка (`png`/`jpeg`/`webp`/`gif`), `Cache-Control: private, max-age=3600`,
-`X-Content-Type-Options: nosniff`. `404` — нет записи, у записи нет логотипа, либо файл
-пропал с диска (эфемерный каталог). `400` — невалидный UUID. Маршрут объявлен в
-контроллере выше методов с `:id` (§5.2 — то же правило порядка, что у синхронизации).
+Company logo bytes (§4.10). `200` with body and a whitelisted `Content-Type`
+(`png`/`jpeg`/`webp`/`gif`), `Cache-Control: private, max-age=3600`,
+`X-Content-Type-Options: nosniff`. `404` — no record, no logo, or the file vanished from disk.
+`400` — invalid UUID. The route **must** be declared above the `:id` methods (§5.2, same ordering
+rule as sync).
 
-### 5.2 Синхронизация
+### 5.2 Sync
 
 #### `POST /api/applications/:id/sync`
 
-Синхронизирует одну запись по правилам §4.3. Тела запроса нет.
-Ответ `200`:
-
-```json
-{
-  "outcome": "OK",
-  "message": null,
-  "application": {/* ApplicationDto после обновления */}
-}
-```
-
-`404` если записи нет. Неуспешный `outcome` (включая `ERROR`) отдаётся с кодом **`200`** — это результат операции, а не ошибка HTTP-запроса.
-
-При `outcome: "OK"` в `application` может приехать изменившаяся `position` — синхронизация её перезаписывает (§4.3 п. 5).
+Syncs one record per §4.3. No request body. Response `200`:
+`{ "outcome": "OK", "message": null, "application": {/* ApplicationDto after update */} }`.
+`404` if the record is absent. An unsuccessful `outcome` (including `ERROR`) is returned with
+status **`200`** — an operation result, not an HTTP error. With `outcome: "OK"` the `application`
+may carry a changed `position` (§4.3 item 5).
 
 #### `POST /api/applications/sync-open`
 
-Синхронизирует **все** записи со `status = 'OPEN'`. Тела запроса нет.
-Ответ `200`:
+Syncs **all** records with `status = 'OPEN'`. No request body. Response `200`:
 
 ```json
 {
@@ -1351,646 +937,460 @@ Query-параметры (все опциональны):
       "message": "Вакансия не найдена на hh.ru"
     }
   ],
-  "applications": [/* ApplicationDto[] — все затронутые записи после обновления */]
+  "applications": [/* ApplicationDto[] — all affected records after update */]
 }
 ```
 
-`closed` — сколько записей перешло в `CLOSED` в результате прогона.
+`closed` — how many records moved to `CLOSED` during the run. **NestJS routing:** `sync-open`
+**must** be declared **before** `:id`, otherwise it matches as `:id`. Synchronous, no queues or
+workers; the scheduler (§4.7) calls the same `VacancySyncService.syncOpen()`.
 
-**Важно для роутинга NestJS:** маршрут `sync-open` должен быть объявлен **до** `:id`, иначе `sync-open` будет матчиться как `:id`.
+### 5.3 Vacancy preview
 
-Операция синхронная (ждём ответа). Ожидаемое время при ≤50 открытых записях — единицы секунд. Очередей/воркеров не вводим.
-
-Тот же прогон запускается автоматически по расписанию (§4.7): эндпоинт и планировщик зовут один и тот же `VacancySyncService.syncOpen()`.
-
-### 5.3 Превью вакансии
-
-Общий для обоих источников эндпоинт (§4.4, §4.8): `HhController` заменён на
-`VacanciesController`, а прежний `POST /api/hh/preview` — на `POST /api/vacancies/preview`.
+One endpoint in `VacanciesController` serves both sources (§4.4, §4.8).
 
 #### `POST /api/vacancies/preview`
 
-```json
-// request
-{ "url": "https://hh.ru/vacancy/12345678" }
-```
+Request `{ "url": "https://hh.ru/vacancy/12345678" }`. Response `200`: `{ "source": "HH",
+"vacancyExternalId": "12345678", "company": "Acme", "position": "Node.js Developer",
+"archived": false }`. The `vacancyType` field is removed from the contract entirely (§4.4, §4.8).
 
-```json
-// response 200
-{
-  "source": "HH",
-  "vacancyExternalId": "12345678",
-  "company": "Acme",
-  "position": "Node.js Developer",
-  "archived": false
-}
-```
+- URL recognised by no source (§4.2) → `200` with all five fields `null`, no network call.
+- Vacancy gone (hh.ru `404`, getmatch.ru `initialVacancy: null`, §4.9) → `404` with error body (§5.5).
+- Network error / timeout / 5xx / `403` / `429` after retries / unrecognised page → `502` with error body.
 
-Поле `vacancyType` из контракта убрано целиком (§4.4, §4.8) — ни у hh.ru, ни у
-getmatch.ru (§4.9) аналога `type.id` нет, держать поле, которое навсегда `null`,
-незачем.
-
-- URL не распознан ни одним источником (§4.2) → `200` с `{ "source": null, "vacancyExternalId": null, "company": null, "position": null, "archived": null }`, без обращения к сети.
-- Источник ответил «вакансии нет» (404 у hh.ru, `initialVacancy: null` у getmatch.ru, §4.9) → `404` с телом ошибки (§5.5).
-- Сетевая ошибка / таймаут / 5xx / `403` / `429` после ретраев / нераспознанная страница источника → `502` с телом ошибки.
-
-### 5.4 Служебное
+### 5.4 Service endpoints
 
 #### `GET /api/health`
 
-`200`: `{ "status": "ok", "db": "up" }`. Проверяет доступность БД простым запросом. Используется как healthcheck в docker-compose. **Не требует авторизации.**
+`200`: `{ "status": "ok", "db": "up" }`. Checks DB availability with a trivial query; used as the
+docker-compose healthcheck. **Requires no authorization.**
 
-### 5.5 Формат ошибок
+### 5.5 Error format
 
-Единый формат через глобальный exception filter:
+Single format via the global exception filter:
+`{ "statusCode": 400, "message": ["company should not be empty"], "error": "Bad Request" }`.
+`message` is a string or an array of strings (validation errors). Stack traces never reach the
+response, only the log.
 
-```json
-{
-  "statusCode": 400,
-  "message": ["company should not be empty"],
-  "error": "Bad Request"
-}
-```
+### 5.6 Validation
 
-`message` — строка или массив строк (для ошибок валидации). Стек-трейсы в ответ не попадают, только в лог.
+Global `ValidationPipe` with `{ whitelist: true, forbidNonWhitelisted: true, transform: true }`.
+Unknown body fields → `400`. Invalid UUID in `:id` → `400` (use `ParseUUIDPipe`).
 
-### 5.6 Валидация
+### 5.7 Found vacancies (`vacancy-leads`)
 
-Глобальный `ValidationPipe` с `{ whitelist: true, forbidNonWhitelisted: true, transform: true }`. Неизвестные поля в теле → `400`. Невалидный UUID в `:id` → `400` (использовать `ParseUUIDPipe`).
-
-### 5.7 Найденные вакансии (`vacancy-leads`)
-
-Контроллеры `VacancyLeadsController` и `VacancySearchSettingsController` в модуле
-`vacancy-search/`. Закрыты глобальным Basic Auth, как весь `/api/*` (§6).
+Controllers `VacancyLeadsController` and `VacancySearchSettingsController` in module
+`vacancy-search/`, covered by the global Basic Auth like all of `/api/*` (§6).
 
 #### `GET /api/vacancy-leads`
 
-| Параметр | Тип                            | Дефолт        | Описание                                                      |
-| -------- | ------------------------------ | ------------- | ------------------------------------------------------------- |
-| `search` | string                         | —             | Регистронезависимый поиск подстроки по `position` и `company` |
-| `hidden` | `exclude` \| `only` \| `all`   | `exclude`     | Скрытые записи: без них, только они, либо все (§3.5)          |
-| `sort`   | `publishedAt` \| `firstSeenAt` | `publishedAt` | Поле сортировки                                               |
-| `order`  | `asc` \| `desc`                | `desc`        | Направление                                                   |
+| Parameter | Type                           | Default       | Description                                              |
+| --------- | ------------------------------ | ------------- | -------------------------------------------------------- |
+| `search`  | string                         | —             | Case-insensitive substring over `position` and `company` |
+| `hidden`  | `exclude` \| `only` \| `all`   | `exclude`     | Hidden records: without them, only them, or all (§3.5)   |
+| `sort`    | `publishedAt` \| `firstSeenAt` | `publishedAt` | Sort field                                               |
+| `order`   | `asc` \| `desc`                | `desc`        | Direction                                                |
 
-Ответ `200`: `VacancyLeadDto[]` — плоский массив, без пагинации (§12), но с серверным
-потолком `VACANCY_LEADS_LIST_LIMIT` (дефолт 500). Это предохранитель, а не пагинация:
-курсора и «следующей страницы» нет, а без потолка список за полгода прогонов вырос бы
-в мегабайты одного ответа.
+Response `200`: `VacancyLeadDto[]` — flat array, no pagination (§12), but with a server-side cap
+`VACANCY_LEADS_LIST_LIMIT` (default 500): a safety valve, no cursor and no next page. Fields: `id`,
+`source`, `externalId`, `position`, `company`, `hasCompanyLogo`, `vacancyUrl`, `publishedAt`
+(`"2026-08-12T10:16:19.420+03:00"`), `publishedOn` (`"2026-08-12"`), `areaName`, `salaryFrom`,
+`salaryTo`, `salaryCurrency`, `salaryGross`, `experience`, `employmentForm`, `workFormats`,
+`matchedKeywords`, `matchSource`, `aiModel`, `aiTitleReason`, `aiDescriptionReason`, `hidden`,
+`firstSeenAt`, `lastSeenAt`.
 
-```json
-{
-  "id": "uuid",
-  "source": "HH",
-  "externalId": "136160004",
-  "position": "Старший инженер-программист (FinTech)",
-  "company": "Acme",
-  "hasCompanyLogo": true,
-  "vacancyUrl": "https://hh.ru/vacancy/136160004",
-  "publishedAt": "2026-08-12T10:16:19.420+03:00",
-  "publishedOn": "2026-08-12",
-  "areaName": "Москва",
-  "salaryFrom": 300000,
-  "salaryTo": null,
-  "salaryCurrency": "RUR",
-  "salaryGross": true,
-  "experience": "between3And6",
-  "employmentForm": "FULL",
-  "workFormats": ["REMOTE", "HYBRID"],
-  "matchedKeywords": ["fullstack", "node.js"],
-  "matchSource": "AI",
-  "aiModel": "qwen3:4b-instruct",
-  "aiTitleReason": "Fullstack на TypeScript, совпадает с профилем",
-  "aiDescriptionReason": "Основной стек — Node.js и React, требуется senior",
-  "hidden": false,
-  "firstSeenAt": "2026-08-12T11:00:00.000Z",
-  "lastSeenAt": "2026-08-14T05:00:00.000Z"
-}
-```
-
-- `matchedKeywords` и `workFormats` уходят наружу массивами, а хранятся строками через
-  запятую (§3.5) — разбор в DTO, чтобы фронт не занимался парсингом.
-- `hidden` — булево, а не `hiddenAt`: фронту нужен признак, а не момент времени.
-- Описания в DTO нет по определению (§3.5, §4.11.7).
-- `hasCompanyLogo` (шаг №26 §14) — тот же принцип, что у `ApplicationResponse.hasCompanyLogo`
-  (§4.10): признак наличия, не имя файла. Для лидов keyword-only пути всегда `false`.
+- `matchedKeywords`, `workFormats` — arrays outward, comma-separated in storage (§3.5), parsed in
+  the DTO. `hidden` — boolean, not `hiddenAt`. No description in the DTO by definition (§3.5, §4.11.7).
+- `hasCompanyLogo` (step №26 §14) — like `ApplicationResponse.hasCompanyLogo` (§4.10), a presence
+  flag, not a file name; always `false` for keyword-only leads.
 
 #### `GET /api/vacancy-leads/:id/logo`
 
-Байты логотипа компании лида (§4.10, шаг №26 §14) — идентичное поведение
-`GET /api/applications/:id/logo` (§5.1): `200` с байтами и верным `Content-Type`,
-`Cache-Control: private, max-age=3600`, `X-Content-Type-Options: nosniff`; `404` —
-либо нет записи, либо у неё нет логотипа, либо файл пропал с диска; `400` —
-невалидный UUID; `401` — без Basic Auth. Объявлен выше маршрута `PATCH :id` — тот же
-порядок, что у `scan`/`scan/status` (см. ниже).
+Lead company logo bytes (§4.10, step №26 §14) — identical to `GET /api/applications/:id/logo`
+(§5.1): `200` with bytes and correct `Content-Type`, `Cache-Control: private, max-age=3600`,
+`X-Content-Type-Options: nosniff`; `404` — no record, no logo, or file gone from disk; `400` —
+invalid UUID; `401` — without Basic Auth. Declared above the `PATCH :id` route.
 
 #### `PATCH /api/vacancy-leads/:id`
 
-Тело — `UpdateVacancyLeadDto`, ровно одно поле:
-
-```json
-{ "hidden": true }
-```
-
-Ответ `200`: `VacancyLeadDto`. `404` — записи нет, `400` — невалидный UUID.
-Ставит либо снимает `hidden_at` (§3.5); повторный вызов с тем же значением
-идемпотентен и `hidden_at` не переписывает.
-
-Это единственный мутирующий эндпоинт лида: создание идёт только прогоном, а `DELETE`
-не выставлен наружу намеренно (§3.5, §12) — удаление ключа дедупликации вернуло бы
-вакансию ближайшим прогоном.
+Body — `UpdateVacancyLeadDto`, exactly one field: `{ "hidden": true }`. Response `200`:
+`VacancyLeadDto`. `404` — no record, `400` — invalid UUID. Sets or clears `hidden_at` (§3.5); a
+repeat call with the same value is idempotent and does not rewrite `hidden_at`. The lead's only
+mutating endpoint: creation happens only through a run, and `DELETE` **must not** be exposed
+(§3.5, §12) — deleting the deduplication key would bring the vacancy back on the next run.
 
 #### `POST /api/vacancy-leads/scan`
 
-Запускает прогон поиска (§4.11). Тела запроса нет. **Асинхронный** (§4.11.9): ответ
-приходит сразу, не дожидаясь конца прогона.
-
-Ответ `202 Accepted`:
-
-```json
-{ "status": "RUNNING", "startedAt": "2026-08-14T05:00:00.000Z" }
-```
-
-`409 Conflict` — прогон уже идёт (кнопку нажали дважды либо открыты две вкладки).
-Единственный отказной код: два одновременных прогона удвоили бы и нагрузку на hh.ru,
-и расход памяти под модель.
-
-Маршруты `scan`, `scan/status` и `:id/logo` объявляются **выше** маршрутов с `:id` —
-то же правило порядка, что у `sync-open`/`:id/logo` (§5.2, §4.10).
+Starts a search run (§4.11). No request body. **Asynchronous** (§4.11.9): responds without waiting
+for the run to finish. `202 Accepted`: `{ "status": "RUNNING", "startedAt": "2026-08-14T05:00:00.000Z" }`.
+`409 Conflict` — a run is already in progress; the only rejection code. Routes `scan`,
+`scan/status` and `:id/logo` **must** be declared **above** the `:id` routes (§5.2, §4.10).
 
 #### `GET /api/vacancy-leads/scan/status`
 
-Прогресс и результат последнего прогона. Ответ `200`:
+Progress and result of the last run. `200`: `{ status, startedAt, finishedAt, progress,
+stoppedReason, message }`, where `progress` holds counters `pagesFetched`, `itemsSeen`,
+`skippedInvalid`, `skippedOld`, `skippedExcluded`, `rejectedTitle`, `duplicates`,
+`descriptionsFailed`, `rejectedDescription`, `created`, `failed`, `aiFallbacks`.
 
-```json
-{
-  "status": "RUNNING",
-  "startedAt": "2026-08-14T05:00:00.000Z",
-  "finishedAt": null,
-  "progress": {
-    "pagesFetched": 3,
-    "itemsSeen": 150,
-    "skippedInvalid": 0,
-    "skippedOld": 88,
-    "skippedExcluded": 41,
-    "rejectedTitle": 12,
-    "duplicates": 6,
-    "descriptionsFailed": 0,
-    "rejectedDescription": 1,
-    "created": 2,
-    "failed": 0,
-    "aiFallbacks": 0
-  },
-  "stoppedReason": null,
-  "message": null
-}
-```
-
-- `status`: `IDLE` (прогонов после старта процесса не было) | `RUNNING` | `DONE` | `ERROR`.
-- Во время прогона `progress` заполняется на ходу — это и есть индикатор для UI.
-- После завершения там же лежит итоговая сводка (§4.11.11), `stoppedReason` и `message`.
-- Состояние живёт в памяти процесса: рестарт `api` возвращает `IDLE` (§4.11.9).
-- Неуспешный `stoppedReason` (включая `ERROR`) отдаётся с кодом **`200`** — это результат
-  операции, а не ошибка HTTP-запроса; правило то же, что у синхронизации (§5.2).
+- `status`: `IDLE` (no run since process start) | `RUNNING` | `DONE` | `ERROR`.
+- `progress` fills in as the run goes (the UI indicator); after completion the same place holds the
+  final summary (§4.11.11), `stoppedReason` and `message`. State lives in process memory:
+  restarting `api` returns `IDLE` (§4.11.9).
+- An unsuccessful `stoppedReason` (including `ERROR`) is returned with status **`200`** — an
+  operation result, not an HTTP error; same rule as sync (§5.2).
 
 #### `GET /api/vacancy-search-settings`
 
-Ответ `200` — единственная строка настроек (§3.6):
-
-```json
-{
-  "searchText": "fullstack",
-  "keywords": ["fullstack", "node.js", "react", "typescript"],
-  "excludeKeywords": ["1С", "php", "java"],
-  "titlePrompt": "…",
-  "descriptionPrompt": "…",
-  "aiEnabled": true,
-  "searchUrlTemplate": "https://ekaterinburg.hh.ru/search/vacancy?text={text}&…&page={page}",
-  "updatedAt": "2026-08-14T05:00:00.000Z"
-}
-```
-
-`searchUrlTemplate` — **только на чтение**: это значение env, а не настройка. Он нужен
-фронту, чтобы показывать предпросмотр итогового URL прямо при наборе поисковой строки
-(§7.9.4), не зашивая шаблон в бандл. В теле `PUT` он недопустим — `forbidNonWhitelisted`
-даст `400`.
+`200` — the single settings row (§3.6): `searchText`, `keywords[]`, `excludeKeywords[]`,
+`titlePrompt`, `descriptionPrompt`, `aiEnabled`, `searchUrlTemplate`
+(`"https://ekaterinburg.hh.ru/search/vacancy?text={text}&…&page={page}"`), `updatedAt`.
+`searchUrlTemplate` is **read-only** — an env value, not a setting; it is served so the frontend can
+preview the resulting URL as the search string is typed (§7.9.4). It **must not** appear in a `PUT`
+body — `forbidNonWhitelisted` gives `400`.
 
 #### `PUT /api/vacancy-search-settings`
 
-Тело — все поля, кроме `updatedAt`. Именно `PUT`, а не `PATCH`: ресурс один, форма на
-фронте всегда отправляет его целиком, и частичное обновление породило бы вопрос «а что
-значит отсутствующий промпт».
+Body — every field except `updatedAt`. `PUT`, not `PATCH`: single-row resource, always sent whole.
+Validation (`400` on violation):
 
-Валидация (`400` при нарушении):
+- `searchText` — 1…512, non-empty after `trim`;
+- `keywords` — non-empty array of non-empty strings;
+- `excludeKeywords` — array of strings, may be empty;
+- `titlePrompt` — **must** contain `{keywords}` and `{titles}` (§4.12.2);
+- `descriptionPrompt` — **must** contain `{keywords}` and `{description}`;
+- both prompts — no longer than 8000 characters.
 
-- `searchText` — 1…512, непустой после `trim`;
-- `keywords` — непустой массив непустых строк (без ключевых слов отбор бессмыслен);
-- `excludeKeywords` — массив строк, допустимо пустой;
-- `titlePrompt` — обязан содержать `{keywords}` и `{titles}` (§4.12.2);
-- `descriptionPrompt` — обязан содержать `{keywords}` и `{description}`;
-- оба промпта — не длиннее 8000 символов.
-
-Ответ `200`: сохранённые настройки. Изменения применяются со **следующего** прогона;
-идущий прогон работает со снимком настроек, взятым при старте, — иначе половина выдачи
-судилась бы одним промптом, половина другим.
+Response `200`: the saved settings. Changes apply from the **next** run; a running one works off the
+settings snapshot taken at start.
 
 ---
 
-## 6. Авторизация
+## 6. Authorization
 
-**HTTP Basic Auth** на всех эндпоинтах `/api/*`, кроме `GET /api/health`.
+**HTTP Basic Auth** on all `/api/*` endpoints except `GET /api/health`.
 
-- Логин и пароль — из env: `AUTH_USER`, `AUTH_PASSWORD`.
-- Реализация: NestJS Guard, применённый глобально; сравнение пароля через `crypto.timingSafeEqual`.
-- Неверные креды → `401` с заголовком `WWW-Authenticate: Basic realm="job-hunter"` (браузер сам покажет диалог логина).
-- На фронте отдельной формы логина **не делаем** — используем нативный браузерный диалог Basic Auth. Никаких токенов, сессий, cookie, JWT.
-- Если `AUTH_USER` или `AUTH_PASSWORD` не заданы в env — приложение **падает при старте** с внятной ошибкой (fail fast, чтобы не запустить открытый инстанс).
-- Статика фронта (`web`) авторизацией не защищается — секретов в бандле нет.
-
----
-
-## 7. Frontend: требования к UI
-
-### 7.1 Общая структура (один экран)
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  Job Hunter          [ 🔄 Обновить все открытые ]   Открытых: 12 / 34   │  ← AppBar
-├─────────────────────────────────────────────────────────────────────────┤
-│  [ Все | Открытые | Закрытые ]  [ 🔍 Поиск… ]  [ ⇕ ] [ ⇱ ] [ + Добавить ]│  ← панель фильтров
-├─────────────────────────────────────────────────────────────────────────┤
-│  Список аккордеонов — по одному на вакансию (см. §7.2)                  │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-Внешний контейнер: `Container maxWidth={false}` с горизонтальным padding **16px**. Аккордеоны занимают **100% доступной ширины** — то есть почти всю ширину экрана. `maxWidth` в пикселях не задавать.
-
-### 7.2 Список записей — аккордеоны
-
-**Одна вакансия = один `MUI Accordion`**, растянутый почти на всю ширину экрана. Таблицы (`Table`/`DataGrid`) не использовать.
-
-Общие правила:
-
-- Компонент: `Accordion` c `disableGutters`, `elevation={1}`, `slotProps={{ transition: { mountOnEnter: true, unmountOnExit: false } }}`. Пропа `TransitionProps` в MUI v9 больше нет — те же опции задаются слотом `transition`. Пара опций обязательна целиком: `unmountOnExit: false` не даёт терять фокус и несохранённый ввод при сворачивании (§7.3, §13.10.7), а `mountOnEnter: true` откладывает **первое** монтирование полей до первого раскрытия. Свёрнутый `Collapse` прячет содержимое через `visibility: hidden`, а не `display: none`, поэтому смонтированные поля ни разу не раскрытых записей полноценно меряют себя при каждом рендере списка — `TextareaAutosize` под многострочными полями делает это синхронно и форсирует пересчёт layout всего документа. После первого раскрытия запись остаётся смонтированной навсегда, так что на несохранённый ввод ленивое монтирование не влияет: терять на первом монтировании нечего.
-- Раскрытость едет в список **данными** (`ReadonlySet<string>`), а не колбэком-предикатом, а мутаторы — отдельным объектом с постоянной идентичностью. Предикат, замкнутый на состояние, менял бы идентичность всего, что от него зависит, вплоть до пропа `onToggle` у каждого аккордеона, и `memo` переставал бы работать на всём списке при каждом клике. В сам аккордеон уходит `boolean`-срез по id.
-- Вертикальный зазор между аккордеонами — **8px** (`Stack spacing={1}`), без «прыжков» размера при раскрытии (за это отвечает `disableGutters`).
-- По умолчанию **все аккордеоны свёрнуты**. Раскрытие — независимое (не «одновременно только один»). Только что созданная запись открывается раскрытой.
-- Состояние раскрытости живёт в локальном стейте списка (`Set<string>` из id) и **не персистится** между перезагрузками.
-- Горизонтального скролла быть не должно ни в свёрнутом, ни в раскрытом виде: поля переносятся на следующий ряд (`flexWrap: 'wrap'`).
-
-#### 7.2.1 `AccordionSummary` — свёрнутое состояние
-
-Высота компактная (одна строка, ~48px), содержимое **только для чтения** + кнопки действий. Полей ввода в шапке нет — клик по шапке должен переключать раскрытие, а не попадать в инпут.
-
-Слева направо, в один ряд, `gap: 8px`, `alignItems: 'center'`:
-
-| #   | Элемент         | Ширина                                              | Содержимое                                                                                                                                                                                                                            |
-| --- | --------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Компания        | `flex: 0 0 220px`, `noWrap` + `Tooltip` при обрезке | `Avatar` 24px (логотип компании либо буква-фолбэк, §4.10) + зазор 8px + `Typography` bold                                                                                                                                             |
-| 2   | Должность       | `flex: 1 1 auto`, `noWrap`                          | `Typography` color `text.secondary`                                                                                                                                                                                                   |
-| 3   | Статус          | `flex: 0 0 auto`                                    | `Chip` size=small, ru-подпись §3.2                                                                                                                                                                                                    |
-| 4   | Результат       | `flex: 0 0 auto`                                    | `Chip` size=small, ru-подпись §3.3                                                                                                                                                                                                    |
-| 5   | Ближайший собес | `flex: 0 0 auto`                                    | Иконка `Event` + `DD.MM HH:mm` ближайшего будущего из `hrInterviewAt`/`techInterviewAt`; скрывается, если оба пусты или в прошлом                                                                                                     |
-| 6   | Синхр.          | `flex: 0 0 auto`                                    | Иконка-статус (✓ / ⚠ / ✕) + `Tooltip` с «Обновлено 06.08.2026 14:32» либо подписью `SyncOutcome` и `lastSyncError`, третьей строкой — источник вакансии («Источник: hh.ru» / «Источник: getmatch.ru» / «Источник не определён», §4.8) |
-| 7   | 🔄 Обновить     | `flex: 0 0 auto`                                    | `IconButton` size=small, **обязателен `event.stopPropagation()`** — не должен раскрывать/сворачивать аккордеон                                                                                                                        |
-| 8   | 🗑 Удалить       | `flex: 0 0 auto`                                    | `IconButton` size=small, тоже со `stopPropagation()`                                                                                                                                                                                  |
-
-Кнопки 7–8 показываются всегда (не только на hover) — приложение однопользовательское, скрывать их незачем.
-
-#### 7.2.2 `AccordionDetails` — раскрытое состояние
-
-Поля ввода, упакованные **максимально плотно в ряды**, но без визуальной тесноты: `gap: 8px` по обеим осям (`Box display="flex" flexWrap="wrap" gap={1}`), внутренний padding блока — 16px по горизонтали и 8px сверху / 16px снизу. Все контролы `size="small"`, `fullWidth` внутри своей ячейки.
-
-**Ряд 1** — идентификация, ссылки, статусы и даты:
-
-| Поле               | Контрол                                                  | Ширина (flex-basis) | max-width |
-| ------------------ | -------------------------------------------------------- | ------------------- | --------- |
-| Компания *         | `TextField`                                              | `1 1 240px`         | `19%`     |
-| Должность          | `TextField`                                              | `1 1 240px`         | `19%`     |
-| Ссылка на вакансию | `TextField` + `IconButton`(OpenInNew) в `InputAdornment` | `1 1 280px`         | `15%`     |
-| Ссылка на резюме   | `TextField` + `IconButton`(OpenInNew) в `InputAdornment` | `1 1 280px`         | `15%`     |
-| Статус             | `Select`                                                 | `0 0 150px`         | —         |
-| Результат          | `Select`                                                 | `0 0 190px`         | —         |
-| HR-собес           | `DateTimePicker` (`clearable`)                           | `0 0 210px`         | —         |
-| Тех-собес          | `DateTimePicker` (`clearable`)                           | `0 0 210px`         | —         |
-
-**Ряд 2** — контакты и свободный текст:
-
-| Поле                 | Контрол                                                  | Ширина (flex-basis) | max-width |
-| -------------------- | -------------------------------------------------------- | ------------------- | --------- |
-| Контакт работодателя | `TextField` multiline `minRows=1 maxRows=3`              | `1 1 320px`         | —         |
-| Где собес            | `TextField` + `IconButton`(OpenInNew) в `InputAdornment` | `1 1 280px`         | `19%`     |
-| Заметки              | `TextField` multiline `minRows=1 maxRows=4`              | `2 1 480px`         | —         |
-
-Потолок ширины (`max-width`) задаётся картой `FIELD_MAX_WIDTH` только у резиновых полей (`flex: 1 1 …`) — без него они растягивались бы на всю ультраширокую строку. Проценты считаются от ширины ряда (родительского flex-контейнера), а не от вьюпорта: у полей с фиксированным `flex: 0 0 …` потолок не нужен и в карте отсутствует.
-
-Ряды — отдельные flex-контейнеры внутри общего вертикального `Stack spacing={1}`. На широком экране (≥1600px) ряды 1 и 2 занимают по одной строке каждый — ряд 1 за счёт сжатия flex-basis резиновых полей при `minWidth: 0`; на более узком поля переносятся сами за счёт `flexWrap`.
-
-Иконка `OpenInNew` активна только при непустом валидном URL и открывает ссылку в новой вкладке (`target="_blank" rel="noopener noreferrer"`); её клик не должен сабмитить/сворачивать что-либо.
-
-#### 7.2.3 Визуальные акценты
-
-- `status = CLOSED`: приглушённый фон шапки (`action.hover`), текст компании/должности — `text.secondary`. Поля остаются редактируемыми.
-- `Chip` результата: `success` для `OFFER`, `error` для `REJECTED_BY_COMPANY`, `default` для остальных.
-- Ближайшее будущее собеседование в пределах **48 часов** — `Chip`/текст даты цветом `warning` и bold.
-- Строка с непустым `lastSyncError` — иконка синхронизации цветом `error`.
-
-#### 7.2.4 Сортировка и групповое раскрытие
-
-- Сортировка по умолчанию: `createdAt desc` (новые сверху). Переключение — `Select`/`ToggleButtonGroup` «Сортировка» в панели фильтров (иконка ⇕): по дате добавления, по компании, по HR-собесу, по тех-собесу; плюс переключатель направления.
-- Кнопка «Развернуть все / Свернуть все» (иконка ⇱) в панели фильтров — один `IconButton` с переключением состояния.
-
-#### 7.2.5 Константы вёрстки
-
-Все размеры из §7.2 (`FIELD_GAP`, `ACCORDION_GAP`, `SUMMARY_COMPANY_WIDTH_PX`, flex-basis каждого поля, `FIELD_MAX_WIDTH`, `UPCOMING_INTERVIEW_HIGHLIGHT_HOURS = 48`) вынести в `frontend/src/constants/layout.constants.ts`. Магические числа в JSX запрещены (§10, п.3). Зазоры задавать через систему отступов MUI: `spacing(1) === 8px`.
-
-### 7.3 Автосохранение (inline edit)
-
-- Текстовые поля и `multiline`: сохранение по `onBlur`, **только если значение изменилось**. Дополнительно — debounce-автосейв 800 мс после прекращения ввода.
-- `Select`, `DateTimePicker`: сохранение сразу по `onChange`.
-- Механика: `PATCH /api/applications/:id` **только с изменёнными полями**. Оптимистичное обновление кэша React Query; при ошибке — откат к предыдущему значению + `Snackbar` с текстом ошибки.
-- Индикация сохранения: неблокирующая — короткая подсветка/иконка «✓» на изменённом поле на ~1 с. Спиннеров на весь список или на весь аккордеон не показывать.
-- Кнопки «Сохранить» в аккордеоне **нет**.
-- Сворачивание аккордеона во время несохранённого ввода не должно терять правку: сначала отправить pending-изменение (эквивалент `blur`), затем свернуть. Именно поэтому `unmountOnExit` выключен (§7.2).
-- Изменения полей «Компания», «Должность», «Статус», «Результат», дат собеседований немедленно отражаются в свёрнутой шапке того же аккордеона.
-
-### 7.4 Добавление записи
-
-Кнопка «+ Добавить» открывает `Dialog` с формой:
-
-- Ссылка на вакансию (первое поле — сценарий «вставил ссылку»), Компания*, Должность, Ссылка на резюме, Контакт, HR-собес, Тех-собес, Результат, Заметки.
-- Статус в форме не показывается — всегда `OPEN`. Поля «Где собес» (`interviewUrl`) в форме создания тоже нет — ссылка на созвон появляется позже, при назначении тех-собеса, и заполняется прямо в раскрытом состоянии записи (§7.2.2).
-- После `onBlur` поля со ссылкой на вакансию — вызов `POST /api/vacancies/preview` и автоподстановка (§4.4).
-- Кнопки: «Отмена», «Добавить» (disabled, пока `Компания` пустая).
-- После успеха — диалог закрывается, список инвалидируется, `Snackbar` «Вакансия добавлена».
-
-### 7.5 Удаление
-
-`IconButton` 🗑 → `Dialog` подтверждения с названием компании и должности в тексте → `DELETE`. Undo не требуется.
-
-### 7.6 Обновление статуса — одна запись
-
-🔄 в шапке аккордеона: кнопка переходит в состояние загрузки (`CircularProgress` size=16 вместо иконки, disabled), по ответу — обновление записи и `Snackbar` с подписью `SyncOutcome` (например «Вакансия не найдена (снята)»). Цвет `Snackbar`: success для `OK`, info для `NOT_FOUND`/`SKIPPED_UNSUPPORTED`, error для `RATE_LIMITED`/`ERROR`. Клик по кнопке не меняет раскрытость аккордеона.
-
-Из ответа в кэш переносятся только колонки синхронизации; с §4.3 в новой редакции в их число вошла `position` — но лишь при исходе `OK` и лишь непустая, потому что при прочих исходах бэкенд должность не писал.
-
-### 7.7 Обновление статусов всех открытых
-
-Кнопка «🔄 Обновить все открытые» в `AppBar`:
-
-- Во время выполнения: `LinearProgress` (indeterminate) под `AppBar`, кнопка disabled с текстом «Обновляем…». Список остаётся доступным для просмотра и редактирования.
-- По завершении: список перезагружается, показывается сводка в `Snackbar`/`Alert`, например: **«Проверено 12 · закрыто 1 · ошибок 0 · без источника 2»**.
-- Если среди `items` есть исходы `ERROR`/`RATE_LIMITED`, сводка показывается как `Alert severity="warning"` с раскрывающимся списком проблемных записей (компания + сообщение).
-- Кнопка disabled, если открытых записей нет.
-
-### 7.8 Прочие требования UI
-
-- Все подписи, кнопки, сообщения — **на русском**.
-- Формат отображения даты/времени: `DD.MM.YYYY HH:mm` (в шапке аккордеона допустим короткий `DD.MM HH:mm`), локальная таймзона браузера.
-- Пустое состояние: центрированный текст «Пока нет ни одной записи» + кнопка «+ Добавить».
-- Состояние загрузки списка: 3–5 `Skeleton` высотой свёрнутого аккордеона.
-- Плотность: `size="small"` у всех полей, `Chip` — `size="small"`. Базовый зазор между любыми соседними контролами — **8px** (`spacing(1)`); увеличивать до 16px только для внутренних отступов `AccordionDetails`. Прижимать поля вплотную (0–4px) нельзя.
-- Состояние ошибки загрузки списка: `Alert severity="error"` с кнопкой «Повторить».
-- Счётчик в `AppBar`: «Открытых: N / M» (N — со статусом `OPEN`, M — всего).
-- Тёмная тема, настройки, экспорт/импорт — не требуются.
+- Login and password from env: `AUTH_USER`, `AUTH_PASSWORD`. A NestJS Guard applied globally;
+  password comparison via `crypto.timingSafeEqual`.
+- Wrong credentials → `401` with header `WWW-Authenticate: Basic realm="job-hunter"`, so the
+  browser shows its own login dialog. The frontend has **no** login form: no tokens, sessions,
+  cookies or JWT.
+- If `AUTH_USER` or `AUTH_PASSWORD` is unset, the application **fails at startup** with a clear
+  error (fail fast, so no open instance is ever launched).
+- The frontend static bundle (`web`) is not protected by authorization — it holds no secrets.
 
 ---
 
-### 7.9 Вкладки и экран «Вакансии»
+## 7. Frontend: UI requirements
 
-До этого шага приложение — один экран (§7.1). Теперь их два, и переключаются они
-**вкладками MUI `Tabs`** под `AppHeader`:
+### 7.1 Overall structure (single screen)
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  Job Hunter          [ 🔄 Обновить все открытые ]   Открытых: 12 / 34   │  ← AppBar
-├─────────────────────────────────────────────────────────────────────────┤
-│  [ Отклики ] [ Вакансии ]                                               │  ← Tabs
-├─────────────────────────────────────────────────────────────────────────┤
-│  содержимое активной вкладки                                            │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+`AppBar` («Job Hunter», «🔄 Обновить все открытые», counter «Открытых: 12 / 34»), filter bar («Все | Открытые | Закрытые», «🔍 Поиск…»,
+sort ⇕, expand-all ⇱, «+ Добавить»), then the accordion list (§7.2). `Container maxWidth={false}`, horizontal padding **16px**; accordions
+take **100% of available width** — no pixel `maxWidth`.
 
-- **Роутера в проекте нет и не заводится.** Активная вкладка — обычный `useState`
-  в шелле; `react-router` ради двух вкладок принёс бы зависимость, историю и глубокие
-  ссылки, которые однопользовательскому приложению на одной машине не нужны.
-- Состояние вкладки не персистится (то же правило, что для раскрытости аккордеонов, §12).
-- **`App.tsx` перестаёт быть экраном и становится шеллом.** Нынешнее содержимое
-  (фильтры, список откликов, диалоги, уведомления, логика §7.2–§7.8) переезжает
-  **без изменений** в `components/ApplicationsScreen/ApplicationsScreen.tsx`; в `App.tsx`
-  остаются `AppHeader`, `Tabs` и выбор экрана. Это чистый перенос: править поведение
-  откликов в этом шаге нельзя, иначе регрессии §13.10.x не с чем будет сравнивать.
-- Неактивная вкладка **размонтируется**. Серверные данные лежат в React Query и переживают
-  размонтирование, а несохранённые правки полей уходят на `blur` (§7.3) до исчезновения
-  экрана. Держать оба экрана смонтированными значило бы платить за layout-эффекты
-  `TextareaAutosize` списка откликов (§7.2) на каждом рендере вкладки «Вакансии».
-- Счётчик «Открытых: N / M» относится к откликам и остаётся в `AppHeader` на обеих вкладках.
+### 7.2 Record list — accordions
 
-#### 7.9.1 Экран «Вакансии»
+**One vacancy = one `MUI Accordion`**, nearly full width. `Table`/`DataGrid` must not be used.
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ [ 🔎 Найти вакансии ] [ ⚙ Настройки поиска ] [ 🔍 Поиск… ✕ ] [ Скрытые ]│
-├─────────────────────────────────────────────────────────────────────────┤
-│  прогресс идущего прогона / сводка последнего (Alert)                    │
-├─────────────────────────────────────────────────────────────────────────┤
-│ ▸ 12.08 │ Старший инженер-программист (FinTech) │ Acme │ 300 000 ₽ [↗][🚫]│
-│ ▸ 11.08 │ Senior Fullstack-Developer            │ Foo  │ —         [↗][🚫]│
-└─────────────────────────────────────────────────────────────────────────┘
-```
+- `Accordion` with `disableGutters`, `elevation={1}`, `slotProps={{ transition: { mountOnEnter: true, unmountOnExit: false } }}` — both
+  options mandatory (`TransitionProps` is gone in MUI v9): collapse keeps focus and unsaved input (§7.3, §13.10.7), fields mount lazily.
+- Expanded state reaches the list as **data** (`ReadonlySet<string>`) plus a stable-identity mutator object; each accordion gets a
+  `boolean` slice by id, else `memo` breaks list-wide.
+- Gap between accordions **8px** (`Stack spacing={1}`), no size jump on expand; no horizontal scroll — fields wrap (`flexWrap: 'wrap'`).
+- All accordions **collapsed** by default, expansion independent (not "one at a time"), a newly created record opens expanded. The
+  expanded set is local state (`Set<string>` of ids) and is **not persisted**.
 
-- **Одна вакансия = один `Accordion`** — те же правила, что в §7.2: `disableGutters`,
-  `elevation={1}`, `slotProps={{ transition: { mountOnEnter: true, unmountOnExit: false } }}`,
-  `AccordionSummary` как `component="div"` (внутри есть кнопки), компонент под `memo`,
-  раскрытость — через `useExpandedIds` и `boolean`-срез по id.
-- **Свёрнутая шапка:** дата публикации (`DD.MM`), должность, компания с логотипом слева
-  от названия (`Avatar`, буква-фолбэк — тот же приём, что у откликов, §4.10, §7.2.1),
-  короткая зарплата, кнопка `OpenInNew` (открывает `vacancyUrl` в новой вкладке) и кнопка
-  «Скрыть». Обе кнопки начинаются со `stopPropagation()` — иначе клик свернёт или раскроет
-  аккордеон (§13.10.3).
-- **Раскрытое состояние — поля из выдачи** (§4.11.3), в две строки: зарплата целиком
-  (`от … до … ₽, до вычета`), регион, требуемый опыт, форма занятости, формат работы,
-  дата публикации полностью, когда вакансия впервые попалась прогону, а также
-  обоснования модели (`aiTitleReason`, `aiDescriptionReason`) и сработавшие ключевые
-  слова — по ним видно, **почему** вакансия в списке. Пустые поля не показываются,
-  а не выводятся прочерками: у половины вакансий hh.ru зарплаты нет вовсе.
-- **Описания вакансии на экране нет** (§3.5): его читают на hh.ru по кнопке `↗`. Поэтому
-  HTML из внешнего источника во фронт вообще не попадает, и вопрос санитизации
-  и `dangerouslySetInnerHTML` не возникает.
-- Форматирование зарплаты, подписи опыта/занятости/формата работы (`REMOTE` → «Удалённо»,
-  `between3And6` → «3–6 лет», …) — словари в `constants/` фронта, вручную продублированные
-  с бэкенда, как enum-ы статуса и результата (§3.4).
+#### 7.2.1 `AccordionSummary` — collapsed state
 
-#### 7.9.2 Прогон и его прогресс
+One line (~48px), **read-only** content plus action buttons, no inputs — a click toggles expansion. One row, `gap: 8px`,
+`alignItems: 'center'`; buttons 7–8 always visible, not hover-only.
 
-- Кнопка «🔎 Найти вакансии» шлёт `POST /api/vacancy-leads/scan` и **не ждёт результата**
-  (§4.11.9): ответ `202` приходит сразу.
-- Пока прогон идёт, кнопка дизейблится, а `GET …/scan/status` опрашивается раз в 2 секунды
-  (`refetchInterval` в React Query, снимается при статусе не `RUNNING`). Поллинг —
-  сознательная замена WebSocket/SSE, которых в проекте нет (§12).
-- Прогресс показывается тем же `Alert`, что и итоговая сводка: во время прогона —
-  «страниц: 3, найдено: 2, отклонено моделью: 12» с `LinearProgress`, после —
-  итоговые счётчики (§4.11.11) и `stoppedReason` человеческим текстом.
-- Разделение каналов, как у массовой синхронизации (§7.7): сбой самого запроса →
-  error-`Snackbar`; `stoppedReason = 'ERROR'` → `Alert` с `severity="error"`; успешный
-  прогон → `success`, а при `created === 0` — `info`.
-- По переходу статуса `RUNNING` → `DONE`/`ERROR` — **инвалидация ключа списка лидов
-  целиком**, а не вливание записей: клиенту неизвестно, куда новые записи попадут
-  в текущей сортировке и проходят ли они под активный поиск (та же логика, что
-  у `useSyncAllOpen`, §7.7).
-- `409` в ответ на кнопку (прогон уже запущен из другой вкладки) — не ошибка: показывается
-  info-`Snackbar` «Поиск уже выполняется», и поллинг статуса включается как обычно.
-- Статус опрашивается и при монтировании экрана, а не только после нажатия кнопки:
-  прогон, запущенный в другой вкладке или до перезагрузки страницы, обязан быть виден.
+| #   | Element        | Width                                                | Content                                                                                                                                                                                                                 |
+| --- | -------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Company        | `flex: 0 0 220px`, `noWrap` + `Tooltip` when clipped | `Avatar` 24px (company logo or letter fallback, §4.10) + 8px gap + bold `Typography`                                                                                                                                    |
+| 2   | Position       | `flex: 1 1 auto`, `noWrap`                           | `Typography` color `text.secondary`                                                                                                                                                                                     |
+| 3   | Status         | `flex: 0 0 auto`                                     | `Chip` size=small, ru label §3.2                                                                                                                                                                                        |
+| 4   | Result         | `flex: 0 0 auto`                                     | `Chip` size=small, ru label §3.3                                                                                                                                                                                        |
+| 5   | Next interview | `flex: 0 0 auto`                                     | `Event` icon + `DD.MM HH:mm` of the nearest future of `hrInterviewAt`/`techInterviewAt`; hidden if both empty or past                                                                                                   |
+| 6   | Sync           | `flex: 0 0 auto`                                     | Status icon (✓ / ⚠ / ✕) + `Tooltip` with «Обновлено 06.08.2026 14:32» or the `SyncOutcome` label and `lastSyncError`, third line — source («Источник: hh.ru» / «Источник: getmatch.ru» / «Источник не определён», §4.8) |
+| 7   | 🔄 Sync        | `flex: 0 0 auto`                                     | `IconButton` size=small, **`event.stopPropagation()` mandatory** — must not toggle the accordion                                                                                                                        |
+| 8   | 🗑 Delete       | `flex: 0 0 auto`                                     | `IconButton` size=small, also with `stopPropagation()`                                                                                                                                                                  |
 
-#### 7.9.3 Скрытие вакансии
+#### 7.2.2 `AccordionDetails` — expanded state
 
-- Кнопка 🚫 в шапке шлёт `PATCH /api/vacancy-leads/:id` с `{ hidden: true }` и
-  **оптимистично** убирает запись из кэша списка; при ошибке запись возвращается и
-  показывается error-`Snackbar` (тот же приём пополевого отката, что в §7.3).
-- Переключатель «Скрытые» в панели фильтров переводит список в режим `hidden=only`;
-  в этом режиме у записей вместо 🚫 показывается кнопка «Вернуть»
-  (`PATCH … { "hidden": false }`).
-- Undo-кнопки в `Snackbar` нет: список скрытых доступен переключателем, и это тот же
-  сценарий возврата, только без гонки с автозакрытием уведомления.
+`Box display="flex" flexWrap="wrap" gap={1}` (8px both axes), inner padding 16px horizontal, 8px top / 16px bottom; controls
+`size="small"`, `fullWidth` in their cell. **Row 1** — identification, links, statuses, dates:
 
-#### 7.9.4 Настройки поиска
+| Field              | Control                                                   | flex-basis  | max-width |
+| ------------------ | --------------------------------------------------------- | ----------- | --------- |
+| Компания *         | `TextField`                                               | `1 1 240px` | `19%`     |
+| Должность          | `TextField`                                               | `1 1 240px` | `19%`     |
+| Ссылка на вакансию | `TextField` + `IconButton`(OpenInNew) in `InputAdornment` | `1 1 280px` | `15%`     |
+| Ссылка на резюме   | `TextField` + `IconButton`(OpenInNew) in `InputAdornment` | `1 1 280px` | `15%`     |
+| Статус             | `Select`                                                  | `0 0 150px` | —         |
+| Результат          | `Select`                                                  | `0 0 190px` | —         |
+| HR-собес           | `DateTimePicker` (`clearable`)                            | `0 0 210px` | —         |
+| Тех-собес          | `DateTimePicker` (`clearable`)                            | `0 0 210px` | —         |
 
-Кнопка «⚙ Настройки поиска» открывает `Dialog` (не отдельную вкладку — настройки правят
-редко, а вкладка стоила бы третьего экрана в шелле):
+**Row 2** — contacts and free text:
 
-- **Строка поиска** (`searchText`) — то, что подставится в `{text}` ссылки (§4.11.1).
-  Под полем — предпросмотр итогового URL первой страницы, чтобы было видно, что уйдёт
-  на hh.ru.
-- **Ключевые слова** и **стоп-слова** — поля ввода через запятую (`Chip`-редактор
-  не заводим: строка через запятую редактируется быстрее и переносится копипастом).
-- **Промпт для названия** и **промпт для описания** — многострочные поля с подсказкой
-  о доступных плейсхолдерах (§4.12.2) и кнопкой «Вернуть промпт по умолчанию».
-- **Переключатель «Использовать ИИ-отбор»** (`aiEnabled`) с пояснением, что при выключении
-  работает отбор по ключевым словам, а описания не загружаются.
-- Сохранение — `PUT /api/vacancy-search-settings` целиком; ошибки валидации (`400`,
-  в частности отсутствующий плейсхолдер в промпте) показываются под соответствующим полем,
-  а не общим уведомлением: иначе непонятно, какой из двух промптов неверен.
-- После сохранения — инвалидация ключа настроек; на идущий прогон изменения не влияют
-  (§5.7).
+| Field                | Control                                                   | flex-basis  | max-width |
+| -------------------- | --------------------------------------------------------- | ----------- | --------- |
+| Контакт работодателя | `TextField` multiline `minRows=1 maxRows=3`               | `1 1 320px` | —         |
+| Где собес            | `TextField` + `IconButton`(OpenInNew) in `InputAdornment` | `1 1 280px` | `19%`     |
+| Заметки              | `TextField` multiline `minRows=1 maxRows=4`               | `2 1 480px` | —         |
 
-## 8. Конфигурация (env)
+`max-width` comes from `FIELD_MAX_WIDTH` and applies **only** to fluid (`flex: 1 1 …`) fields; percentages are relative to the row width,
+not the viewport. Rows are separate flex containers in one vertical `Stack spacing={1}`; at ≥1600px each row fits one line
+(`minWidth: 0`), narrower screens wrap. `OpenInNew` is enabled only for a non-empty valid URL, opens it with
+`target="_blank" rel="noopener noreferrer"`, and must not submit or collapse anything.
 
-Файл `.env` в корне (в git не коммитится), плюс `.env.example` с теми же ключами и безопасными заглушками.
+#### 7.2.3 Visual accents
 
-| Переменная                         | Обяз. | Пример / дефолт                            | Описание                                                                                                               |
-| ---------------------------------- | ----- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `POSTGRES_USER`                    | да    | `jobhunter`                                |                                                                                                                        |
-| `POSTGRES_PASSWORD`                | да    | `change-me`                                |                                                                                                                        |
-| `POSTGRES_DB`                      | да    | `jobhunter`                                |                                                                                                                        |
-| `DATABASE_HOST`                    | да    | `db`                                       | Имя сервиса в compose                                                                                                  |
-| `DATABASE_PORT`                    | нет   | `5432`                                     |                                                                                                                        |
-| `AUTH_USER`                        | да    | `admin`                                    | Basic Auth логин                                                                                                       |
-| `AUTH_PASSWORD`                    | да    | `admin`                                    | Basic Auth пароль. Без него старт падает                                                                               |
-| `HH_SITE_BASE_URL`                 | нет   | `https://hh.ru`                            | База сайта hh.ru, откуда берётся страница вакансии                                                                     |
-| `HH_USER_AGENT`                    | да    | `job-hunter/1.0 (igor.ushakov@fastdev.se)` | hh.ru требует осмысленный User-Agent, иначе `400`                                                                      |
-| `HH_REQUEST_TIMEOUT_MS`            | нет   | `10000`                                    |                                                                                                                        |
-| `HH_MAX_RETRIES`                   | нет   | `2`                                        |                                                                                                                        |
-| `GETMATCH_SITE_BASE_URL`           | нет   | `https://getmatch.ru`                      | База сайта getmatch.ru, откуда берётся страница вакансии (§4.9)                                                        |
-| `GETMATCH_USER_AGENT`              | нет   | `job-hunter/1.0`                           | В отличие от `HH_USER_AGENT` опционален: getmatch.ru не отвечает `403` на обычный User-Agent (§4.9)                    |
-| `GETMATCH_REQUEST_TIMEOUT_MS`      | нет   | `10000`                                    |                                                                                                                        |
-| `GETMATCH_MAX_RETRIES`             | нет   | `2`                                        |                                                                                                                        |
-| `SYNC_CONCURRENCY`                 | нет   | `3`                                        | Общий для всех источников вакансий (§4.6); переименован из `HH_SYNC_CONCURRENCY`                                       |
-| `SYNC_MIN_DELAY_MS`                | нет   | `200`                                      | Общий для всех источников вакансий (§4.6); переименован из `HH_SYNC_MIN_DELAY_MS`                                      |
-| `SCHEDULED_SYNC_ENABLED`           | нет   | `true`                                     | Плановая синхронизация открытых записей (§4.7). Допустимы только `true`/`false`                                        |
-| `SCHEDULED_SYNC_INTERVAL_MS`       | нет   | `1800000`                                  | Интервал планового прогона, мс (30 минут). Диапазон 60000…86400000 (§4.7)                                              |
-| `COMPANY_LOGO_DIR`                 | нет   | `os.tmpdir()/job-hunter-logos`             | Каталог логотипов компаний на диске (§4.10). В Docker — `/var/lib/job-hunter/logos` на именованном томе `logos`        |
-| `COMPANY_LOGO_REQUEST_TIMEOUT_MS`  | нет   | `5000`                                     | Таймаут скачивания логотипа с CDN источника (§4.10), без ретраев                                                       |
-| `HH_MAX_REQUESTS_PER_SECOND`       | нет   | `2`                                        | Потолок частоты **всех** запросов к hh.ru: общий троттл (§4.11.2). Диапазон 0.1…50                                     |
-| `HH_SEARCH_URL_TEMPLATE`           | нет   | `см. §4.11.1`                              | Шаблон ссылки на выдачу hh.ru с обязательными плейсхолдерами {text} и {page}. Отсутствие любого из них роняет старт    |
-| `VACANCY_SCAN_MAX_PAGES`           | нет   | `10`                                       | Максимум страниц выдачи за прогон (§4.11.8). Диапазон 1…40 — у hh.ru своя отсечка на 40-й странице                     |
-| `VACANCY_SCAN_MAX_DETAILS`         | нет   | `60`                                       | Максимум открытых страниц вакансий (и оценок описания моделью) за прогон                                               |
-| `VACANCY_SCAN_MAX_AGE_DAYS`        | нет   | `30`                                       | Вакансии старше N дней пропускаются (§4.11.6)                                                                          |
-| `VACANCY_SCAN_MAX_DURATION_MS`     | нет   | `1800000`                                  | Жёсткий дедлайн прогона — 30 минут (§4.11.8)                                                                           |
-| `VACANCY_PREFILTER_MODE`           | нет   | `exclude_only`                             | `exclude_only` / `full` / `off` — что проверяется детерминированно до ИИ (§4.11.4)                                     |
-| `VACANCY_MATCH_MODE`               | нет   | `any`                                      | `any` / `all` — режим отбора по ключевым словам, когда ИИ выключен или недоступен                                      |
-| `VACANCY_LEADS_LIST_LIMIT`         | нет   | `500`                                      | Потолок числа записей в ответе GET /api/vacancy-leads (§5.7)                                                           |
-| `VACANCY_AI_PROVIDER`              | нет   | `ollama`                                   | `ollama` / `openai` — протокол запроса к модели (§4.12.1)                                                              |
-| `VACANCY_AI_BASE_URL`              | нет   | `http://ollama:11434`                      | Адрес модели. Для openai-провайдера — базовый URL совместимого API                                                     |
-| `VACANCY_AI_MODEL`                 | нет   | `qwen3:4b-instruct`                        | Имя модели (§4.12.6). Смена модели — эта переменная + ollama pull                                                      |
-| `VACANCY_AI_API_KEY`               | нет   | `—`                                        | Ключ провайдера; нужен только при VACANCY_AI_PROVIDER=openai. В логи не попадает                                       |
-| `VACANCY_AI_BATCH_SIZE`            | нет   | `10`                                       | Сколько названий уходит в один запрос этапа 1 (§4.12). Описания идут по одному                                         |
-| `VACANCY_AI_TIMEOUT_MS`            | нет   | `120000`                                   | Таймаут запроса к модели; при сбое решают ключевые слова (§4.12.3)                                                     |
-| `VACANCY_AI_DESCRIPTION_MAX_CHARS` | нет   | `6000`                                     | До скольких символов обрезается описание перед отправкой в модель (§4.11.7)                                            |
-| `API_PORT`                         | нет   | `3000`                                     | Внутренний порт Nest                                                                                                   |
-| `WEB_PORT`                         | нет   | `8080`                                     | Порт, публикуемый на хост                                                                                              |
-| `LOG_LEVEL`                        | нет   | `log`                                      |                                                                                                                        |
-| `DATABASE_PORT_HOST`               | нет   | `5432`                                     | Порт, на котором `db` публикуется на `127.0.0.1` (для e2e и TypeORM CLI с хоста)                                       |
-| `TEST_DATABASE_HOST`               | нет   | `127.0.0.1`                                | Хост БД для e2e-тестов, запускаемых с хоста                                                                            |
-| `TEST_DATABASE_NAME`               | нет   | `jobhunter_test`                           | Отдельная БД для e2e; пересоздаётся при каждом прогоне. Обязана отличаться от `POSTGRES_DB` и заканчиваться на `_test` |
+- `status = CLOSED`: muted summary background (`action.hover`), company/position `text.secondary`; fields stay editable.
+- Result `Chip`: `success` for `OFFER`, `error` for `REJECTED_BY_COMPANY`, `default` otherwise.
+- Nearest future interview within **48 hours** — date in `warning` and bold; non-empty `lastSyncError` — sync icon in `error`.
 
-Валидация env при старте — через `@nestjs/config` + схема (`class-validator` или `joi`). Отсутствие обязательной переменной = падение с понятным сообщением.
+#### 7.2.4 Sorting and group expand
 
-Ключевые слова, стоп-слова, поисковая строка и оба ИИ-промпта в env **отсутствуют**: они
-живут в таблице настроек (§3.6) и правятся на фронте (§7.9.4). В env остаётся только то,
-что описывает инфраструктуру и лимиты, — то, что меняют вместе с перезапуском по существу.
+Default sort `createdAt desc`; the «Сортировка» `Select`/`ToggleButtonGroup` (⇕) offers creation date, company, HR interview, tech
+interview, plus a direction toggle. «Развернуть все / Свернуть все» (⇱) is one toggling `IconButton`.
 
-`VACANCY_AI_API_KEY` проверяется условно: он обязателен только при
-`VACANCY_AI_PROVIDER=openai`. Для дефолтного `ollama` ключ не нужен вовсе.
+#### 7.2.5 Layout constants
+
+All §7.2 sizes (`FIELD_GAP`, `ACCORDION_GAP`, `SUMMARY_COMPANY_WIDTH_PX`, every field flex-basis, `FIELD_MAX_WIDTH`,
+`UPCOMING_INTERVIEW_HIGHLIGHT_HOURS = 48`) live in `frontend/src/constants/layout.constants.ts`; magic numbers in JSX are forbidden
+(§10.3). Gaps use MUI spacing: `spacing(1) === 8px`.
+
+### 7.3 Autosave (inline edit)
+
+- Text and `multiline` fields save on `onBlur` **only if the value changed**, plus debounced autosave 800 ms after typing stops;
+  `Select` and `DateTimePicker` save on `onChange`.
+- `PATCH /api/applications/:id` **with changed fields only**; optimistic cache update, on error rollback to the previous value plus an
+  error `Snackbar`.
+- Save indication is non-blocking: short highlight / «✓» on the field for ~1 s; no spinner over the list or accordion, and **no**
+  «Сохранить» button.
+- Collapsing with unsaved input must not lose the edit: send the pending change (equivalent to `blur`) first, then collapse.
+- Edits to «Компания», «Должность», «Статус», «Результат» and interview dates appear in the collapsed summary row immediately.
+
+### 7.4 Adding a record
+
+«+ Добавить» opens a `Dialog`: Ссылка на вакансию (first field), Компания*, Должность, Ссылка на резюме, Контакт, HR-собес, Тех-собес,
+Результат, Заметки. Status is not in the form (always `OPEN`); «Где собес» (`interviewUrl`) is not either — it is filled later in the
+expanded record (§7.2.2). On `onBlur` of the vacancy-link field — `POST /api/vacancies/preview` and autofill (§4.4). Buttons «Отмена» and
+«Добавить» (disabled while `Компания` is empty); on success the dialog closes, the list is invalidated, `Snackbar` «Вакансия добавлена».
+
+### 7.5 Deletion
+
+🗑 `IconButton` → confirmation `Dialog` naming the company and position → `DELETE`. No undo.
+
+### 7.6 Sync — single record
+
+🔄 in the summary row: `CircularProgress` size=16 replaces the icon and the button is disabled; on response the record updates and a
+`Snackbar` shows the `SyncOutcome` label (e.g. «Вакансия не найдена (снята)») — success for `OK`, info for `NOT_FOUND`/
+`SKIPPED_UNSUPPORTED`, error for `RATE_LIMITED`/`ERROR`. The click must not change expansion. Only sync columns go into the cache;
+`position` is among them (§4.3) but only on outcome `OK` and only when non-empty.
+
+### 7.7 Sync all open records
+
+- While «🔄 Обновить все открытые» runs: indeterminate `LinearProgress` under the `AppBar`, button disabled with the text «Обновляем…»;
+  the list stays viewable and editable. The button is disabled when no records are open.
+- On completion the list reloads and a summary appears in `Snackbar`/`Alert`, e.g. **«Проверено 12 · закрыто 1 · ошибок 0 · без
+  источника 2»**. If `items` contain `ERROR`/`RATE_LIMITED` — `Alert severity="warning"` with an expandable list of the problem records
+  (company + message).
+
+### 7.8 Other UI requirements
+
+- All labels, buttons and messages **in Russian**; date/time `DD.MM.YYYY HH:mm` (short `DD.MM HH:mm` in the summary row), browser local
+  timezone. `AppBar` counter «Открытых: N / M» (N — status `OPEN`, M — total).
+- Empty state: centered «Пока нет ни одной записи» + «+ Добавить». Loading: 3–5 `Skeleton`s the height of a collapsed accordion. Load
+  error: `Alert severity="error"` with «Повторить».
+- Density: `size="small"` on all fields and `Chip`s; base gap **8px** (`spacing(1)`), raised to 16px only for `AccordionDetails` inner
+  padding. Packing fields to 0–4px is forbidden. Dark theme, settings, export/import — not required.
+
+---
+
+### 7.9 Tabs and the «Вакансии» screen
+
+Two screens switched by MUI `Tabs` («Отклики», «Вакансии») under `AppHeader`, above the active tab's content.
+
+- **There is no router and none is to be added**; the active tab is plain `useState` in the shell and is not persisted (§12).
+- **`App.tsx` is a shell, not a screen**: filters, the application list, dialogs, notifications and the §7.2–§7.8 logic live in
+  `components/ApplicationsScreen/ApplicationsScreen.tsx`; `App.tsx` keeps `AppHeader`, `Tabs` and screen selection.
+- The inactive tab **unmounts**; unsaved edits are sent on `blur` (§7.3) first. The «Открытых: N / M» counter stays in `AppHeader` on both
+  tabs and refers to applications.
+
+#### 7.9.1 The «Вакансии» screen
+
+Filter bar: «🔎 Найти вакансии», «⚙ Настройки поиска», a search field, a «Скрытые» toggle; below it the `Alert` with run progress / last
+summary; below that the list.
+
+- **One vacancy = one `Accordion`**, same rules as §7.2: `disableGutters`, `elevation={1}`, the same `transition` slot props,
+  `AccordionSummary` as `component="div"`, `memo`, expansion via `useExpandedIds` and a `boolean` slice by id.
+- **Collapsed summary row:** publication date (`DD.MM`), position, company with the logo left of the name (`Avatar`, letter fallback,
+  §4.10, §7.2.1), short salary, `OpenInNew` (opens `vacancyUrl` in a new tab) and «Скрыть». Both buttons start with `stopPropagation()`,
+  otherwise the click toggles the accordion (§13.10.3).
+- **Expanded state — fields from the search results** (§4.11.3), in two rows: full salary (`от … до … ₽, до вычета`), region, required
+  experience, employment type, work format, full publication date, when the run first saw the vacancy, the model's reasons
+  (`aiTitleReason`, `aiDescriptionReason`) and matched keywords. Empty fields are omitted, not shown as dashes.
+- **The description is not shown** (§3.5): it is read on hh.ru via `↗`, so no external HTML reaches the frontend.
+- Salary formatting and the experience/employment/work-format labels (`REMOTE` → «Удалённо», `between3And6` → «3–6 лет», …) are
+  dictionaries in the frontend `constants/`, duplicated by hand from the backend like the status and result enums (§3.4).
+
+#### 7.9.2 The run and its progress
+
+- «🔎 Найти вакансии» sends `POST /api/vacancy-leads/scan` and **does not wait** (§4.11.9): `202` returns at once. While the run is active
+  the button is disabled and `GET …/scan/status` is polled every 2 s (`refetchInterval`, dropped once status is not `RUNNING`); polling
+  replaces WebSocket/SSE, which the project does not have (§12).
+- The same `Alert` shows progress and the final summary: during the run «страниц: 3, найдено: 2, отклонено моделью: 12» with
+  `LinearProgress`; afterwards the final counters (§4.11.11) and `stoppedReason` as human text.
+- Channels are separated as in §7.7: request failure → error-`Snackbar`; `stoppedReason = 'ERROR'` → `Alert severity="error"`; a
+  successful run → `success`, and `created === 0` → `info`.
+- On `RUNNING` → `DONE`/`ERROR` — **invalidate the leads list key entirely**, never merge records into the cache (§7.7).
+- `409` on the button is not an error: info-`Snackbar` «Поиск уже выполняется», polling starts as usual. Status is also polled on screen
+  mount, so a run started in another tab or before a reload is visible.
+
+#### 7.9.3 Hiding a vacancy
+
+🚫 sends `PATCH /api/vacancy-leads/:id` with `{ hidden: true }` and **optimistically** removes the record from the list cache; on error the
+record returns and an error-`Snackbar` appears. The «Скрытые» toggle switches the list to `hidden=only`, where records show «Вернуть»
+(`PATCH … { "hidden": false }`) instead of 🚫. There is no undo in the `Snackbar`.
+
+#### 7.9.4 Search settings
+
+«⚙ Настройки поиска» opens a `Dialog`:
+
+- **Строка поиска** (`searchText`) — substituted into `{text}` of the link (§4.11.1); below it a preview of the resulting first-page URL.
+  **Ключевые слова** and **стоп-слова** — comma-separated inputs (no `Chip` editor).
+- **Промпт для названия** and **промпт для описания** — multiline fields with a hint about the available placeholders (§4.12.2) and a
+  «Вернуть промпт по умолчанию» button. **«Использовать ИИ-отбор»** (`aiEnabled`): off means keyword screening and no description fetch.
+- Saving — `PUT /api/vacancy-search-settings` in full; validation errors (`400`, in particular a missing placeholder) are shown under the
+  corresponding field, not as a general notification. After saving — invalidate the settings key; a running run is unaffected (§5.7).
+
+## 8. Configuration (env)
+
+`.env` in the repo root (not committed), plus `.env.example` with the same keys and safe placeholders.
+
+| Variable                           | Req. | Example / default                          | Description                                                                                                  |
+| ---------------------------------- | ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `POSTGRES_USER`                    | yes  | `jobhunter`                                |                                                                                                              |
+| `POSTGRES_PASSWORD`                | yes  | `change-me`                                |                                                                                                              |
+| `POSTGRES_DB`                      | yes  | `jobhunter`                                |                                                                                                              |
+| `DATABASE_HOST`                    | yes  | `db`                                       | Compose service name                                                                                         |
+| `DATABASE_PORT`                    | no   | `5432`                                     |                                                                                                              |
+| `AUTH_USER`                        | yes  | `admin`                                    | Basic Auth login                                                                                             |
+| `AUTH_PASSWORD`                    | yes  | `admin`                                    | Basic Auth password; startup fails without it                                                                |
+| `HH_SITE_BASE_URL`                 | no   | `https://hh.ru`                            | Base of the hh.ru site serving the vacancy page                                                              |
+| `HH_USER_AGENT`                    | yes  | `job-hunter/1.0 (igor.ushakov@fastdev.se)` | hh.ru requires a meaningful User-Agent, else `400`                                                           |
+| `HH_REQUEST_TIMEOUT_MS`            | no   | `10000`                                    |                                                                                                              |
+| `HH_MAX_RETRIES`                   | no   | `2`                                        |                                                                                                              |
+| `GETMATCH_SITE_BASE_URL`           | no   | `https://getmatch.ru`                      | Base of the getmatch.ru site (§4.9)                                                                          |
+| `GETMATCH_USER_AGENT`              | no   | `job-hunter/1.0`                           | Optional unlike `HH_USER_AGENT`: getmatch.ru does not `403` a plain User-Agent (§4.9)                        |
+| `GETMATCH_REQUEST_TIMEOUT_MS`      | no   | `10000`                                    |                                                                                                              |
+| `GETMATCH_MAX_RETRIES`             | no   | `2`                                        |                                                                                                              |
+| `SYNC_CONCURRENCY`                 | no   | `3`                                        | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_CONCURRENCY`                                     |
+| `SYNC_MIN_DELAY_MS`                | no   | `200`                                      | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_MIN_DELAY_MS`                                    |
+| `SCHEDULED_SYNC_ENABLED`           | no   | `true`                                     | Scheduled sync of open records (§4.7). Only `true`/`false` allowed                                           |
+| `SCHEDULED_SYNC_INTERVAL_MS`       | no   | `1800000`                                  | Scheduled run interval, ms (30 min). Range 60000…86400000 (§4.7)                                             |
+| `COMPANY_LOGO_DIR`                 | no   | `os.tmpdir()/job-hunter-logos`             | Company-logo directory on disk (§4.10). In Docker — `/var/lib/job-hunter/logos` on named volume `logos`      |
+| `COMPANY_LOGO_REQUEST_TIMEOUT_MS`  | no   | `5000`                                     | Logo download timeout from the source CDN (§4.10), no retries                                                |
+| `HH_MAX_REQUESTS_PER_SECOND`       | no   | `2`                                        | Rate ceiling for **all** hh.ru requests: shared throttle (§4.11.2). Range 0.1…50                             |
+| `HH_SEARCH_URL_TEMPLATE`           | no   | `see §4.11.1`                              | hh.ru search-results URL template; placeholders {text} and {page} are mandatory, a missing one fails startup |
+| `VACANCY_SCAN_MAX_PAGES`           | no   | `10`                                       | Max search-results pages per run (§4.11.8). Range 1…40 — hh.ru itself cuts off at page 40                    |
+| `VACANCY_SCAN_MAX_DETAILS`         | no   | `60`                                       | Max opened vacancy pages (and model description scorings) per run                                            |
+| `VACANCY_SCAN_MAX_AGE_DAYS`        | no   | `30`                                       | Vacancies older than N days are skipped (§4.11.6)                                                            |
+| `VACANCY_SCAN_MAX_DURATION_MS`     | no   | `1800000`                                  | Hard run deadline — 30 min (§4.11.8)                                                                         |
+| `VACANCY_PREFILTER_MODE`           | no   | `exclude_only`                             | `exclude_only` / `full` / `off` — what is checked deterministically before AI (§4.11.4)                      |
+| `VACANCY_MATCH_MODE`               | no   | `any`                                      | `any` / `all` — keyword screening mode when AI is off or unavailable                                         |
+| `VACANCY_LEADS_LIST_LIMIT`         | no   | `500`                                      | Max records in the GET /api/vacancy-leads response (§5.7)                                                    |
+| `VACANCY_AI_PROVIDER`              | no   | `ollama`                                   | `ollama` / `openai` — model request protocol (§4.12.1)                                                       |
+| `VACANCY_AI_BASE_URL`              | no   | `http://ollama:11434`                      | Model address. For the openai provider — base URL of the compatible API                                      |
+| `VACANCY_AI_MODEL`                 | no   | `qwen3:4b-instruct`                        | Model name (§4.12.6). Changing model = this variable + ollama pull                                           |
+| `VACANCY_AI_API_KEY`               | no   | `—`                                        | Provider key; needed only with VACANCY_AI_PROVIDER=openai. Never logged                                      |
+| `VACANCY_AI_BATCH_SIZE`            | no   | `10`                                       | Titles per stage-1 request (§4.12). Descriptions go one at a time                                            |
+| `VACANCY_AI_TIMEOUT_MS`            | no   | `120000`                                   | Model request timeout; on failure keywords decide (§4.12.3)                                                  |
+| `VACANCY_AI_DESCRIPTION_MAX_CHARS` | no   | `6000`                                     | Description is truncated to this before being sent to the model (§4.11.7)                                    |
+| `API_PORT`                         | no   | `3000`                                     | Internal Nest port                                                                                           |
+| `WEB_PORT`                         | no   | `8080`                                     | Port published to the host                                                                                   |
+| `LOG_LEVEL`                        | no   | `log`                                      |                                                                                                              |
+| `DATABASE_PORT_HOST`               | no   | `5432`                                     | Port on which `db` is published on `127.0.0.1` (for e2e and the TypeORM CLI from the host)                   |
+| `TEST_DATABASE_HOST`               | no   | `127.0.0.1`                                | DB host for e2e tests run from the host                                                                      |
+| `TEST_DATABASE_NAME`               | no   | `jobhunter_test`                           | Separate e2e DB, recreated each run. Must differ from `POSTGRES_DB` and end with `_test`                     |
+
+Env is validated at startup via `@nestjs/config` + a schema (`class-validator` or `joi`). A missing
+required variable **must** crash the process with a clear message.
+
+Keywords, exclude keywords, the search query and both AI prompts are **not** in env: they live in the
+settings table (§3.6) and are edited in the frontend (§7.9.4). Env holds only infrastructure and limits.
+
+`VACANCY_AI_API_KEY` is validated conditionally — required only when `VACANCY_AI_PROVIDER=openai`.
 
 ---
 
 ## 9. Docker
 
-### 9.1 Сервисы `docker-compose.yml`
+### 9.1 `docker-compose.yml` services
 
 ```
 db:   postgres:16-alpine
       volume: pgdata:/var/lib/postgresql/data
       healthcheck: pg_isready
       ports: "127.0.0.1:${DATABASE_PORT_HOST:-5432}:5432"
-             только loopback — нужен для e2e-тестов и TypeORM CLI, запускаемых с хоста
-             (внутри compose-сети база доступна как db:5432)
+             loopback only — needed by e2e tests and the TypeORM CLI run from the host
+             (inside the compose network the DB is db:5432)
 
 api:  build: { context: ., dockerfile: backend/Dockerfile }
-      multi-stage deps → build → runtime на node:22-alpine
+      multi-stage deps → build → runtime on node:22-alpine
       depends_on: db (condition: service_healthy)
       CMD: npm run migration:run:dist && node dist/main.js
       healthcheck: wget /api/health + grep '"db":"up"'
-      порт на хост НЕ публикуется
+      port NOT published to the host
 
 web:  build: { context: ., dockerfile: frontend/Dockerfile }
-      multi-stage: node:22-alpine (сборка Vite) → nginx:alpine
+      multi-stage: node:22-alpine (Vite build) → nginx:alpine
       ports: "127.0.0.1:${WEB_PORT:-8080}:80"
       depends_on: api (condition: service_healthy)
       nginx: / → try_files ... /index.html;  /api/ → proxy_pass http://api:3000/api/
 
-ollama: image: ollama/ollama              # профиль compose `ai` (§4.12.4)
+ollama: image: ollama/ollama              # compose profile `ai` (§4.12.4)
         volume: ollama-models:/root/.ollama
         environment: OLLAMA_KEEP_ALIVE=5m
         ports: "127.0.0.1:${OLLAMA_PORT_HOST:-11434}:11434"
-               только loopback — нужен дев-режиму (dev:api работает на хосте
-               и имя ollama из compose-сети не резолвит) и диагностике curl'ом
-        deploy: reservations.devices nvidia/all/[gpu]  # убрать на машине без NVIDIA
-        profiles: [ai]                    # без --profile ai сервис не поднимается
+               loopback only — needed by dev mode (dev:api runs on the host and cannot
+               resolve the compose name ollama) and for curl diagnostics
+        deploy: reservations.devices nvidia/all/[gpu]  # remove on a non-NVIDIA machine
+        profiles: [ai]                    # without --profile ai the service is not started
 ```
 
-**Контекст сборки — корень монорепо**, а не папка воркспейса: Dockerfile'ам нужен корневой
-`package-lock.json` и `package.json` обоих воркспейсов, иначе `npm ci` не проходит валидацию
-lock-файла. Игнор-лист общий — `.dockerignore` в корне.
+**Build context is the monorepo root**, not the workspace folder: the Dockerfiles need the root
+`package-lock.json` and both workspace `package.json` files, otherwise `npm ci` fails lock validation.
+The ignore list is shared — `.dockerignore` in the root.
 
-### 9.2 Требования
+### 9.2 Requirements
 
-- `restart: unless-stopped` на всех сервисах.
-- Bind 127.0.0.1 для публикуемого порта: `127.0.0.1:${WEB_PORT}:80` — не выставлять приложение в LAN.
-- Миграции применяются автоматически при старте `api` (`npm run migration:run:dist && node dist/main.js`). Идемпотентно: без новых миграций TypeORM пишет `No migrations are pending`.
-- Рантайм-стадия `api` ставит зависимости **без** `--include-workspace-root`, иначе корневые devDependencies (typescript, eslint) попадают в образ даже при `--omit=dev`.
-- Данные переживают `docker compose down` (именованный volume) и теряются только при `down -v`.
-- Собранный фронт обращается к API по относительному пути `/api` — никаких хардкод-хостов и `VITE_API_URL` с localhost.
-- Dev-режим (опционально, отдельный `docker-compose.dev.yml` либо просто локальный запуск без Docker): `npm run start:dev` для Nest + `vite dev` с proxy `/api` → `http://localhost:3000`.
+- `restart: unless-stopped` on every service.
+- Published ports **must** bind 127.0.0.1 (`127.0.0.1:${WEB_PORT}:80`) — never expose the app to the LAN.
+- Migrations run automatically on `api` start (`npm run migration:run:dist && node dist/main.js`).
+  Idempotent: with no pending migrations TypeORM logs `No migrations are pending`.
+- The `api` runtime stage installs dependencies **without** `--include-workspace-root`, otherwise root
+  devDependencies (typescript, eslint) land in the image even with `--omit=dev`.
+- Data survives `docker compose down` (named volume) and is lost only on `down -v`.
+- The built frontend calls the API via the relative path `/api` — no hardcoded hosts, no localhost `VITE_API_URL`.
+- Dev mode (optional, a separate `docker-compose.dev.yml` or just a local non-Docker run):
+  `npm run start:dev` for Nest + `vite dev` proxying `/api` → `http://localhost:3000`.
 
 ---
 
-## 10. Код-конвенции (обязательны к соблюдению)
+## 10. Code conventions (mandatory)
 
-Проектные правила, применяемые ко **всем** файлам обоих приложений:
+Project rules applying to **all** files of both applications:
 
-1. **Пустые строки для читаемости.** После блока объявлений переменных (перед первым не-объявлением) и после каждой закрывающей скобки блока (`if`/`for`/`while`/`switch`/`try`/…) — пустая строка. Между подряд идущими объявлениями переменных пустые строки не нужны.
-2. **ESLint** в обоих приложениях с правилом (уже настроено, см. `eslint.shared.mjs`):
+1. **Blank lines for readability.** After a block of variable declarations (before the first
+   non-declaration) and after every closing brace of a block (`if`/`for`/`while`/`switch`/`try`/…).
+   Consecutive variable declarations need no blank lines between them.
+2. **ESLint** in both applications with the rule (already configured, see `eslint.shared.mjs`):
    ```js
    '@stylistic/padding-line-between-statements': ['error',
      { blankLine: 'always', prev: 'block-like', next: '*' },
@@ -1998,1071 +1398,267 @@ lock-файла. Игнор-лист общий — `.dockerignore` в корн�
      { blankLine: 'any',    prev: ['const','let','var'], next: ['const','let','var'] },
    ]
    ```
-   Префикс `@stylistic/` обязателен — ядровое правило deprecated (§2.4, п.2). Плюс
-   `tseslint.configs.recommendedTypeChecked` + `eslint-config-prettier` последним в цепочке.
-   Prettier пустые строки не расставляет, поэтому за это отвечает только ESLint.
-3. **Константы уровня модуля/глобальные** — только в выделенном `*.constants.ts` соответствующего модуля. Инлайн-объявление в имплементационном файле запрещено.
-4. **Типы** — в `*.type.ts`, **интерфейсы** — в `*.interfaces.ts` соответствующего модуля; файл-потребитель их импортирует. Правило распространяется на контроллеры, сервисы, модули, конфиги, компоненты, хуки — на всё. Единственное исключение: в spec-файле допустим инлайновый тип тестового мока, используемый только внутри этого spec.
-5. Никаких `any`. `unknown` + нарратив сужения там, где тип внешних данных неизвестен (ответ hh.ru — описать интерфейсом в `*.interfaces.ts` и провалидировать нужные поля).
-6. Git-коммиты **без** trailer `Co-Authored-By: Claude…` и без упоминаний процесса/лимитов/перерывов — только суть изменения.
+   The `@stylistic/` prefix is mandatory — the core rule is deprecated (§2.4, item 2). Plus
+   `tseslint.configs.recommendedTypeChecked` + `eslint-config-prettier` last in the chain.
+   Prettier never inserts blank lines, so only ESLint enforces this.
+3. **Module-level / global constants** — only in the module's dedicated `*.constants.ts`. Inline
+   declaration in an implementation file is forbidden.
+4. **Types** — in `*.type.ts`, **interfaces** — in `*.interfaces.ts` of the same module; the consumer
+   imports them. Applies to controllers, services, modules, configs, components, hooks — everything.
+   Sole exception: a spec file may declare inline the type of a test mock used only inside that spec.
+5. No `any`. Use `unknown` plus explicit narrowing where the type of external data is unknown (the
+   hh.ru response — describe it in `*.interfaces.ts` and validate the fields you need).
+6. Git commits **without** the `Co-Authored-By: Claude…` trailer and without mentions of process,
+   limits or breaks — the substance of the change only.
+
+Comments, log messages and error strings in this codebase are written in **Russian**, like the rest of
+the code; a comment explains _why_, not _what_.
 
 ---
 
-## 11. Структура репозитория
+## 11. Repository structure
 
-Монорепо на **npm workspaces** (`backend`, `frontend`) — без turbo/nx/lerna, один
-`package-lock.json` в корне. ✅ = уже создано и проверено, ⬜ = предстоит разработать.
+Monorepo on **npm workspaces** (`backend`, `frontend`) — no turbo/nx/lerna, one root
+`package-lock.json`. ✅ = built and verified, ⬜ = still to do.
 
 ```
 job-hunter/
-├─ SPECIFICATION.md              ✅
-├─ README.md                     ✅ запуск, миграции, обоснование выбора версий
-├─ package.json                  ✅ workspaces + общий тулинг в devDependencies
-├─ package-lock.json             ✅
-├─ .env.example                  ✅
-├─ .gitignore  .dockerignore     ✅
-├─ .prettierrc.json              ✅ один общий на монорепо
-├─ eslint.shared.mjs             ✅ PADDING_LINE_RULES для обоих воркспейсов
+├─ SPECIFICATION.md  CHANGELOG.md  README.md  package.json  package-lock.json   ✅
+├─ .env.example  .gitignore  .dockerignore  .prettierrc.json      ✅ one Prettier config for the monorepo
+├─ eslint.shared.mjs             ✅ PADDING_LINE_RULES for both workspaces
 ├─ docker-compose.yml            ✅ db + api + web
 ├─ backend/
 │  ├─ Dockerfile                 ✅ deps → build → runtime
-│  ├─ package.json               ✅ + скрипты migration:*
-│  ├─ tsconfig.json              ✅ tsconfig.build.json ✅ eslint.config.mjs ✅ jest.config.js ✅
+│  ├─ package.json               ✅ + migration:* scripts
+│  ├─ tsconfig.json  tsconfig.build.json  eslint.config.mjs  jest.config.js  ✅
 │  ├─ test/                      ✅ jest-e2e.json, test.constants.ts, e2e.interfaces.ts,
 │  │                             ✅ test-environment.ts, e2e-setup.ts, e2e-global-setup.ts,
 │  │                             ✅ e2e-app.factory.ts, applications.fixtures.ts,
-│  │                             ✅ applications.e2e-spec.ts, vacancy-stub.server.ts
-│  │                             ✅ (обобщённая заглушка, запускается на два порта —
-│  │                             ✅ по одному на hh.ru и getmatch.ru), hh.fixtures.ts
-│  │                             ✅ (строит минимальную HTML-страницу вакансии hh.ru),
-│  │                             ✅ getmatch.fixtures.ts (строит flight-payload getmatch.ru,
-│  │                             ✅ разрезанный по границе чанков), vacancy-preview.e2e-spec.ts
+│  │                             ✅ applications.e2e-spec.ts, vacancy-preview.e2e-spec.ts,
+│  │                             ✅ vacancy-stub.server.ts (shared stub, one port per source),
+│  │                             ✅ hh.fixtures.ts, getmatch.fixtures.ts
 │  └─ src/
-│     ├─ main.ts                 ✅ порт + shutdown hooks; настройка — в app.setup.ts
-│     ├─ app.module.ts           ✅ app.constants.ts ✅ app.setup.ts ✅ (configureApp)
+│     ├─ main.ts                 ✅ port + shutdown hooks; setup lives in app.setup.ts
+│     ├─ app.module.ts  app.constants.ts  app.setup.ts  ✅ (configureApp)
 │     ├─ config/                 ✅ config.constants.ts, environment.validation.ts
 │     ├─ auth/                   ✅ basic-auth.guard.ts, auth.constants.ts,
 │     │                          ✅ auth.decorators.ts (@Public), auth.interfaces.ts
 │     ├─ common/                 ✅ common.constants.ts, common.interfaces.ts,
-│     │                          ✅ validation.decorators.ts, string.transforms.ts
+│     │                          ✅ validation.decorators.ts, string.transforms.ts,
 │     │                          ✅ http-exception.filter.ts, async.helpers.ts
 │     ├─ database/               ✅ database.module.ts, data-source.ts,
 │     │                          ✅ typeorm-options.factory.ts, database.constants.ts
 │     │  └─ migrations/          ✅ <ts>-CreateApplicationsTable.ts,
 │     │                          ✅ <ts>-AddApplicationInterviewUrl.ts,
-│     │                          ✅ <ts>-GeneralizeVacancySource.ts (§4.8, шаг 15)
+│     │                          ✅ <ts>-GeneralizeVacancySource.ts (§4.8, step 15)
 │     ├─ health/                 ✅ controller, service, constants, type, interfaces
-│     ├─ scheduler/              ✅ scheduler.module.ts (единственный ScheduleModule.forRoot),
+│     ├─ scheduler/              ✅ scheduler.module.ts (the only ScheduleModule.forRoot),
 │     │                          ✅ scheduled-sync.service.ts (§4.7), scheduler.constants.ts
 │     ├─ applications/           ✅
-│     │  ├─ applications.module.ts       # импортирует VacanciesModule, не HhModule
+│     │  ├─ applications.module.ts       # imports VacanciesModule, not HhModule
 │     │  ├─ applications.controller.ts
-│     │  ├─ applications.service.ts      # инжектит VacancyProviderRegistry
+│     │  ├─ applications.service.ts      # injects VacancyProviderRegistry
 │     │  ├─ application.entity.ts
-│     │  ├─ applications.constants.ts   # + enum SyncOutcome (§4.5), VacancySource (§4.8)
-│     │  ├─ applications.type.ts
-│     │  ├─ applications.interfaces.ts
+│     │  ├─ applications.constants.ts    # + enum SyncOutcome (§4.5), VacancySource (§4.8)
+│     │  ├─ applications.type.ts  applications.interfaces.ts
 │     │  └─ dto/                 ✅ create-application.dto.ts, update-application.dto.ts,
-│     │                          ✅ find-applications.query.dto.ts, application.dto.ts
+│     │                          ✅ find-applications.query.dto.ts, application.dto.ts,
 │     │                          ✅ sync-result.dto.ts, sync-summary.dto.ts
-│     ├─ vacancies/              ✅ контракт провайдера, реестр, правила §4.3, массовый
-│     │  │                       ✅ прогон и preview — общие для всех источников (§4.8)
-│     │  ├─ vacancies.module.ts          # импортирует HhModule и GetmatchModule
+│     ├─ vacancies/              ✅ provider contract, registry, §4.3 rules, bulk run and
+│     │  │                       ✅ preview — shared by all sources (§4.8)
+│     │  ├─ vacancies.module.ts          # imports HhModule and GetmatchModule
 │     │  ├─ vacancies.controller.ts      # POST /api/vacancies/preview
-│     │  ├─ vacancy-provider.registry.ts # единственная точка диспетчеризации по source
-│     │  ├─ vacancy-sync.service.ts      # применение правил §4.3, массовый прогон (§4.6)
-│     │  ├─ vacancy-url.helpers.ts       # normalizeVacancyUrl — общая нормализация ссылки
+│     │  ├─ vacancy-provider.registry.ts # single dispatch point by source
+│     │  ├─ vacancy-sync.service.ts      # §4.3 rules, bulk run (§4.6)
+│     │  ├─ vacancy-url.helpers.ts       # normalizeVacancyUrl
 │     │  ├─ vacancy-retry.helpers.ts     # fetchWithRetries, describeTransportError
 │     │  ├─ vacancy-http-options.factory.ts
-│     │  ├─ vacancies.constants.ts
-│     │  ├─ vacancies.type.ts
-│     │  ├─ vacancies.interfaces.ts
+│     │  ├─ vacancies.constants.ts  vacancies.type.ts  vacancies.interfaces.ts
 │     │  └─ dto/                 ✅ preview-vacancy.dto.ts, vacancy-preview.dto.ts
-│     ├─ hh/                     ✅ реализация VacancySourceProvider для hh.ru — только
-│     │  │                       ✅ HTTP-клиент, разбор страницы и per-source env/тексты
-│     │  ├─ hh.module.ts                 # без контроллера и TypeOrmModule.forFeature
+│     ├─ hh/                     ✅ VacancySourceProvider for hh.ru — HTTP client, page
+│     │  │                       ✅ parsing and per-source env/texts only
+│     │  ├─ hh.module.ts                 # no controller, no TypeOrmModule.forFeature
 │     │  ├─ hh-api.service.ts            ✅ implements VacancySourceProvider (+ .spec.ts)
-│     │  ├─ hh-page.parser.ts            ✅ разбор HTML-страницы: JSON-LD + токены archived
-│     │  ├─ hh-http-options.factory.ts   ✅ тонкая обёртка над buildVacancyHttpOptions
-│     │  ├─ hh-url.parser.ts             ✅ извлечение vacancy_id (+ .spec.ts)
-│     │  └─ hh.constants.ts              ✅ per-source литералы (§4.1, §4.2)
-│     └─ getmatch/               ✅ реализация VacancySourceProvider для getmatch.ru (§4.9)
-│        ├─ getmatch.module.ts
-│        ├─ getmatch-api.service.ts      ✅ implements VacancySourceProvider
-│        ├─ getmatch-page.parser.ts      ✅ разбор flight-payload: initialVacancy
-│        ├─ getmatch-url.parser.ts       ✅ извлечение id вакансии
+│     │  ├─ hh-page.parser.ts            ✅ HTML page: JSON-LD + archived tokens
+│     │  ├─ hh-http-options.factory.ts   ✅ thin wrapper over buildVacancyHttpOptions
+│     │  ├─ hh-url.parser.ts             ✅ vacancy_id extraction (+ .spec.ts)
+│     │  └─ hh.constants.ts              ✅ per-source literals (§4.1, §4.2)
+│     └─ getmatch/               ✅ VacancySourceProvider for getmatch.ru (§4.9)
+│        ├─ getmatch.module.ts  getmatch-api.service.ts
+│        ├─ getmatch-page.parser.ts      ✅ flight-payload: initialVacancy
+│        ├─ getmatch-url.parser.ts       ✅ vacancy id extraction
 │        ├─ getmatch-http-options.factory.ts
-│        ├─ getmatch.constants.ts
-│        ├─ getmatch.type.ts
-│        └─ getmatch.interfaces.ts
+│        └─ getmatch.constants.ts  getmatch.type.ts  getmatch.interfaces.ts
 └─ frontend/
-   ├─ Dockerfile  nginx.conf      ✅
-   ├─ index.html                  ✅
-   ├─ package.json  tsconfig.json ✅
-   ├─ vite.config.ts              ✅ + vite.constants.ts (константы вынесены по §10 п.3)
-   ├─ eslint.config.mjs           ✅
+   ├─ Dockerfile  nginx.conf  index.html  package.json  tsconfig.json  eslint.config.mjs  ✅
+   ├─ vite.config.ts              ✅ + vite.constants.ts (constants extracted per §10 item 3)
    └─ src/
       ├─ main.tsx                 ✅ ThemeProvider + LocalizationProvider(ru) + QueryClientProvider
-      ├─ App.tsx                  ✅ экран списка: фильтры, дебаунс поиска, раскрытость
-      ├─ theme.ts                 ✅ size="small" по умолчанию
-      ├─ vite-env.d.ts            ✅  test/setup.ts ✅
+      ├─ App.tsx                  ✅ list screen: filters, debounced search, expansion
+      ├─ theme.ts                 ✅ size="small" by default
+      ├─ vite-env.d.ts  test/setup.ts  ✅
       ├─ api/                     ✅ client.ts, applications.api.ts, hh.api.ts
       ├─ types/                   ✅ application.type.ts, application.interfaces.ts,
-      │                           ✅ sync.type.ts, sync.interfaces.ts,
-      │                           ✅ api.interfaces.ts, hh.interfaces.ts,
-      │                           ✅ notification.type.ts, notification.interfaces.ts
-      ├─ constants/               ✅ api.constants.ts, query.constants.ts,
-      │                           ✅ theme.constants.ts, layout.constants.ts (зазоры, flex-basis, 48h)
-      │                           ✅ application.constants.ts (enum + ru-подписи)
-      │                           ✅ sync.constants.ts (подписи §7.6/§7.7 + карта severity)
+      │                           ✅ sync.type.ts, sync.interfaces.ts, api.interfaces.ts,
+      │                           ✅ hh.interfaces.ts, notification.type.ts, notification.interfaces.ts
+      ├─ constants/               ✅ api.constants.ts, query.constants.ts, theme.constants.ts,
+      │                           ✅ layout.constants.ts (gaps, flex-basis, 48h),
+      │                           ✅ application.constants.ts (enums + ru labels),
+      │                           ✅ sync.constants.ts (§7.6/§7.7 labels + severity map),
       │                           ✅ notification.constants.ts, pickers.constants.ts, url.constants.ts
       ├─ utils/                   ✅ date.utils.ts, application.utils.ts, sync.utils.ts,
       │                           ✅ applications-cache.utils.ts, url.utils.ts, error.utils.ts
       ├─ hooks/                   ✅ useApplications.ts, useExpandedIds.ts
-      │                           ✅ (+ use-expanded-ids.interfaces.ts), useDebouncedValue.ts
+      │                           ✅ (+ use-expanded-ids.interfaces.ts), useDebouncedValue.ts,
       │                           ✅ useUpdateApplication.ts, useCreateApplication.ts,
       │                           ✅ useDeleteApplication.ts, useSyncApplication.ts,
       │                           ✅ useSyncAllOpen.ts, useHhPreview.ts,
       │                           ✅ useInlineEdits.ts, useNotification.ts
       └─ components/              ✅ AppHeader.tsx, FilterBar.tsx, ApplicationsList.tsx,
                                   ✅ ApplicationAccordion.tsx, ApplicationSummaryRow.tsx,
-                                  ✅ SyncStatusIcon.tsx, EmptyState.tsx (+ парные *.interfaces.ts)
+                                  ✅ SyncStatusIcon.tsx, EmptyState.tsx (+ paired *.interfaces.ts),
                                   ✅ ApplicationFields.tsx, CreateApplicationDialog.tsx,
                                   ✅ ConfirmDeleteDialog.tsx, UrlField.tsx, FieldCell.tsx,
                                   ✅ SyncSummaryAlert.tsx, NotificationSnackbar.tsx
 ```
 
-`useAutosaveField.ts` из исходного дерева так и не появился: его роль целиком закрыл
-`useInlineEdits.ts` — черновики всего списка обязаны жить в одном месте (§14 шаг 8),
-а хук «на одно поле» держал бы состояние внутри компонента полей.
+`useAutosaveField.ts` never appeared: `useInlineEdits.ts` covers its role entirely — drafts for the
+whole list must live in one place (§14 step 8).
 
-Каталог `src/utils/` в исходном дереве не значился — добавлен на шаге 7. Чистые хелперы
-форматирования дат и выборки ближайшего собеседования не являются ни компонентом, ни хуком,
-ни api-функцией, а прятать их внутрь компонента нельзя: шаги 8 и 10 их переиспользуют.
+`src/utils/` was not in the original tree — added at step 7: pure date-formatting and
+nearest-interview helpers are neither component, hook nor api function, and steps 8 and 10 reuse them.
 
-Каркас шага 1 (`BackendStatus.tsx`, `api/health.api.ts`, `types/health.*`) удалён вместе
-с приходом настоящего списка: §7.1 описывает содержимое `AppBar` исчерпывающе, индикатора
-здоровья там нет. Сам эндпоинт `GET /api/health` на бэкенде остаётся — он нужен
-docker-healthcheck (§5.4); убран только фронтовый зонд.
+The step-1 scaffolding (`BackendStatus.tsx`, `api/health.api.ts`, `types/health.*`) was deleted with
+the arrival of the real list: §7.1 describes the `AppBar` exhaustively and has no health indicator.
+The backend `GET /api/health` endpoint stays — the docker healthcheck needs it (§5.4).
 
-Enum'ы `SyncOutcome` (§4.5) и `VacancySource` (§4.8) объявлены в
-`applications/applications.constants.ts`, а не в `vacancies/`/`hh/`/`getmatch/`: колонки
-`last_sync_outcome` и `vacancy_source` принадлежат таблице `applications`, а файловая
-зависимость (импорт констант) идёт `vacancies`/`hh`/`getmatch` → `applications`. Определение
-в любом из трёх нижних модулей дало бы циклическую зависимость.
+Enums `SyncOutcome` (§4.5) and `VacancySource` (§4.8) are declared in
+`applications/applications.constants.ts`, not in `vacancies/`/`hh/`/`getmatch/`: columns
+`last_sync_outcome` and `vacancy_source` belong to the `applications` table, and the import direction
+is `vacancies`/`hh`/`getmatch` → `applications`. Declaring them lower would create a dependency cycle.
 
-`layout.constants.ts` уже содержит значения из §7.2: `FIELD_GAP`, `ACCORDION_GAP`,
-`SUMMARY_COMPANY_WIDTH_PX`, карту `FIELD_FLEX` со всеми flex-basis, частичную карту
-`FIELD_MAX_WIDTH` (потолок ширины у резиновых полей) и `UPCOMING_INTERVIEW_HIGHLIGHT_HOURS`.
-Брать значения оттуда, а не хардкодить в JSX.
+`layout.constants.ts` already holds the §7.2 values: `FIELD_GAP`, `ACCORDION_GAP`,
+`SUMMARY_COMPANY_WIDTH_PX`, the `FIELD_FLEX` map with all flex-basis values, the partial
+`FIELD_MAX_WIDTH` map (width ceiling for fluid fields) and `UPCOMING_INTERVIEW_HIGHLIGHT_HOURS`.
+Take values from there, never hardcode them in JSX.
 
 ---
 
-## 12. Вне скоупа (не делать)
+## 12. Out of scope (do not build)
 
-- OAuth-авторизация в hh.ru, endpoint `/negotiations`, чтение статусов моих откликов, автозаполнение поля `result`.
-- Интеграции с job-бордами, кроме hh.ru и getmatch.ru (LinkedIn, Habr Career, …).
-- Загрузка и хранение файлов резюме (только URL-строка). Исключение — кеш логотипов
-  компаний на диске (§4.10): это служебный побочный продукт синхронизации, а не
-  пользовательское вложение, и пользователь его не загружает и не видит напрямую.
-- Очереди, воркеры, системный cron и отдельный контейнер-планировщик, WebSocket/SSE.
-  Синхронизация по расписанию есть (§4.7), но живёт внутри процесса `api` на
-  `@nestjs/schedule`; эндпоинта статуса расписания, его отображения в UI и
-  пуш-уведомлений о результатах прогона нет.
-- Уведомления: email, telegram, push, напоминания о собеседованиях.
-- Многопользовательность, регистрация, роли, JWT/сессии/OAuth-логин в само приложение.
-- Пагинация, виртуализация списка, bulk-редактирование, drag-n-drop, kanban-вид, табличный (`DataGrid`) вид как альтернатива аккордеонам.
-- Аналитика, графики, дашборды, воронка отказов.
-- Экспорт/импорт CSV/Excel, синхронизация с Google Sheets/Notion.
-- История изменений записи, audit log, soft delete, корзина, undo.
-- Мобильная адаптация, PWA, тёмная тема, настраиваемый пользователем набор/порядок полей, сохранение состояния раскрытых аккордеонов между сессиями.
-- Деплой в облако, CI/CD, Kubernetes, HTTPS/сертификаты, reverse-proxy наружу.
-- Кастомные словари статусов/результатов, редактируемые пользователем.
-- Прикрепление вложений, тегов, приоритетов, зарплатных вилок.
-- Эмуляция браузера, headless-браузер, обход анти-бот проверок и ddos-guard, cookie-сессии
-  hh.ru; извлечение со страницы вакансии зарплаты, навыков, требований, адреса; хранение
-  HTML-дампов страниц.
+- hh.ru OAuth, `/negotiations`, reading my own application statuses, auto-filling `result`.
+- Job boards other than hh.ru and getmatch.ru (LinkedIn, Habr Career, …).
+- Uploading/storing résumé files (URL string only). Exception: the on-disk company-logo cache (§4.10)
+  — a by-product of sync, not a user attachment.
+- Queues, workers, system cron, a scheduler container, WebSocket/SSE. Scheduled sync exists (§4.7) but
+  runs inside `api` on `@nestjs/schedule`; no schedule-status endpoint, no UI for it, no push results.
+- Notifications: email, telegram, push, interview reminders. Multi-user, registration, roles,
+  JWT/sessions/OAuth login into the app.
+- Pagination, list virtualization, bulk editing, drag-n-drop, kanban, a `DataGrid` view instead of
+  accordions. Analytics, charts, dashboards, rejection funnels.
+- CSV/Excel export/import, Google Sheets/Notion sync. Change history, audit log, soft delete, trash, undo.
+- Mobile layout, PWA, dark theme, user-configurable field set/order, persisting expanded state
+  between sessions. Cloud deploy, CI/CD, Kubernetes, HTTPS/certificates, an outward reverse proxy.
+- User-editable status/result dictionaries; attachments, tags, priorities, salary ranges.
+- Browser emulation, headless browser, anti-bot/ddos-guard bypass, hh.ru cookie sessions; extracting
+  salary/skills/requirements/address from a vacancy page; storing HTML dumps.
 
-**Уточнения по поиску вакансий (§4.11, §4.12) — что разрешено, а что нет:**
+**Vacancy-search clarifications (§4.11, §4.12):**
 
-- **Разрешено** (изменение прежней формулировки выше): разбор страницы **выдачи** hh.ru
-  и чтение поля `description` из JSON-LD `JobPosting` страницы вакансии — но только как
-  вход для ИИ-отбора (§4.11.7). В БД описание не сохраняется и на фронт не отдаётся.
-  Синхронизация откликов (§4.3) описание по-прежнему не читает.
-- **Вне скоупа:** авторизация в hh.ru ради работающего параметра `resume=` — cookie-сессия,
-  OAuth, headless-браузер, решение капчи, ротация прокси и User-Agent'ов, любые обходы
-  ограничения частоты (§4.11.1, решение принято пользователем).
-- **Вне скоупа:** очереди, брокеры, воркеры и отдельный контейнер под прогон поиска.
-  Асинхронность прогона (§4.11.9) сделана флагом в памяти процесса плюс поллингом статуса;
-  WebSocket/SSE по-прежнему нет.
-- **Вне скоупа:** автоматический запуск поиска — по расписанию, при старте процесса, по
-  событию. Только кнопка на фронте (§4.11.10). Признано возможной будущей задачей, но
-  ни кода, ни env-переменных, ни «выключенного по умолчанию» интервала в этом шаге нет.
-- **Вне скоупа:** удаление лида, пометки «прочитано», избранное, теги, приоритеты; создание
-  отклика из списка вакансий одной кнопкой; автоотклик. Скрытие (§7.9.3) — единственное
-  пользовательское действие над лидом.
-- **Вне скоупа:** поиск на getmatch.ru (§4.9 остаётся источником данных по конкретной
-  вакансии), несколько сохранённых поисковых запросов одновременно, пагинация и
-  виртуализация списка вакансий, уведомления о новых найденных вакансиях, история прогонов
-  в БД.
-- **Вне скоупа ИИ:** пересказ описания, оценка «на сколько процентов подхожу», генерация
-  сопроводительного письма, дообучение и эмбеддинг-индекс. Модель отвечает только «да/нет
-  плюс краткое обоснование» на двух этапах (§4.12).
+- **Allowed** (amends the above): parsing the hh.ru search results page and reading `description` from
+  the vacancy page's JSON-LD `JobPosting`, but only as input to AI screening (§4.11.7) — never stored
+  in the DB, never returned to the frontend. Application sync (§4.3) still does not read it.
+- **Out of scope:** logging into hh.ru to make `resume=` work — cookie session, OAuth, headless
+  browser, captcha solving, proxy/User-Agent rotation, any rate-limit circumvention (§4.11.1).
+- **Out of scope:** queues, brokers, workers, a separate container for the run. Run asynchrony
+  (§4.11.9) is an in-process flag plus status polling; still no WebSocket/SSE.
+- **Out of scope:** starting a search automatically (schedule, process start, event). Frontend button
+  only (§4.11.10) — no code, env vars, or "disabled by default" interval.
+- **Out of scope:** deleting a lead, read marks, favorites, tags, priorities; creating an application
+  from the list in one click; auto-apply. Hiding (§7.9.3) is the only user action on a lead.
+- **Out of scope:** search on getmatch.ru (§4.9 stays the per-vacancy data source), several saved
+  queries at once, pagination/virtualization of the vacancy list, new-vacancy notifications, run
+  history in the DB.
+- **Out of scope for AI:** summarizing the description, percent-match scoring, cover-letter
+  generation, fine-tuning, embedding indexes. The model answers only "yes/no + short justification"
+  at the two stages (§4.12).
 
 ---
 
-## 13. Критерии приёмки
+## 13. Acceptance criteria
 
-Считается сделанным, когда все пункты воспроизводимы на чистой машине.
+Done when every item is reproducible on a clean machine.
 
-**Запуск и инфраструктура**
+**Startup and infrastructure** 1. `cp .env.example .env`, `docker compose up -d` → within ≤2 min
+`http://127.0.0.1:8080` shows the empty state; default creds `admin` / `admin` from `.env.example`. 2. Browser asks for Basic Auth; a wrong password grants no data access; `GET /api/health` needs none. 3. `api` with empty `AUTH_PASSWORD` crashes with a clear log message; defaults live only in
+`.env.example`. 4. `docker compose down && up -d` → all records survive.
 
-1. `cp .env.example .env`, `docker compose up -d` → через ≤2 минуты `http://127.0.0.1:8080` открывается и показывает пустое состояние. Креды по умолчанию — `admin` / `admin` из `.env.example`; менять их не обязательно, но можно.
-2. Браузер запрашивает Basic Auth; неверный пароль не даёт доступ к данным; `GET /api/health` отвечает без авторизации.
-3. Старт `api` с пустым `AUTH_PASSWORD` в env — падение с внятным сообщением в логах, а не запуск открытого инстанса. Дефолты живут только в `.env.example`, в коде их нет.
-4. `docker compose down && docker compose up -d` → все записи на месте.
+**CRUD** 5. «+ Добавить» with only the company creates `status = OPEN`, `result = IN_PROGRESS`, on top
+of the list **expanded**. 6. Any field edit saves without a «Сохранить» press and survives `F5`. 7. A network error on autosave rolls the value back and shows a `Snackbar`. 8. Clearing a
+`DateTimePicker` writes `null`. 9. Deletion requires confirmation. 10. Filters «Все / Открытые /
+Закрытые», search by company/position/notes, and sorting by four fields work.
 
-**CRUD** 5. «+ Добавить» с заполненной только компанией создаёт запись со `status = OPEN`, `result = IN_PROGRESS`; она появляется сверху списка **раскрытой**. 6. Изменение любого поля в аккордеоне сохраняется без нажатия «Сохранить»; после `F5` значение на месте. 7. Ошибка сети при автосейве откатывает значение в UI и показывает `Snackbar`. 8. Очистка `DateTimePicker` записывает `null`; после перезагрузки поле пустое. 9. Удаление требует подтверждения и убирает аккордеон из списка. 10. Фильтры «Все / Открытые / Закрытые», поиск по компании/должности/заметкам и сортировка по четырём полям работают.
+**List layout (§7.2)**
+10.1. Each vacancy is its own full-width `Accordion`; no `Table`/`DataGrid` in the code.
+10.2. All collapsed on load; a summary-row click toggles only its own; several may be expanded.
+10.3. Clicking 🔄 or 🗑 in the summary row **must not** change expanded state.
+10.4. At 1920×1080 at least **12** collapsed vacancies fit at once.
+10.5. At ≥1600px expanded rows 1 (company, position, vacancy URL, résumé URL, status, result, HR
+interview, tech interview) and 2 (§7.2.2) each take one line; narrowing wraps fields, no horizontal
+page scroll.
+10.6. Gap between fields and accordions is 8px; no numeric size literals in JSX (only `spacing` /
+`layout.constants.ts`).
+10.7. Editing a field then collapsing the accordion saves the edit.
+10.8. Company/position/status/result changes show immediately in the collapsed summary row.
+10.9. «Где собес» autosaves (§7.3), `OpenInNew` opens the link in a new tab, value survives `F5`,
+clearing writes `null`.
 
-**Вёрстка списка (§7.2)**
-10.1. Каждая вакансия — отдельный `Accordion` на 100% ширины контейнера; таблиц (`Table`/`DataGrid`) в коде нет.
-10.2. При загрузке страницы все аккордеоны свёрнуты; клик по шапке раскрывает/сворачивает только свой; несколько могут быть раскрыты одновременно.
-10.3. Клик по 🔄 и 🗑 в шапке **не** меняет раскрытость аккордеона.
-10.4. На экране 1920×1080 в свёрнутом виде одновременно помещается не менее **12** вакансий.
-10.5. На экране ≥1600px раскрытые ряды 1 (восемь полей: компания, должность, ссылка на вакансию, ссылка на резюме, статус, результат, HR-собес, тех-собес) и 2 (§7.2.2) занимают по одной строке каждый; при сужении окна поля переносятся, горизонтальный скролл страницы не появляется.
-10.6. Зазор между полями и между аккордеонами — 8px; в JSX нет числовых литералов размеров (только `spacing`/константы из `layout.constants.ts`).
-10.7. Правка поля с последующим сворачиванием аккордеона (без потери фокуса иным путём) сохраняется, а не теряется.
-10.8. Изменение компании/должности/статуса/результата сразу видно в свёрнутой шапке.
-10.9. Поле «Где собес» редактируется с автосейвом (§7.3), кнопка `OpenInNew` открывает ссылку в новой вкладке, значение переживает `F5`, очистка пишет `null`.
+**hh.ru** 11. Pasting `https://hh.ru/vacancy/{id}` of a live vacancy in the create form auto-fills
+company and position without overwriting hand-typed values. 12. 🔄 on a live vacancy: `outcome = OK`,
+`status` stays `OPEN`, tooltip shows the time. 13. 🔄 on withdrawn (`archived = true`) or deleted
+(404): `status` → `CLOSED`, summary row dims, `result` **unchanged**. 14. 🔄 with no recognized source
+(§4.2) or no URL: `outcome = SKIPPED_UNSUPPORTED`, record unchanged, info notification. 15. «Обновить
+все открытые» processes only `OPEN` records, shows progress and a correct summary; one failure does
+not abort the rest. 16. No hh.ru request without `User-Agent`; on 429 a backoff retry, then
+`outcome = RATE_LIMITED`.
 
-**hh.ru** 11. В форме создания вставка `https://hh.ru/vacancy/{id}` действующей вакансии автоподставляет компанию и должность; уже введённые вручную значения не перетираются. 12. 🔄 на записи с действующей вакансией: `outcome = OK`, `status` остаётся `OPEN`, в tooltip иконки синхронизации появляется время. 13. 🔄 на записи со снятой вакансией (`archived = true`) или удалённой (404): `status` становится `CLOSED`, шапка приглушается, поле `result` **не меняется**. 14. 🔄 на записи без распознаваемого источника (ни hh.ru, ни getmatch.ru, §4.2) или без ссылки: `outcome = SKIPPED_UNSUPPORTED`, запись не изменяется, показывается info-уведомление. 15. «Обновить все открытые» обрабатывает только `OPEN`-записи, показывает прогресс и корректную сводку; одна упавшая запись не срывает остальные. 16. Ни один запрос к hh.ru не уходит без заголовка `User-Agent`; при 429 виден ретрай с backoff, затем `outcome = RATE_LIMITED`.
+**Code quality** 17. `npm run lint` in `backend/` and `frontend/` — 0 errors, with
+`padding-line-between-statements` on. 18. `npm run build` (tsc) — no errors, no `any`. 19. No inline
+type/interface or module-constant declarations in implementation files (exception: spec mocks). 20. `hh-url.parser` unit tests cover every §4.2 case (getmatch.ru URL → `null`); e2e cover CRUD and
+`POST /api/vacancies/preview` for both sources against local stubs. _`vacancy-sync.service` tests, e2e
+for `POST /:id/sync` / `POST /sync-open`, and all frontend tests are **deferred by user decision** (no
+new spec files) — not §13 criteria; frontend `npm run test` passes via `--passWithNoTests`._ 21. TypeORM `synchronize` off; schema from migrations only; re-running migrations is idempotent.
 
-**Качество кода** 17. `npm run lint` в `backend/` и `frontend/` — 0 ошибок; правило `padding-line-between-statements` включено и соблюдено. 18. `npm run build` (tsc) в обоих приложениях — без ошибок; в коде нет `any`. 19. Нет инлайновых объявлений типов/интерфейсов и модульных констант в имплементационных файлах (исключение — тестовые моки в spec). 20. Unit-тесты `hh-url.parser` покрывают все кейсы §4.2 (включая ссылку на getmatch.ru → `null`); e2e покрывают CRUD и `POST /api/vacancies/preview` для обоих источников (hh.ru и getmatch.ru) с локальными заглушками. _Тесты `vacancy-sync.service` (правила §4.3, включая «не открывать заново вручную закрытую») и e2e на `POST /:id/sync` / `POST /sync-open` — **отложены по решению пользователя** (новые spec-файлы не заводим), см. отметку к шагу 6 в §14; критерием приёмки они не считаются, пока это решение в силе. Фронтовые тесты критериями §13 не являются: п. 20 перечисляет только бэкендовые. Соответственно и запись §2 «Vitest 4 + React Testing Library — покрыть форму создания и автосейв» приостановлена тем же решением пользователя (новые spec-файлы в проекте не заводим): начиная с шага 7 компонентных и хук-тестов нет, `npm run test` во фронте проходит за счёт `--passWithNoTests`. Вернуть покрытие — отдельным решением._ 21. `synchronize` в TypeORM выключен; схема создаётся только миграциями; повторный запуск миграций идемпотентен.
+**getmatch.ru** 22. Pasting a live `https://getmatch.ru/vacancies/{id}[-slug]` auto-fills company and
+position (§4.4, §4.9) as for hh.ru. 🔄 with `is_active: true`: `outcome = OK`, `status` stays `OPEN`.
+🔄 with `is_active: false`: `outcome = OK`, `archived = true`, `status` → `CLOSED`. 🔄 on a
+non-existent vacancy (`"initialVacancy":null`, HTTP `200`): `outcome = NOT_FOUND`, `status` → `CLOSED`
+— same as an hh.ru 404 (§4.3, §4.9) though signalled differently.
 
-**getmatch.ru** 22. В форме создания вставка ссылки на действующую вакансию getmatch.ru
-(`https://getmatch.ru/vacancies/{id}[-slug]`) автоподставляет компанию и должность
-(§4.4, §4.9), как и для hh.ru. 🔄 на записи с действующей вакансией getmatch.ru
-(`is_active: true`): `outcome = OK`, `status` остаётся `OPEN`. 🔄 на записи со снятой
-вакансией (`is_active: false`): `outcome = OK`, `archived = true`, `status` становится
-`CLOSED`. 🔄 на записи с несуществующей вакансией (`"initialVacancy":null`, HTTP `200`):
-`outcome = NOT_FOUND` и `status` становится `CLOSED` — тем же образом, что и 404 у hh.ru
-(§4.3, §4.9), хотя источник сигнализирует об этом иначе.
-
-**Поиск вакансий (§4.11, §4.12, §5.7, §7.9)** 23. Вкладка «Вакансии» открывается рядом с «Откликами»; переключение вкладок не ломает
-ни одного пункта §13.10.x, несохранённая правка поля при уходе на другую вкладку сохраняется. 24. В диалоге «Настройки поиска» правятся поисковая строка, ключевые слова, стоп-слова и оба
-промпта; предпросмотр URL показывает подставленный `{text}`; промпт без обязательного
-плейсхолдера отбивается `400` с сообщением под нужным полем. 25. «🔎 Найти вакансии» отвечает мгновенно (`202`), кнопка дизейблится, прогресс обновляется
-раз в 2 секунды, по завершении список пополняется без ручной перезагрузки. 26. Второй запуск во время идущего прогона отвечает `409` и показывает info-уведомление. 27. Повторный прогон **сразу после первого** создаёт `0` записей: `created = 0`,
-`duplicates > 0` — дедупликация по «должность + компания + дата публикации» работает. 28. Региональные клоны одной вакансии (несколько `vacancyId` с одинаковыми названием,
-компанией и временем публикации) дают **одну** строку в списке. 29. В логах видно, что запросы к hh.ru идут не чаще `HH_MAX_REQUESTS_PER_SECOND` (дефолт 2/с)
-с учётом идущей одновременно синхронизации откликов. 30. При `aiEnabled = true` и поднятом контейнере `ollama` у сохранённых лидов заполнены
-`aiTitleReason`, `aiDescriptionReason`, `aiModel`, а `matchSource = 'AI'`; вакансия,
-отклонённая по описанию, в БД не появляется и видна в счётчике `rejectedDescription`. 31. Остановленный контейнер `ollama` прогон не ломает: лиды сохраняются с
-`matchSource = 'KEYWORDS'`, счётчик `aiFallbacks` растёт, описания не загружаются,
-в логе — `warn`. 32. Прогон при недоступном hh.ru (или при странице без блока состояния) заканчивается со
-`stoppedReason = 'ERROR'`, показывает error-`Alert` и не создаёт мусорных записей. 33. Кнопка «Скрыть» убирает вакансию из списка сразу; переключатель «Скрытые» показывает её
-и позволяет вернуть; следующий прогон скрытую вакансию **не** создаёт заново. 34. Раскрытый аккордеон показывает зарплату, регион, опыт, форму занятости, формат работы
-и обоснования модели; отсутствующие поля не выводятся прочерками.
+**Vacancy search (§4.11, §4.12, §5.7, §7.9)** 23. The «Вакансии» tab sits next to «Отклики»; tab
+switching breaks no §13.10.x item, and an unsaved field edit is saved on leaving. 24. «Настройки
+поиска» edits the query string, keywords, exclude keywords and both prompts; the URL preview shows the
+substituted `{text}`; a prompt missing its required placeholder is rejected `400` with a message under
+that field. 25. «🔎 Найти вакансии» answers instantly (`202`), the button disables, progress refreshes
+every 2 s, the list grows on completion without a reload. 26. A second start during a run answers
+`409` plus an info notification. 27. A repeat run right after the first creates `0`: `created = 0`,
+`duplicates > 0` — dedup by "position + company + publication date". 28. Regional clones (several
+`vacancyId`, same title/company/publication time) yield **one** row. 29. Logs show hh.ru requests
+staying within `HH_MAX_REQUESTS_PER_SECOND` (default 2/s), counting concurrent application sync. 30. With `aiEnabled = true` and `ollama` up, leads have `aiTitleReason`, `aiDescriptionReason`,
+`aiModel` and `matchSource = 'AI'`; a description-rejected vacancy never reaches the DB and shows in
+`rejectedDescription`. 31. A stopped `ollama` does not break the run: `matchSource = 'KEYWORDS'`,
+`aiFallbacks` grows, no descriptions fetched, `warn` in the log. 32. Unreachable hh.ru (or a page
+without the state block) ends with `stoppedReason = 'ERROR'`, an error `Alert`, and no junk records. 33. «Скрыть» removes the vacancy at once; the «Скрытые» toggle shows and restores it; the next run
+**must not** re-create it. 34. An expanded accordion shows salary, region, experience, employment
+type, work format and the model's justifications; missing fields are omitted, not dashed.
 
 ---
 
-## 14. Порядок разработки (рекомендация архитектору)
+## 14. Development history → CHANGELOG.md
 
-Задачи выстраиваются так, чтобы каждая заканчивалась проверяемым состоянием:
+The numbered log of completed development steps used to live here. It now lives in
+[CHANGELOG.md](./CHANGELOG.md), newest first, **with the step numbering unchanged** — a comment
+citing "шаг №26 §14" still means entry 26 there.
 
-1. ~~**Скелет репозитория и Docker.**~~ ✅ **Сделано.** Монорепо на npm workspaces,
-   `docker-compose.yml`, оба Dockerfile'а, `nginx.conf`, `.env.example`, README.
-   Проверено: `docker compose up -d --build` → все три сервиса healthy,
-   `GET http://127.0.0.1:8080/api/health` → `{"status":"ok","db":"up"}`,
-   SPA-fallback работает, данные переживают `docker compose down` / `up`.
-2. ~~**ESLint/Prettier/tsconfig**~~ ✅ **Сделано.** Flat-config в обоих воркспейсах,
-   `@stylistic/padding-line-between-statements` (срабатывание проверено на пробном файле),
-   `npm run lint` / `typecheck` / `build` зелёные в обоих воркспейсах.
-3. ~~**Конфиг и валидация env, Basic Auth guard, exception filter.**~~ ✅ **Сделано.**
-   `config/environment.validation.ts` — валидация всех переменных из §8, включая fail-fast
-   на пустом `AUTH_PASSWORD`. `auth/basic-auth.guard.ts` — глобальный Basic Auth (§6) на
-   всех `/api/*`, кроме помеченного `@Public()` `GET /api/health`; сравнение через
-   `crypto.timingSafeEqual` по SHA-256-дайджестам. `common/http-exception.filter.ts` —
-   единый формат тела ошибки (§5.5), стек только в лог, не-`HttpException` отдаётся как
-   обезличенный 500. Регистрация guard'а и filter'а — в `app.setup.ts`, то есть одинаково
-   в проде и в e2e. _(backend)_
-4. ~~**Сущность, миграция, CRUD** `applications` + DTO + e2e-тесты.~~ ✅ **Сделано.**
-   Сущность по §3.1, миграция `CreateApplicationsTable` (19 колонок, PK, 2 индекса,
-   идемпотентна), четыре DTO, `ApplicationsService`/`ApplicationsController` с пятью
-   эндпоинтами §5.1, инфраструктура e2e (отдельная БД `jobhunter_test`) и 31 e2e-тест
-   на CRUD, фильтры, поиск, сортировку и валидацию. Вычисление `hhVacancyId` из
-   `vacancyUrl` — в шаге 5 (пока поле всегда `null`). _(backend)_
-5. ~~**Модуль hh:** парсер URL с тестами → HTTP-клиент с ретраями → `POST /api/hh/preview`.~~
-   ✅ **Сделано.** `hh/hh-url.parser.ts` — чистая функция `parseHhVacancyId` (§4.2) с 30
-   unit-тестами на все кейсы спецификации; чистая, а не провайдер, чтобы её мог звать и
-   `ApplicationsService`, не заводя цикл модулей `applications ↔ hh`. `hh/hh-api.service.ts` —
-   клиент поверх `HttpModule` (baseURL/таймаут/User-Agent из env), ретраи только на 429 и 5xx
-   с backoff 500/1500 мс, сужение ответа hh.ru из `unknown` в `HhVacancy`; наружу отдаёт исход
-   из §4.5, исключений не бросает. `hh/hh.controller.ts` — `POST /api/hh/preview` (§5.3):
-   нераспознанная ссылка → 200 с нулями, `NOT_FOUND` → 404, остальное → 502. `hh_vacancy_id`
-   теперь вычисляется при создании и при каждом изменении `vacancy_url` (§4.2). e2e: локальная
-   заглушка hh.ru (`test/hh-stub.server.ts`) на фиксированном порту — `HH_API_BASE_URL`
-   подменяется в `applyTestEnvironment`, поэтому ни один e2e не ходит в интернет. _(backend)_
-6. ~~**Синхронизация:** `POST /:id/sync`, `POST /sync-open`, правила применения.~~
-   ✅ **Сделано** (кроме тестов, см. ниже). `hh/hh-sync.service.ts` — правила §4.3 в одном
-   месте: `company`, `position`
-   и `result` не пишутся никогда (патч типизирован `ApplicationSyncPatch`), при живой вакансии
-   `status` не меняется (вручную закрытая запись не открывается заново), `archived === true`,
-   `type.id === 'closed'` и 404 закрывают запись, `last_synced_at` обновляется только при
-   реально полученном ответе (`OK`/`NOT_FOUND`). Массовый прогон — `common/async.helpers.ts`
-   (`mapWithConcurrency`): не более `HH_SYNC_CONCURRENCY` одновременных запросов и не менее
-   `HH_SYNC_MIN_DELAY_MS` между их стартами; прогон не срывается ни на одной записи. Сбой
-   hh.ru фиксируется в её `last_sync_outcome`/`last_sync_error`, а вот сбой самой записи в БД
-   (отказ `save()`) в БД, разумеется, не попадает: такая запись остаётся нетронутой, `ERROR`
-   виден только в ответе и в логе, а сущность откатывается по снимку, чтобы в `applications[]`
-   не уехало несохранённое состояние. Эндпоинты §5.2 живут на
-   `ApplicationsController` (`sync-open` объявлен выше `:id`), оба отвечают `200`: неуспешный
-   `outcome` — результат операции, а не ошибка HTTP; `404` только за отсутствующую запись.
-   Зависимость модулей — `ApplicationsModule → HhModule` (без `forwardRef`), поэтому
-   `HhSyncService` работает с репозиторием записей напрямую. Схема БД не менялась: новых
-   миграций нет.
-   **Тесты шага сознательно отложены** по решению пользователя (новые spec-файлы в проекте
-   не заводим): unit-тестов `hh-sync.service` и e2e на `POST /:id/sync` / `POST /sync-open`
-   нет, поведение проверено вручную прогоном по всем исходам §4.3 против локальной заглушки
-   hh.ru. Существующие 49 unit- и 50 e2e-тестов зелёные. Пункт §13.20 в этой части
-   не выполнен. _(backend)_
-7. ~~**Фронт: каркас** — тема, `layout.constants.ts`, axios-клиент, React Query, `AppHeader`,
-   `FilterBar`, список аккордеонов с read-only шапками (§7.2.1), раскрытие/сворачивание.~~
-   ✅ **Сделано** (кроме тестов, см. ниже). Экран собран как один контейнер-владелец состояния
-   (`App.tsx`) плюс плоское дерево презентационных компонентов: серверные данные живут только
-   в React Query, фильтры и раскрытость — в локальном `useState`. Фильтрация, поиск и сортировка
-   **серверные** (§5.1): клиентская фильтрация обошла бы ILIKE-поиск по трём полям и `NULLS LAST`.
-   Поиск дебаунсится на 300 мс, опустошение строки применяется сразу: иначе после «Сбросить
-   фильтры» ключ запроса ещё 300 мс содержал бы устаревшую строку поиска — то есть уходил бы
-   лишний GET, а список на это время показывал бы скелетоны вместо готовых данных из кэша.
-   Счётчик «Открытых: N / M» (§7.8) считает
-   по нефильтрованному списку через отдельный observer с ключом списка в дефолтном состоянии:
-   при дефолтных фильтрах React Query схлопывает оба observer'а в один запрос, а при активном
-   фильтре счётчик не врёт (по видимым записям при фильтре «Закрытые» он всегда показывал бы 0).
-   Раскрытость — `Set<string>` в `useExpandedIds`, стартует пустым (отсюда «при загрузке всё
-   свёрнуто» без единого эффекта) и не персистится (§12). Кнопки шагов 9–10 (🔄, 🗑, «+ Добавить»,
-   «Обновить все открытые») свёрстаны с необязательными колбэками и **без** `disabled`-заглушки:
-   MUI ставит отключённому `IconButton` `pointer-events: none`, и клик проваливался бы в шапку
-   аккордеона, ломая §13.10.3. Вместо этого обработчик существует всегда и начинается со
-   `stopPropagation()`. `AccordionSummary` рендерится как `component="div"` — по умолчанию это
-   `<button>`, а внутри у нас ещё две кнопки. Опции перехода задаются слотом
-   `slotProps={{ transition: { unmountOnExit: false } }}`: пропа `TransitionProps` в MUI v9 больше
-   нет. Enum-ы §3.2/§3.3/§4.5 продублированы вручную (§3.4) в `constants/application.constants.ts`;
-   все карты подписей, цветов и иконок типизированы `Record<Union, T>`, поэтому добавление значения
-   без подписи роняет `tsc`. Каркас-заглушка шага 1 (`BackendStatus`, `api/health.api.ts`,
-   `types/health.*`) удалена. **Тесты шага сознательно отложены** по решению пользователя (новые
-   spec-файлы в проекте не заводим): компонентных и хук-тестов нет, `npm run test` на фронте
-   проходит за счёт `--passWithNoTests`. Вместо них выполнен прогон критериев §13.10.1–10.4,
-   §13.10.6, части §13.10.5 про отсутствие горизонтального скролла и §7.8
-   в headless-браузере против локальной заглушки API: 14 аккордеонов и ноль таблиц, при загрузке
-   раскрытых нет, клики по шапкам раскрывают независимо (несколько сразу), клики по 🔄/🗑
-   раскрытость не меняют, высота свёрнутой шапки ровно 48px (14 записей в окне 1080), горизонтального
-   скролла нет при 1920/900/600px, все четыре фильтра доезжают до query-параметров, счётчик от
-   фильтра не зависит, скелетоны/`Alert`+«Повторить»/оба пустых состояния отрабатывают. Первая
-   половина §13.10.5 (раскрытые ряды 1 и 2 на экране ≥1600px занимают по одной строке каждый)
-   на этом шаге непроверяема: полей из §7.2.2 ещё нет, в `AccordionDetails` стоит заглушка —
-   критерий относится к шагу 8. _(frontend)_
-8. ~~**Фронт: поля в `AccordionDetails`** (§7.2.2) + inline-редактирование с автосейвом,
-   оптимистичными апдейтами и откатом.~~
-   ✅ **Сделано** (кроме тестов и ручного прогона, см. ниже). Ряды 1–3 §7.2.2 собраны как
-   отдельные flex-контейнеры внутри `Stack spacing={1}`; каждое поле обёрнуто в `FieldCell`
-   с `flex` из `FIELD_FLEX` и `minWidth: 0` — без последнего контрол не сжимается ниже своей
-   flex-basis и распирает страницу горизонтальным скроллом.
-   **Черновики несохранённого ввода живут в `App` (`useInlineEdits`), а не внутри полей.**
-   Причина — §13.10.7: свернуть аккордеон можно и кликом по шапке, и кнопкой «Свернуть все»,
-   оба пути проходят через `App`, поэтому pending-правку удаётся отправить **до** сворачивания.
-   Состояние внутри компонента полей потребовало бы синхронизации с пропом `expanded` через
-   `useEffect`, что запрещает `react-hooks/set-state-in-effect`. Побочная выгода — §13.10.8
-   бесплатно: `ApplicationAccordion` мержит черновик в запись один раз и отдаёт результат
-   и в `ApplicationSummaryRow`, и в `ApplicationFields`. Кэш React Query остаётся единственным
-   носителем сохранённого состояния; контекста и стора нет (§2.2) — контекст пробил бы `memo`
-   на аккордеоне, и каждое нажатие клавиши перерисовывало бы весь список, поэтому колбэки
-   собраны в один стабильный объект, а меняющиеся данные идут срезами по id.
-   Черновик существует **от нажатия клавиши до отправки**: в момент отправки он снимается,
-   и поле показывает оптимистичное значение из кэша — тот же текст, поэтому мигания нет, зато
-   «догоняющий» ответ сервера уже не может затереть набранное. Единственное исключение —
-   дебаунс, отправляющий тримленное значение (`«abc def »` → `{notes:'abc def'}`): там черновик
-   удерживается, иначе контролируемый input перерисовался бы из кэша, съев пробел и уведя
-   каретку в конец, а на патче-noop (`«abc»` + пробел) пробел исчез бы совсем. На `blur`
-   и сворачивании черновик снимается всегда — поле обязано прийти к сохранённому значению.
-   **Откат при ошибке — пополевой, а не снимком всей записи:** снимок вернул бы к устаревшему
-   соседнее поле, сохранённое параллельно, пока запрос летел. Оптимистичный патч, откат и echo
-   ответа применяются префиксным `setQueriesData` по `APPLICATIONS_QUERY_KEY` — сразу по всем
-   закэшированным комбинациям фильтров и по ключу счётчика шапки; в `onMutate` обязателен
-   `cancelQueries` по тому же префиксу, иначе GET, стартовавший до правки, вернётся и затрёт
-   оптимистичное значение. Из ответа PATCH переносятся только `hhVacancyId` (и только когда
-   слался `vacancyUrl`) и заведомо более свежий `updatedAt` — пользовательские поля не
-   переносятся вовсе.
-   **Инвалидации после успеха нет — кроме смены `status`:** она меняет состав отфильтрованного
-   списка и счётчик «Открытых: N / M» (§7.8). После правки остальных полей перезагрузка вредна:
-   ответ заменил бы массив целиком и мигнул бы значением поля, которое правят прямо сейчас.
-   Пересортировка после правки `company` или дат сознательно не инициируется — перестраивать
-   список под курсором хуже, порядок подтянется ближайшим фетчем.
-   **Заведомо невалидные значения не отправляются вовсе:** пустая «Компания» (`@IsNotEmpty`)
-   и не проходящий `@IsUrl` адрес показывают `error`/`helperText` на самом поле вместо
-   гарантированного 400 и Snackbar'а посреди набора. `utils/url.utils.ts` зеркалит
-   `URL_VALIDATION_OPTIONS` бэкенда, включая punycode-домены (`пример.рф` → `xn--…`) и IP-хосты:
-   ошибаться в строгую сторону нельзя, отвергнутая клиентом ссылка не сохранилась бы никогда.
-   Длины ограничены на входе через `slotProps.htmlInput.maxLength`.
-   Индикация сохранения — кольцо `boxShadow` вокруг `FieldCell` на ~1 с, одинаковое
-   для `TextField`, `Select` и `DateTimePicker` (иконка «✓» в `InputAdornment` не годится:
-   у `Select` и пикера адорнмент уже занят). Спиннеров нет (§7.3).
-   Колбэки исхода мутации живут в опциях `useUpdateApplication`, а не в вызове `mutate()`:
-   `MutationObserver` у `useMutation` один, второй `mutate()` отцепляет предыдущую мутацию,
-   и её call-site-колбэки не срабатывают — при внахлёст идущих автосейвах ошибка первой правки
-   потерялась бы молча. `DateTimePicker` отдаёт `onChange` на каждую секцию ручного набора,
-   поэтому недонабранные и невалидные значения отсеиваются двумя проверками
-   (`context.validationError` и `value.isValid()`); `toISOString()` даёт суффикс `Z`, который
-   принимает `ISO_8601_INSTANT_PATTERN`. Русские подписи и aria-метки пикеров подключены через
-   `localeText` (`ruRU`) — `adapterLocale` переводит только названия месяцев, а плотность
-   `size="small"` задана слоту `textField` явно: в MUI X v9 пикеры рендерят `PickersTextField`,
-   и `defaultProps` темы для `MuiTextField` до них не доходят (§7.8).
-   Известные и осознанно принятые остаточные края: два неудачных сейва одного поля внахлёст
-   откатят до значения «до первого» (самолечится ближайшим фетчем, счётчиков поколений
-   не заводим); черновик невалидного URL живёт до исправления и при F5 теряется; таймер
-   подсветки ключуется по id записи, поэтому сохранение второго поля продлевает кольцо первого.
-   **Тесты шага сознательно отложены** по решению пользователя (новые spec-файлы в проекте
-   не заводим): компонентных и хук-тестов нет, `npm run test` на фронте проходит
-   за счёт `--passWithNoTests`. Выполнена только статическая проверка — `npm run lint`,
-   `typecheck`, `build`, `test` и `format` зелёные в обоих воркспейсах, плюс прогон логики
-   разбора URL и конечного автомата автосейва на изолированных сценариях вне репозитория.
-   **Ручной прогон в браузере не выполнялся**: критерии §13.6 (правка переживает F5),
-   §13.7 (ошибка сети → откат + Snackbar), §13.8 (очистка `DateTimePicker` → `null`)
-   и §13.10.5–10.8 глазами не проверены. Здесь же закрывается вопрос, отложенный шагом 7:
-   первая половина §13.10.5 (на экране ≥1600px раскрытые ряды 1 и 2 занимают по одной строке)
-   по арифметике сходится — ряд 1 = 240+240+150+190 + 3×8 = 844px, ряд 2 = 280+280+210+210 + 24
-   = 1004px при доступных ~1536px, — но **визуально не проверена**. _(frontend)_
-9. ~~**Фронт: диалоги** создания (с hh-preview) и удаления.~~
-   ✅ **Сделано** (кроме тестов и ручного прогона, см. ниже). Оба диалога — самостоятельные
-   компоненты с **условным монтажом** (`{isCreateOpen ? <CreateApplicationDialog /> : null}`,
-   внутри `open` всегда `true`): свежий монтаж даёт чистую форму без единого `useEffect`,
-   а сброс формы эффектом на смену пропа `open` запретило бы `react-hooks/set-state-in-effect`
-   (та же причина, что на шаге 8). Цена — теряется exit-анимация MUI; принято.
-   **Состояние формы живёт внутри диалога, а не в `App`** — сознательно наоборот к шагу 8:
-   там черновики поднимались в `App` из-за §13.10.7 (сворачивание инициируется снаружи поля),
-   здесь такого требования нет, а перерисовка на каждое нажатие клавиши, поднятая в `App`,
-   пробила бы `memo` на всех аккордеонах. По той же причине `handleDeleteRequest` обёрнут
-   в `useCallback(…, [])`: он уходит пропом в каждый memo-аккордеон, а `App` теперь
-   перерисовывается ещё и на `create.isPending`/`remove.isPending`.
-   **Мутации создания и удаления вызываются в `App`, а preview — в диалоге.** Это не
-   симметрия ради симметрии: React Query не зовёт колбэки размонтированного наблюдателя,
-   а диалог по замыслу исчезает ровно в момент успеха — колбэк «раскрыть новую запись
-   и показать Snackbar» просто не сработал бы из диалога. Для preview то же свойство —
-   ровно нужное поведение: закрыли диалог во время запроса → ответ выброшен, без единого
-   флага отмены.
-   **Клиентского парсера hh-ссылок не заводим** (§4.2 — собственность бэкенда): на
-   нераспознанной ссылке `HhController` отвечает `200` с нулями, **не обращаясь к hh.ru**,
-   поэтому цена лишнего локального запроса на blur'е по не-hh ссылке ничтожна, а регексы
-   §4.2 не разъезжаются в двух местах. Гарды перед запросом — пустая строка, не проходящая
-   `isSavableUrl` ссылка и повторный blur без правки (`lastPreviewedUrlRef`); при ошибке ref
-   сбрасывается, иначе повторный blur не дал бы ретрая. Протухший ответ отсекается сравнением
-   URL запроса с текущим значением поля, `hhVacancyId === null` не подставляет ничего молча,
-   а `company`/`position` заполняются **только если поле пусто после `trim()`** (§4.4, §13.11).
-   `archived`/`vacancyType` из preview игнорируются: §7.4 — статуса в форме нет, запись всегда
-   создаётся `OPEN`, закрытие — дело синхронизации §4.3.
-   **Создание — только инвалидация префикса `APPLICATIONS_QUERY_KEY`, без оптимистичной
-   вставки:** позицию записи в чужих комбинациях фильтров и сортировок клиент не знает,
-   вставка «сверху» врала бы; тот же вызов пересчитывает счётчик §7.8. **Удаление —
-   вычистка из кэшей в `onSuccess`** (аккордеон исчезает мгновенно, §13.9) плюс инвалидация;
-   оптимистичного удаления с откатом нет — при ошибке ничего и не менялось. При ошибке любой
-   из двух мутаций диалог **не закрывается**: набранное не теряется, действие можно повторить.
-   Тело `POST` собирается вручную (`buildCreateApplicationPayload`), спред формы в запрос
-   запрещён: `forbidNonWhitelisted` (§5.6) вернул бы 400 на любом лишнем поле, поэтому
-   `status`, `hhVacancyId` и `lastSync*` в `ApplicationCreate` отсутствуют как тип. Пустые
-   после `trim()` строки в тело не попадают вовсе, даты уходят только через `isCommittableDate`
-   - `toIsoOrNull`. Заведомо невалидное не отправляется (правило шага 8): кнопка «Добавить»
-     заблокирована при пустой «Компании» (§7.4 буквально) и при не проходящей `isSavableUrl`
-     ссылке. `<form>` не используем — `DateTimePicker` и multiline перехватывают Enter,
-     а §7.4 сабмита по Enter не требует. `onClose` игнорируется, пока запрос в полёте.
-     Попутно разъехались по своим местам константы, у которых появился второй потребитель:
-     `ROW_SX` → `constants/layout.constants.ts`, `PICKER_*` → `constants/pickers.constants.ts`;
-     `isSaved` у `FieldCell` и `onBlur` у `UrlField` стали необязательными (в диалоге нет
-     ни подсветки «сохранено», ни blur-логики у ссылки на резюме).
-     Осознанно принятые края: клик по 🗑 сначала снимает фокус с редактируемого поля, поэтому
-     PATCH может прилететь после DELETE и дать лишний error-Snackbar (механику отмены не заводим,
-     §1.3); «Добавить» во время летящего preview не блокируется (§4.4 требует, чтобы preview
-     не мешал сохранению), поэтому автоподстановки в этом случае не будет; мёртвые ключи
-     в `pendingById`/`expandedIds` после удаления безвредны — без записи нет и аккордеона.
-     **Тесты шага сознательно отложены** по решению пользователя (новые spec-файлы в проекте
-     не заводим). Выполнена только статическая проверка — `lint`, `typecheck`, `test`, `build`,
-     `format` зелёные в обоих воркспейсах, плюс сверка формы `ApplicationCreate`/`HhPreview`
-     и маршрутов с бэкендовыми DTO поле в поле. **Ручной прогон в браузере не выполнялся**:
-     критерии §13.5 (создание с одной компанией → запись сверху и раскрыта), §13.9 (удаление
-     с подтверждением) и §13.11 (автоподстановка из hh.ru, введённое вручную не перетёрто)
-     глазами не проверены. _(frontend)_
-10. ~~**Фронт: синхронизация** — кнопка в строке, кнопка «все открытые», прогресс, сводка,
-    колонка «Синхр.».~~
-    ✅ **Сделано** (кроме тестов и ручного прогона, см. ниже). Две независимые мутации:
-    `useSyncApplication` (одна запись, §7.6) и `useSyncAllOpen` (прогон, §7.7). Колбэки исхода —
-    в опциях хуков, а не в вызове `mutate()`, по той же причине, что на шаге 8: `MutationObserver`
-    у `useMutation` один, второй `mutate()` отцепляет предыдущую мутацию.
-    **Набор синхронизирующихся id (`ReadonlySet<string>`) живёт внутри `useSyncApplication`,
-    а не в `App` и не в компоненте строки.** `isPending`/`variables` у `useMutation` описывают
-    только последний `mutate`, а кликнуть 🔄 на двух строках подряд можно — вторая кнопка
-    «отвисла» бы вместе с первой. Набор меняется функциональным `setState` в `onMutate`/`onSettled`,
-    поэтому парность «добавили — сняли» держится на всех путях, включая отцепленную мутацию.
-    В аккордеон уходит **срез-`boolean`** (`syncingIds.has(id)`), ровно как `pendingById[id]`
-    на шаге 8: набор целиком пробил бы `memo` у всех аккордеонов на каждый старт и финиш.
-    **Отключённая 🔄 обёрнута в `span` со `stopPropagation`.** Шаг 7 отказался от `disabled`-заглушки
-    именно потому, что MUI ставит отключённому `IconButton` `pointer-events: none` и клик
-    проваливается в `AccordionSummary`, переключая раскрытость (§13.10.3). Теперь `disabled`
-    требуется буквой §7.6, поэтому событие гасит обёртка; пока кнопка активна, событие гасится
-    раньше — в самом `handleSync`, — так что двойного `stopPropagation` не возникает. Заодно
-    `span` даёт `Tooltip` живого потомка, способного принимать события.
-    **Из ответа `/sync` в кэш переносятся только колонки, которыми владеет синхронизация**
-    (`buildSyncEchoPatch`: `status`, `hhArchived`, `hhVacancyType`, `lastSynced*`, `lastSync*`,
-    плюс заведомо более свежий `updatedAt`) — замена записи целиком откатила бы оптимистичное
-    значение поля, которое правят прямо сейчас: ответ мог быть сформирован до того, как долетел
-    параллельный автосейв. Симметрично `buildServerEchoPatch` шага 8. Черновики `useInlineEdits`
-    при этом не трогаются вовсе — они текстовые, а в патче синхронизации текстовых полей нет.
-    Инвалидация — только на смену `status` (правило шага 8: состав отфильтрованного списка
-    и счётчик §7.8). `404` в `onError` вычищает запись из кэшей: её удалили в другой вкладке,
-    и фантомный аккордеон обязан исчезнуть.
-    **`applications[]` из ответа `sync-open` в кэш сознательно не вливается** — вместо этого
-    инвалидация префикса `APPLICATIONS_QUERY_KEY`. Вливание не решает главного: членства записи
-    в отфильтрованных выборках (закрывшаяся запись обязана уйти из «Открытых»), а её позицию
-    в чужих сортировках клиент не знает — то же обоснование, что у `useCreateApplication`.
-    Поле объявлено в типе ради построчной сверки с бэкендом и помечено как неиспользуемое.
-    Инвалидация выполняется **и в `onError`**: прогон синхронный и мог отработать в БД, а ответ —
-    не доехать по таймауту; оставить список в старом виде было бы прямым обманом.
-    **Сводка §7.7 — отдельный `SyncSummaryAlert` в потоке страницы, а не расширение
-    `useNotification`.** Тот умеет одно короткое сообщение и гасит его через 6 с; сводке нужны
-    многострочный текст, кнопка раскрытия и список до 50 строк, живущий до явного закрытия.
-    Раскрывающийся список внутри автогасящегося тоста — и плохой UX, и лишний флаг «не гасить»
-    в модели уведомлений, которую переиспользуют пять других мест; §7.7 разрешает «`Snackbar`/`Alert`».
-    `useNotification` остался как есть и обслуживает транзиентное: подпись исхода `/sync` (§7.6)
-    и сбой самого запроса. `isExpanded` держится **внутри** компонента сводки — в отличие
-    от шага 8, снаружи её сворачивание никто не инициирует, требования §13.10.7 здесь нет.
-    Три канала исходов не смешиваются: неуспешный `outcome` при HTTP 200 — это результат операции
-    и идёт в Snackbar с severity по §7.6 (`SYNC_OUTCOME_NOTIFICATION_SEVERITY`: `info` для
-    `NOT_FOUND`/`SKIPPED_NOT_HH`, поэтому карта **не** совпадает с `SYNC_OUTCOME_ICON_COLORS`,
-    где они `warning`); сбой запроса — error-Snackbar; `ERROR`/`RATE_LIMITED` внутри успешного
-    ответа — только в `Alert` сводки, дублировать их тостом нельзя.
-    **Таймауты подняты пер-запросно** (`SYNC_REQUEST_TIMEOUT_MS = 45 000`,
-    `SYNC_OPEN_REQUEST_TIMEOUT_MS = 120 000`): дефолтные 20 000 мс короче штатного худшего случая
-    одной записи на бэкенде (3 попытки × 10 000 мс + backoff 500/1500 мс ≈ 32 с) и оборвали бы
-    вполне успешный запрос. Дальше поднимать бессмысленно — упрёмся в `proxy_read_timeout 120s`
-    у nginx, а очередей, воркеров и SSE §12 запрещает, поэтому `LinearProgress` только
-    indeterminate: никаких процентов и «7 из 12».
-    Колонка «Синхр.» (§7.2.1 п.6) на этом шаге не менялась — `SyncStatusIcon` был закрыт целиком
-    ещё на шаге 7, включая осознанное отступление от буквы §7.2.3: «непустой `lastSyncError` →
-    иконка цветом error» прочитано как «не зелёная», потому что бэкенд пишет непустой
-    `lastSyncError` и для `NOT_FOUND`, и для `SKIPPED_NOT_HH`, а красить их в `error` прямо
-    противоречило бы §7.6, где это `info`-исходы.
-    Осознанно принятые края: кнопки 🔄 в строках во время массового прогона **не** блокируются
-    (§7.7 «список остаётся доступным»; двойной запрос по одной вакансии безвреден, финальное
-    состояние приходит инвалидацией); Snackbar «Обновлено» покажется и для записи, удалённой
-    пока летел `/sync` (тот же класс, что «PATCH после DELETE» на шаге 9, механику отмены
-    не заводим); отправленное, но не отвеченное значение поля может кратко откатиться, если
-    рефетч после прогона обгонит `PATCH` (самолечится ближайшим фетчем, счётчиков поколений
-    не заводим); сводка не персистится и сбрасывается при старте нового прогона; при неизвестном
-    счётчике открытых кнопка «Обновить все открытые» отключена — это честнее, чем отправлять
-    прогон в неизвестность.
-    **Тесты шага сознательно отложены** по решению пользователя (новые spec-файлы в проекте
-    не заводим). Выполнена статическая проверка — `lint`, `typecheck`, `test`, `build` зелёные
-    в обоих воркспейсах (49 backend-unit и 50 e2e не тронуты), плюс сверка `SyncResult`,
-    `SyncSummary`, `SyncSummaryItem` и `SyncOutcomeCounts` с бэкендовыми DTO поле в поле.
-    **Ручной прогон в браузере не выполнялся**: критерии §13.12–13.15 (исходы 🔄 на живой,
-    снятой и не-hh вакансии; прогресс и сводка «Обновить все открытые») глазами не проверены.
-    _(frontend)_
-11. ~~**Финальный проход:** прогон критериев приёмки §13, README с инструкцией запуска.~~
-    ✅ **Сделано.** Прогон разбит на три контура доказательств.
-    **Статика:** `lint`, `typecheck`, `test` (49 unit), `test:e2e` (50 e2e), `build` и
-    `prettier --check` зелёные в обоих воркспейсах; целевыми grep'ами подтверждены §13.18
-    (`any` встречается только в комментариях и в `expect.any` внутри spec), §13.19 (объявления
-    типов/интерфейсов — только в `*.type.ts`/`*.interfaces.ts`, модульные константы — только
-    в `*.constants.ts`; единственное исключение — `hh-api.service.spec.ts`, разрешённое §10),
-    §13.10.1 (ни `Table`, ни `DataGrid` в коде нет) и §13.10.6 (числовых литералов размеров
-    в JSX нет).
-    **Инфраструктура:** поднятый `docker compose` + `curl`. §13.1 — холодная сборка образов
-    54 с, старт после неё ~16 с, то есть в отведённые две минуты укладывается с запасом;
-    §13.2 — `401` с `WWW-Authenticate` без кред, `401` с неверным паролем, `200` с
-    `admin`/`admin`, `GET /api/health` публичен; §13.3 — с пустым `AUTH_PASSWORD` контейнер
-    уходит в рестарт-петлю с сообщением «AUTH_PASSWORD обязателен: без него инстанс был бы
-    открыт без авторизации», данные при этом недоступны (`502` от nginx), а дефолтов кред
-    в коде нет вовсе; §13.4 — запись пережила `down`/`up` (`down -v` не выполнялся);
-    §13.21 — в логе старта `No migrations are pending`, то есть повторный прогон идемпотентен.
-    **Браузер:** headless Chrome против того же стека, но с `HH_API_BASE_URL`, направленным
-    на локальную заглушку hh.ru — в интернет прогон не ходил ни разу, как и e2e. Закрыты
-    §13.1 (пустое состояние), §13.5–13.9, §13.10 (все три фильтра, поиск по компании,
-    должности и заметкам, все четыре сортировки в обе стороны), §13.10.1–13.10.8 и §13.11–13.16.
-    Отдельно отмечено: §13.10.5 (первая половина) — единственный критерий, ни разу
-    не проверявшийся до этого шага, — подтверждён замером `offsetTop`: на 1920px ряды 1 и 2
-    занимают ровно по одной строке, горизонтального скролла нет вплоть до 600px;
-    §13.10.4 — на 1920×1080 в окно помещается 15 свёрнутых записей при требуемых 12;
-    §13.10.6 — зазор в 8px даёт `Stack` через `margin-top` дочерних элементов, а не через
-    CSS `gap`, замер геометрии это подтверждает; §13.16 — три попытки с паузами 504 и 1505 мс,
-    у каждой непустой `User-Agent`, итог `RATE_LIMITED`; §13.15 — прогон обработал 11 открытых
-    записей, ни одной закрытой не тронул, две упавшие (`ERROR` и `RATE_LIMITED`) остальных
-    не сорвали, сводка и раскрывающийся список проблемных отработали.
-    **Расхождений с кодом не найдено — правок по итогам прогона не потребовалось.**
-    §13.20 остаётся выполненным частично: unit-тестов `hh-sync.service`, e2e синхронизации
-    и фронтовых компонентных тестов нет по действующему решению пользователя, формулировка
-    и обоснование — в курсиве самого §13.20 и в отметках к шагам 6–10. Никаких новых
-    spec-файлов на этом шаге не заводилось; вспомогательные скрипты прогона (заглушка hh.ru,
-    сид, браузерные сценарии) жили вне репозитория и в него не попали. README переписан под
-    инструкцию запуска: требования к окружению, быстрый старт с проверкой результата, работа
-    с приложением, остановка/обновление/бэкап данных, диагностика пяти типовых сбоев
-    и ограничения со ссылкой на §12.
-12. ~~**Переход интеграции hh.ru на разбор HTML-страницы вакансии.**~~ ✅ **Сделано.**
-    Анонимный JSON API hh.ru стал отвечать `403` (поддержка для роли «соискатель»
-    прекращена), поэтому единственная точка обращения к hh.ru (`hh-api.service.ts`)
-    переключена на `GET {HH_SITE_BASE_URL}/vacancy/{id}` без query-параметров
-    (`robots.txt`: `Disallow: *?*`), `responseType: 'text'`, редиректы следуются
-    (канонический URL отвечает `302 → 200`). Разбор вынесен в отдельную чистую функцию
-    `hh-page.parser.ts` (тот же аргумент, что у `hh-url.parser.ts`: нет зависимостей —
-    DI ничего не даёт) без HTML-библиотеки: нужны ровно две лексические операции —
-    вынуть тело `<script type="application/ld+json">` (raw text element, нежадный
-    регекс корректен) и найти токены `archived`; cheerio/jsdom строили бы полное дерево
-    из 772 КБ на каждый запрос при конкурентности 3. Признак архивности — консенсус
-    двух независимых сигналов (`"archived":true|false`, включая HTML-экранированные
-    `&quot;`/`&#34;`, и маркер `data-qa="vacancy-title-archived-text"`); отсутствие
-    сигнала или противоречие между ними — `null` → исход `ERROR` (fail-loud: одиночный
-    детектор ломался бы тихо при правке вёрстки hh.ru). JSON-LD (`title`,
-    `hiringOrganization.name`) деградирует мягко — питает только автозаполнение §4.4,
-    его отсутствие не мешает синхронизации по §4.3. `type.id` страница не содержит:
-    правило `type.id === 'closed'` снято, `hh_vacancy_type` пишется явным `null`
-    (не пропуском ключа — иначе колонка законсервировала бы значение от старого API),
-    `vacancyType` в ответе preview всегда `null`. `HH_API_BASE_URL` переименован
-    в `HH_SITE_BASE_URL` (дефолт `https://hh.ru`); у кого в `.env` остался старый ключ,
-    сработает дефолт — README предупреждает. Новых npm-зависимостей и новых
-    spec/e2e-файлов нет: правки — только в существующих `hh-api.service.spec.ts`
-    (spec-локальный HTML-билдер вместо JSON-фикстуры, дописаны кейсы на 403,
-    противоречивые токены и страницу без JSON-LD) и `hh-preview.e2e-spec.ts`
-    (генератор `buildHhVacancyPage` вместо `buildHhVacancyPayload`, дописаны кейсы
-    на 403 и на страницу без JSON-LD с признаком архивности). Схема БД не менялась.
-    `lint`/`typecheck`/`test` (50 unit)/`test:e2e` (52 e2e)/`build` зелёные в обоих
-    воркспейсах; фронтенд не тронут ни одним файлом. _(backend)_
-13. ~~**Фронт: поле «Где собес» и укрупнение рядов раскрытого состояния до двух.**~~
-    ✅ **Сделано.** Бэкенд уже отдаёт `interviewUrl` (шаг реализован отдельно, до этого шага);
-    здесь — только `frontend/`. Три ряда §7.2.2 схлопнуты в два: ряд 1 (восемь полей —
-    компания, должность, ссылка на вакансию, ссылка на резюме, статус, результат, HR-собес,
-    тех-собес) и ряд 2 (контакт работодателя, «Где собес», заметки). `interviewUrl` рендерится
-    тем же `UrlField`, что и `vacancyUrl`/`resumeUrl`, с тем же автосейвом (§7.3): добавлен
-    в `EDITABLE_TEXT_FIELDS`, `URL_TEXT_FIELDS` (иначе недонабранная ссылка стиралась бы
-    на `blur`, как у прочих URL-полей), `EDITABLE_FIELDS`, `APPLICATION_FIELD_LABELS`,
-    `APPLICATION_FIELD_PICKERS` и в `buildTextFieldPatch` — рядом с `resumeUrl`, той же
-    веткой `isSavableUrl`. `Application`/`ApplicationUpdate` зеркалят бэкендовые
-    `ApplicationResponse`/`UpdateApplicationDto` построчно (поле сразу после `resumeUrl`).
-    `ApplicationCreate`/`CreateApplicationFormValues` не тронуты: в форме создания поля нет
-    (§7.4) — ссылка на созвон появляется позже, когда назначен тех-собес.
-    **Потолок ширины — новая частичная карта `FIELD_MAX_WIDTH`** (`company`/`position`/
-    `interviewUrl` — `19%`, `vacancyUrl`/`resumeUrl` — `15%`), а не `Record<EditableField, …>`:
-    у полей с `flex: 0 0 …` собственная фиксированная ширина и без того не растягивается,
-    городить для них фиктивное значение `'none'` незачем. Процент считается от ширины ряда
-    (родительского flex-контейнера), а не от вьюпорта — так короткие поля не расползаются
-    на всю ультраширокую строку, а на узком экране `flexWrap` переносит их раньше, чем
-    сработает потолок. `FieldCell` получил необязательный проп `maxWidth` (undefined — потолка
-    нет, MUI такое значение `sx` не эмитит) — `CreateApplicationDialog.tsx` его не передаёт
-    и не изменился ни на строку. `ApplicationAccordion.tsx`, `ApplicationSummaryRow.tsx`,
-    `useInlineEdits.ts`, `useUpdateApplication.ts`, `applications-cache.utils.ts` не менялись:
-    новое поле — рядовой `EditableTextField`, вся механика черновиков, оптимистичных патчей
-    и подсветки «сохранено» уже общая для всех текстовых полей и подхватила его без правок.
-    **Тесты не заводились** по действующему решению пользователя (новые spec-файлы в проекте
-    не создаются) — фронтовых компонентных/хук-тестов как не было, так и нет,
-    `npm run test` во фронте по-прежнему проходит за счёт `--passWithNoTests`.
-    `lint`/`typecheck`/`test`/`build` зелёные в обоих воркспейсах (backend не тронут ни одним
-    файлом, его 50 unit-тестов не пострадали); `prettier --write` на `SPECIFICATION.md`
-    подровнял ширину колонок таблиц §7.2.2 под изменившиеся заголовки.
-    **Ручной прогон в браузере не выполнялся**: критерии §13.10.5 (два ряда вместо трёх)
-    и §13.10.9 (автосейв «Где собеса», `OpenInNew`, переживание `F5`, очистка в `null`)
-    глазами не проверены. _(frontend)_
-
-14. ~~**Фронт: устранение задержки раскрытия аккордеона.**~~
-    ✅ **Сделано.** Только `frontend/`, поведение не менялось ни в одном критерии §13 —
-    это исправление производительности. Клик по шапке отрабатывал с задержкой ~1 с
-    по двум складывающимся причинам. Первая: `useExpandedIds` возвращал контроллер,
-    в зависимостях которого лежали предикаты `isExpanded`/`areAllExpanded`, замкнутые
-    на состояние, — идентичность контроллера менялась на каждое переключение, вместе
-    с ней менялся `handleToggle` в `App.tsx`, и проп `onToggle` пробивал `memo`
-    у **всех** аккордеонов сразу. Вторая — цена такого прохода: `unmountOnExit: false`
-    без `mountOnEnter` держал поля смонтированными у всех записей, а `TextareaAutosize`
-    (два многострочных поля на запись) объявляет layout-эффект `syncHeight` без массива
-    зависимостей, то есть меряет себя после каждого рендера, форсируя синхронный пересчёт
-    layout всего документа; ранний выход по нулевой ширине не срабатывал, потому что
-    свёрнутый `Collapse` прячет содержимое `visibility: hidden`, а не `display: none`.
-    Итого на клик — 2N форсированных layout синхронно, до старта анимации,
-    и `StrictMode` удваивал render-фазу сверху.
-    **Правка:** хук отдаёт `expandedIds` данными и отдельный объект `actions`
-    с постоянной идентичностью (все мутаторы и раньше были с пустыми зависимостями);
-    «всё ли раскрыто» считает чистая `areAllExpanded` в новом `utils/expanded-ids.utils.ts`
-    — отдельным файлом, а не методом хука, потому что функции нужны id списка, а передача
-    их внутрь сделала бы `expandAll` зависимым от `ids` и убила бы стабильность `actions`.
-    В `ApplicationsList` уходит множество целиком, в аккордеон — `boolean`-срез
-    `expandedIds.has(id)`, тем же приёмом, что уже применён для `syncingIds`.
-    `ApplicationFields` и `ApplicationSummaryRow` обёрнуты в `memo` — они отсекают тяжёлое
-    поддерево и при легитимных перерисовках списка (инвалидация после смены статуса,
-    `/sync-open`, смена фильтра). Опции перехода вынесены в новый
-    `application-accordion.constants.ts` и дополнены `mountOnEnter: true` (§7.2).
-    Порядок `flush` → `toggle` в `handleToggle` сохранён дословно — это §13.10.7.
-    `mountOnEnter` не влияет на §13.5: при `in === true` на монтировании
-    react-transition-group сразу даёт статус `ENTERED`, поэтому созданная запись
-    появляется раскрытой, как и прежде.
-    **Тесты не заводились** по действующему решению пользователя. **Ручной прогон
-    в браузере не выполнялся** — проверка статическая плюс `build`; замеры «до/после»
-    и критерии §13.10.2, §13.10.3, §13.10.7, §13.10.8, §7.2.4 глазами не проверены.
-    `lint`/`typecheck`/`test`/`build` зелёные в обоих воркспейсах, бэкенд не тронут.
-    Остаточная задержка ~300 мс — сама анимация `Collapse` с `timeout="auto"`,
-    её длительность спецификацией не регламентируется. _(frontend)_
-
-15. ~~**Интеграция с getmatch.ru и обобщение до источников вакансий.**~~
-    ✅ **Сделано** (backend; фронтенд — отдельным шагом, см. ниже). Понятие «источник
-    вакансии» (`VacancySource`, §4.8) обобщает hh.ru и getmatch.ru за общим контрактом:
-    появились модули `vacancies/` (контракт провайдера, реестр, правила §4.3, массовый
-    прогон и preview — общее для всех источников) и `getmatch/` (вторая реализация
-    провайдера), а `hh/` ужался до чистой реализации того же контракта для hh.ru.
-    Зависимость модулей — `ApplicationsModule → VacanciesModule → { HhModule, GetmatchModule }`,
-    без цикла и без `forwardRef`; файловая зависимость на уровне констант идёт в обратную
-    сторону — `vacancies`/`hh`/`getmatch` импортируют `applications/applications.constants.ts`
-    и `application.entity.ts`, а не наоборот.
-    **Источник — колонка `vacancy_source`, а не подтип сущности.** Наследование сущностей
-    (STI/class-table) на одну таблицу и три десятка колонок ради двух новых nullable-полей
-    (`vacancy_source`, `vacancy_external_id`) было бы абстракцией на будущее, которую §1.3
-    прямо запрещает: разница между источниками целиком укладывается в одну строковую
-    колонку плюс диспетчеризацию по ней в `VacancyProviderRegistry.find()`.
-    **Провайдер = api-сервис.** Отдельных классов-обёрток `HhVacancyProvider`/
-    `GetmatchVacancyProvider` не заводили: `HhApiService` и `GetmatchApiService` сами
-    `implements VacancySourceProvider` (`source`, `parseUrl`, `fetchVacancy`). Обёртка
-    на каждый источник добавляла бы файл-делегат на три строки без собственной логики;
-    `hh-api.service.spec.ts` пережил рефакторинг почти без правок — только тип возврата
-    и импорт `Vacancy` вместо `HhVacancy`.
-    **`NOT_FOUND` у getmatch.ru рождается в парсере страницы, а не по HTTP-статусу.**
-    Несуществующая вакансия у getmatch.ru отдаёт `200` с `"initialVacancy":null` — признак
-    «нет вакансии» целиком в содержимом payload. `getmatch-page.parser.ts` возвращает три
-    состояния (`PARSED`/`ABSENT`/`UNPARSABLE`), но наружу, в `GetmatchApiService.interpretPage`,
-    они схлопываются в обычный `VacancyFetchResult`: общий контракт §4 не изменился ни строкой,
-    `NOT_FOUND` в нём остаётся исходом, а не HTTP-кодом, — ветка hh.ru (404 → `NOT_FOUND`)
-    не тронута.
-    **`hh_vacancy_type` удалён целиком** — колонка никогда не заполнялась (страница hh.ru
-    не отдаёт `type.id` с шага 12), а у getmatch.ru аналога нет: тащить дальше колонку,
-    в которую пишется только явный `null`, — чистый мёртвый вес. Вместе с ней из контракта
-    ушли `vacancyType` (ответ preview) и `hhVacancyType` (`ApplicationDto`).
-    **Миграция** `GeneralizeVacancySource` переименовывает `hh_vacancy_id` →
-    `vacancy_external_id`, `hh_archived` → `vacancy_archived`, добавляет `vacancy_source`
-    и переводит `last_sync_outcome = 'SKIPPED_NOT_HH'` в `'SKIPPED_UNSUPPORTED'`. Backfill —
-    в два шага: непустой `vacancy_external_id` до этой миграции мог быть записан только
-    hh-парсером, поэтому первым UPDATE такие записи получают `vacancy_source = 'HH'`
-    безусловно; вторым (best-effort) — записи с `vacancy_url`, похожим на ссылку getmatch.ru,
-    получают `'GETMATCH'` и пересчитанный `vacancy_external_id` по SQL-регексу, дублирующему
-    паттерн `getmatch-url.parser.ts` на момент написания миграции (миграция — неизменяемый
-    снимок схемы, поэтому дублирование, а не импорт константы). Промах backfill'а безвреден:
-    запись остаётся `vacancy_source = NULL` и получает `SKIPPED_UNSUPPORTED` при следующей
-    синхронизации — ровно так же, как сегодня получают его записи без распознаваемой ссылки;
-    отдельной обработки «неопознанных» записей не требуется. `down()` восстанавливает
-    `hh_vacancy_type` (данных не теряем — колонка всегда была `null`), но на момент написания
-    этого шага был необратим для getmatch-строк: дропал `vacancy_source`, не откатывая
-    `vacancy_external_id`, записанный собственным backfill 2, — что вызвало реальную порчу
-    данных и потребовало починки в п. 17 ниже.
-    **Переименование env-ключей.** `HH_SYNC_CONCURRENCY`/`HH_SYNC_MIN_DELAY_MS` →
-    `SYNC_CONCURRENCY`/`SYNC_MIN_DELAY_MS`: параметр массового прогона общий для всех
-    источников (прогон может смешивать записи с разным `vacancy_source`), префикс `HH_`
-    был бы прямой ложью. Плюс четыре новых ключа getmatch (`GETMATCH_SITE_BASE_URL`,
-    `GETMATCH_USER_AGENT`, `GETMATCH_REQUEST_TIMEOUT_MS`, `GETMATCH_MAX_RETRIES`) — все
-    опциональны с безопасными дефолтами, в отличие от обязательного `HH_USER_AGENT`:
-    разведка не увидела у getmatch.ru `403` на обычный User-Agent. Прецедент по переименованию
-    без обратной совместимости уже был на шаге 12 (`HH_API_BASE_URL` → `HH_SITE_BASE_URL`) —
-    у кого в `.env` остались старые ключи прогона, сработают дефолты; README предупреждает.
-    **Тестовое покрытие — только правки существующих файлов**, новых spec-файлов нет
-    (действующее решение пользователя, см. шаг 6): `applications.e2e-spec.ts` (проверки
-    `vacancySource`/`vacancyExternalId`/`vacancyArchived`, кейс с getmatch-ссылкой),
-    `hh-url.parser.spec.ts` (кейс «ссылка на getmatch.ru → `null`»), переименования
-    `hh-preview.e2e-spec.ts` → `vacancy-preview.e2e-spec.ts` и `hh-stub.server.ts` →
-    `vacancy-stub.server.ts` (та же заглушка без изменений в теле, запускается на двух
-    портах — по одному на источник) с добавленными getmatch-кейсами (активная,
-    `is_active: false`, `initialVacancy:null` → 404, payload без ключа → 502, `429` → 502
-    после ретраев, путь и заголовки запроса). Новый `test/getmatch.fixtures.ts` — тест-инфраструктура,
-    а не spec-файл: строит HTML с flight-payload, разрезанным по границе чанков ровно
-    на ключе `initialVacancy` (иначе тест не проверял бы склейку чанков). **Юнит-тестов
-    у `getmatch-url.parser.ts`/`getmatch-page.parser.ts` нет** — то же решение, что уже
-    оставило без юнит-тестов `vacancy-sync.service.ts` на шаге 6; покрытие только через
-    e2e против локальной заглушки.
-    **Известное промежуточное расхождение:** фронтенд этим шагом не тронут ни одним файлом
-    (граница backend/frontend соблюдена буквально) — до фаз F1/F2 он продолжает обращаться
-    к `POST /api/hh/preview` и ждать полей `hhVacancyId`/`hhArchived`/`hhVacancyType`, которых
-    у бэкенда уже нет. Живой прогон в браузере до слияния фаз F1/F2 не пройдёт; это ожидаемое
-    промежуточное состояние рабочего дерева, а не дефект шага 15.
-    `lint`/`typecheck`/`test` (51 unit)/`test:e2e` (58 e2e)/`build` зелёные в `backend/`;
-    `frontend/` не тронут ни одним файлом. _(backend)_
-
-16. ~~**Автоподстановка должности из заголовка вакансии источника.**~~
-    ✅ **Сделано** (backend + frontend). Заголовок вакансии теперь попадает в `position`
-    не только при добавлении записи (§4.4 — это работало и раньше), но и при каждой
-    успешной синхронизации: 🔄 на записи и «Обновить все открытые».
-    **Парсеры не тронуты ни строкой.** Разведка по живым страницам показала, что нужное
-    значение оба уже отдают в `Vacancy.name`: hh.ru — `title` из JSON-LD
-    (`vacancy/133230073` → «Back-end Node. JS-developer (Senior)»), getmatch.ru —
-    `initialVacancy.position` (`vacancies/35683` → «Middle+/Senior Fullstack-разработчик
-    (React + NestJS) в Платёжный шлюз»). Не хватало ровно применения значения.
-    **§4.3 п. 5 переписан для `position`**: при `OK` должность перезаписывается всегда,
-    даже поверх ручной правки (явное решение пользователя), `company` остаётся
-    неприкосновенной. Правило выражено типом: `position` добавлен в
-    `ApplicationSyncFields`, откуда производны и `ApplicationSyncPatch`,
-    и `ApplicationSyncSnapshot`, — компилятор сам потребовал внести `position`
-    в `takeSyncSnapshot`, иначе на упавшем `save()` в `applications[]` массового прогона
-    уехала бы должность, которой в БД нет.
-    **Ключ в патче условный, а не безусловный**: `normalizeVacancyPosition` возвращает
-    `null` и на `null`, и на пустой после `trim()` заголовок, а `null` в патче означал бы
-    «записать NULL» — пустой ответ источника затирал бы должность вместо того, чтобы её
-    не трогать.
-    **Срез по ширине колонки — в момент нормализации** (`vacancies/vacancy-position.helpers.ts`),
-    тем же принципом, что у `toHhVacancy` для `hh_vacancy_type`: заголовок длиннее
-    `POSITION_MAX_LENGTH` иначе дал бы `QueryFailedError` → 500 вместо штатного исхода §4.5.
-    Хелпер общий с `VacancyPreviewDto.fromVacancy` — preview не должен предлагать форме
-    значение, которое `@MaxLength` потом отобьёт 400.
-    **Фронт:** `buildSyncEchoPatch` принимает `SyncResult` целиком, а не одну сущность, —
-    `position` переносится только при `outcome === 'OK'` и только непустая; при прочих
-    исходах перенос откатил бы оптимистичное значение параллельного автосейва.
-    `useSyncAllOpen` не тронут: он и раньше инвалидировал префикс ключа целиком, и новые
-    должности приезжают вместе с остальными полями. Инвалидация в `useSyncApplication`
-    по-прежнему только на смену `status`: смена должности состав отфильтрованного списка
-    не меняет, а лишний рефетч мигал бы полем, которое правят прямо сейчас.
-    **Принятые края:** ручная правка должности перетирается ближайшей успешной
-    синхронизацией (это и просили); незакоммиченный черновик `position` визуально
-    побеждает подставленное значение до `blur`, потому что `ApplicationAccordion` мержит
-    черновик поверх кэша, — снимать черновик из хука синхронизации нельзя, это выдернуло
-    бы текст из-под каретки; при гонке «PATCH position в полёте + 🔄» значение может
-    кратко мигнуть заголовком источника и самолечится ближайшим фетчем (тот же класс
-    расхождения, что уже принят на шаге 10).
-    **Миграций нет** — схема не менялась. **Новых spec/e2e-файлов не заводилось**
-    (действующее решение пользователя, см. шаг 6); существующие остались зелёными без
-    правок: `vacancy-preview.e2e-spec.ts` проходит через изменённый `fromVacancy`,
-    и его фикстуры нормализация не меняет.
-    `lint`/`typecheck`/`test` (51 unit)/`test:e2e` (58 e2e)/`build` зелёные в обоих
-    воркспейсах. **Ручной прогон в браузере не выполнялся.** _(backend + frontend)_
-
-17. ~~**Починка источника вакансии у записей с getmatch-ссылкой.**~~ ✅ **Сделано.**
-    Миграция `RepairGetmatchVacancySource` одним идемпотентным UPDATE переderive-ит
-    `vacancy_source`/`vacancy_external_id` из `vacancy_url` и откатывает последствия
-    ошибочной синхронизации в hh.ru за чужой id: `position` чистится только при
-    `last_sync_outcome = 'OK'` (только эта ветка §4.3 в него пишет), `status` возвращается
-    в `OPEN` только при `NOT_FOUND` или `OK` с `vacancy_archived`, `result` не трогается.
-    `down()` миграции `GeneralizeVacancySource` теперь обнуляет `vacancy_external_id`
-    у getmatch-строк до `DROP COLUMN`, поэтому цикл revert → up больше не склеивает
-    getmatch-шный id с источником `'HH'`. _(backend)_
-
-18. ~~**Favicon приложения.**~~ ✅ **Сделано.** `frontend/public/favicon.ico` (117 КБ,
-    исходный `job-tracker-icon.ico` из корня репозитория) и `<link rel="icon" sizes="any">`
-    в `frontend/index.html`. Каталог `public/` заведён впервые: Vite копирует его содержимое
-    в корень `dist` как есть, поэтому файл не попадает в `assets/` и не получает хеша в имени.
-    Dockerfile не менялся — он копирует `frontend/` целиком; nginx отдаёт `/favicon.ico`
-    существующим `try_files $uri` в `location /`, отдельного правила кэширования не добавлено:
-    иконка меняется вместе с приложением, а `location /assets/` с `immutable` её не накрывает.
-    Схема БД, API и код приложения не тронуты. _(frontend)_
-
-19. ~~**Автоматическая синхронизация открытых вакансий по расписанию.**~~ ✅ **Сделано.**
-    Новый модуль `scheduler/` каждые `SCHEDULED_SYNC_INTERVAL_MS` (дефолт 30 минут)
-    зовёт тот же `VacancySyncService.syncOpen()`, что и
-    `POST /api/applications/sync-open`; правил §4.3, ограничений §4.6 и контрактов §5
-    шаг не менял, миграций нет,
-    `frontend/` не тронут ни одним файлом — данные приезжают обычным рефетчем React Query.
-    Интервал регистрируется динамически (`SchedulerRegistry.addInterval` в
-    `onApplicationBootstrap`), а не декоратором `@Interval` (§2.4 п. 8): свой хук уборки
-    не заводился — `SchedulerOrchestrator` чистит интервалы сам, повторный `deleteInterval`
-    бросил бы исключение на `app.close()`. Первого прогона при старте нет — иначе
-    рестарт-петля дала бы серию полных прогонов по чужим источникам. Наложение исключено
-    булевым флагом в памяти процесса, тик при незавершённом прогоне пропускается с `warn`,
-    флаг снимается в `finally` (иначе исключение заклинило бы планировщик до перезапуска);
-    тик вызывается через `void` с полным `try/catch` внутри — необработанный реджект
-    в колбэке `setInterval` уронил бы процесс. Ручной прогон из UI не блокируется —
-    принятый размен §4.7. Логи скупые (`log` при старте, `debug` на тик, `warn` на пропуск,
-    `error` на исключение), сводку пишет сам `VacancySyncService`. Env `SCHEDULED_SYNC_ENABLED`
-    — строка `'true'`/`'false'`, потому что `@Type(() => Boolean)` превратил бы `'false'`
-    в `true`; `SCHEDULED_SYNC_INTERVAL_MS` — диапазон 60 000…86 400 000, верхняя граница ещё
-    и защита от вырождения `setInterval` в 1 мс при значении больше 2^31-1. Обе переменные
-    опциональны с дефолтами, поэтому существующие e2e поднимаются на неизменённом `.env`,
-    а в `applyTestEnvironment` планировщик выключен принудительно
-    (`SCHEDULED_SYNC_ENABLED = 'false'`). Новая зависимость ровно одна —
-    `@nestjs/schedule` в `dependencies`
-    (не в `devDependencies`: рантайм-стадия Docker-образа ставит `npm ci --omit=dev`).
-    Новых spec/e2e-файлов не заводилось, существующие остались зелёными без правок:
-    51 backend unit-тест, 58 backend e2e-тестов, `npm run lint`/`typecheck`/`test`/`build`
-    зелёные в обоих воркспейсах. _(backend)_
-
-20. **Логотип компании в свёрнутой шапке записи.** ✅ **Сделано.** Новая
-    колонка `company_logo_file` (`varchar(64)`, nullable, миграция
-    `AddApplicationCompanyLogoFile`, backfill'а и data-миграции нет) хранит **имя
-    файла**, а не URL и не байты; сами файлы лежат в каталоге из `COMPANY_LOGO_DIR`
-    (дефолт `os.tmpdir()/job-hunter-logos`, каталог эфемерный). Правила «качать или
-    нет» живут в `vacancy-sync.service.ts` (§4.3, единственное место правил): только
-    при `OK`, только если источник дал URL и файла ещё нет на диске; ключ в патче
-    условный, `null` в него не попадает никогда — иначе пустой ответ источника затирал
-    бы сохранённый логотип (та же ловушка, что с `position` на шаге 16). Инфраструктура
-    — новый модуль `logos/` (`CompanyLogoService`: скачивание, валидация, атомарная
-    запись `tmp`+`rename` с уникальным суффиксом на каждый вызов (два параллельных
-    скачивания одной записи не переименуют в финальный файл чужой недописанный
-    буфер, а `.tmp` подчищается на любом сбое записи), чтение); он не знает ни про
-    `Application`, ни про §4.3 и **исключений наружу не выпускает** — сбой скачивания
-    не меняет исход §4.5. Зависимости: `ApplicationsModule → LogosModule`,
-    `VacanciesModule → LogosModule`, без цикла и `forwardRef`. URL логотипа извлекают
-    парсеры страниц (блок состояния `"logos":{"logo":[…]}` у hh.ru,
-    `div.b-company-logotype img[src]` у getmatch.ru) и **сразу** абсолютизируют его
-    с проверкой хоста по allow-list источника — это отсекает SSRF и попутно
-    гарантирует, что e2e против локальных заглушек логотипы не качают. Allow-list
-    проверяется повторно и на каждом хопе редиректа (`beforeRedirect`, до
-    `COMPANY_LOGO_MAX_REDIRECTS`): без этого CDN мог бы 3xx-нуть на произвольный,
-    непроверенный хост, и `maxRedirects > 0` открыл бы SSRF ровно там, где
-    resolveVacancyLogoUrl его закрыл на исходном URL. `svg` в белый список
-    Content-Type не входит. Наружу уходит `hasCompanyLogo: boolean`, а не имя файла;
-    байты отдаёт
-    `GET /api/applications/:id/logo` (`StreamableFile`, `Cache-Control: private,
-max-age=3600`, `nosniff`), объявленный выше маршрутов с `:id`; `404` — и «нет
-    записи», и «нет логотипа», и «файл пропал с диска». Проверено вручную против
-    реальных hh.ru/getmatch.ru (§4.10): конвейер работает end-to-end у обоих
-    источников (скачивание, атомарная запись, self-healing после удаления файла,
-    отдача байт с верным `Content-Type`). Первая редакция брала у hh.ru `src`
-    из `<img>` внутри `data-qa="vacancy-company-logo"` и не находила ничего:
-    в ответе сервера этого атрибута нет, картинку подставляет клиентский JS
-    из блока состояния `"logos":{"logo":[{"@type":…,"@url":…}]}` — в DevTools `src`
-    виден, в исходном HTML его нет. Разбор переведён на этот блок (приоритет типов
-    `vacancyPage` … `ORIGINAL`, из каждого типа первое вхождение — работодатель самой
-    вакансии идёт в состоянии раньше похожих вакансий), после чего hh.ru отдаёт
-    логотипы наравне с getmatch.ru. Пара
-    `vacancy_source`/`vacancy_external_id` не затронута. Принятые края: логотип не
-    обновляется, пока файл на месте; после пересоздания контейнера файлы исчезают
-    и возвращаются ближайшим плановым прогоном (§4.7); обновлённая картинка может до
-    часа отдаваться из кэша браузера. **Новых spec/e2e-файлов не заводилось** —
-    правки только в `hh-api.service.spec.ts` (ветка `HH_SITE_BASE_URL_ENV_KEY` в
-    моке конфига, `logoUrl: null` и `logoAllowedHostPattern: null` в трёх
-    ожиданиях). `typecheck`/`test`/`build` зелёные в обоих воркспейсах (backend:
-    51 unit-тест; во фронтенде spec-файлов нет вовсе), `lint` чист во всех
-    затронутых файлах — единственные ошибки корневого прогона живут
-    в `frontend/src/constants/pickers.constants.ts` и существовали до этого шага.
-
-    Фронтенд: `hasCompanyLogo` в `types/application.interfaces.ts`,
-    `buildCompanyLogoUrl`/`buildCompanyInitial` в `utils/application.utils.ts`,
-    24-пиксельный `Avatar` слева от названия компании в `ApplicationSummaryRow`
-    (обёртка `Box` забирает себе `flex` колонки, `Typography` остаётся с
-    `SUMMARY_FLEX.companyText` и `noWrap`, поэтому высота шапки 48 px не меняется).
-    Обработчика `onError` нет: MUI сам показывает `children`, поэтому `401`/`404`
-    вырождаются в букву-фолбэк. `buildSyncEchoPatch` переносит `hasCompanyLogo`
-    только при исходе `OK` **и** только значение `true` — `false` из неуспешного
-    прогона затёр бы уже показанный логотип (та же ловушка, что с `position`).
-    Первая буква берётся по кодовой точке, а не `charAt(0)`: у названия с эмодзи
-    в начале половина суррогатной пары отрисовалась бы как `�`.
-
-    Ревью нашло и здесь же починено: (1) SSRF-пробел на редиректах — allow-list
-    проверялся только на исходном URL, а `maxRedirects: 3` пускал follow-redirects
-    на любой хост дальше; чинится `beforeRedirect`-guard'ом на каждом хопе
-    (`buildCompanyLogoRedirectGuard`, allow-list летит per-request через новое поле
-    `Vacancy.logoAllowedHostPattern` → `CompanyLogoDownloadRequest.allowedHostPattern`);
-    (2) гонка `.tmp`-файла при двух параллельных скачиваниях одной записи —
-    детерминированный путь `<uuid>.<ext>.tmp` заменён на уникальный на каждый вызов
-    (`randomUUID()`-суффикс), а `.tmp` подчищается на сбое `writeFile`/`rename`;
-    (3) первая буква фолбэка бралась `charAt(0)` — не суррогат-безопасно.
-    _(backend + frontend)_
-
-21. **Кнопка очистки поля поиска.** ✅ **Сделано.** В `FilterBar` у поля поиска
-    появился `endAdornment` с `IconButton` (`ClearIcon`, `aria-label` «Очистить
-    поиск»), сбрасывающий `filters.search` в пустую строку через тот же
-    `onFiltersChange`, что и ввод — дебаунс и мгновенное применение пустой строки
-    (§14, шаг 7) работают без изменений. Кнопка присутствует в разметке всегда
-    и прячется через `visibility`, а не условным рендером: появление адорнмента
-    на первом же введённом символе сужало бы поле ввода и дёргало текст под
-    кареткой. `visibility: hidden` заодно убирает кнопку из tab-порядка, пока
-    поиск пуст. _(frontend)_
-
-22. **Поиск, отбор и отображение вакансий с hh.ru.** ✅ **Сделано.** Две новые таблицы —
-    `vacancy_leads` (§3.5) с уникальным индексом по «компания + должность + дата
-    публикации» и `vacancy_search_settings` (§3.6, одна строка, засевается миграцией);
-    новый модуль бэкенда `vacancy-search/` (§4.11): разбор блока состояния страницы
-    выдачи, конвейер отбора «стоп-слова → ИИ по названию → дедупликация → загрузка
-    страницы → ИИ по описанию» (§4.11.4), асинхронный прогон со статусом в памяти
-    процесса (§4.11.9), бюджеты (§4.11.8); новый модуль `vacancy-ai/` — адаптер к Ollama
-    и к OpenAI-совместимым API со структурированным выводом по JSON Schema и фолбэком
-    на ключевые слова (§4.12); общий троттл всех запросов к hh.ru на
-    `HH_MAX_REQUESTS_PER_SECOND` (§4.11.2) — он затрагивает существующий `HhApiService`
-    и скачивание логотипов; **модуль `scheduler/` не трогается** — запуск только
-    по кнопке (§4.11.10); эндпоинты §5.7 (список, скрытие, запуск, статус, настройки); сервис
-    `ollama` в compose под профилем `ai` (§4.12.4). На фронте — `App.tsx` разбирается
-    на шелл с `Tabs` плюс перенесённый **без изменений** `ApplicationsScreen`, новый
-    `VacanciesScreen` со списком аккордеонов, кнопкой прогона, поллингом статуса,
-    скрытием и диалогом настроек (§7.9). Новых npm-зависимостей нет: описание уходит
-    в модель как plain text, поэтому санитайзер не нужен. Новых spec/e2e-файлов
-    не заводить (решение пользователя в силе) — проверка по §13.23–34 вручную,
-    существующие 51 unit- и 58 e2e-тестов обязаны остаться зелёными;
-    `applyTestEnvironment` снимает троттл hh.ru (планового поиска не существует, выключать
-    нечего). Обязательный проход `code-reviewer` после бэкенда и после фронта.
-
-    Сделано в два коммита — бэкенд и фронт. Отличия от плана и решения, принятые по ходу:
-    модель по умолчанию выбрана замером на 40 реальных названиях с выдачи, а не по
-    умозрительной «мощности»: `qwen3:1.7b` при 184 мс на название ошибается на 18 названиях
-    из 40 и принимает вакансии тестировщиков и аналитиков — ровно тот мусор, ради отсева
-    которого ИИ и заводился, — тогда как `qwen3:4b-instruct` при 601 мс ошибается на 4;
-    в `vacancy-ai.constants.ts` добавлен `VACANCY_AI_THINK = false`, иначе гибридные модели
-    Qwen3 тратят время на рассуждения перед структурированным ответом. Сервису `ollama`
-    в compose проброшен GPU (§4.12.4) — на CPU одна вакансия считается секунды. Признак
-    успеха вставки лида читается из `result.raw`, а не из `result.identifiers`: TypeORM
-    заполняет `identifiers` и для строк, отсечённых `ON CONFLICT DO NOTHING`, отчего счётчики
-    «создано / дубликатов» врали на каждом повторном прогоне. На фронте `NotificationSnackbar`
-    остался ровно один и переехал в шелл: два независимых `Snackbar` (шелла и экрана) MUI
-    не стекует, и при двух событиях подряд они легли бы друг на друга. Откат оптимистичного
-    скрытия лида — синхронной вставкой снимка обратно в кэш, а не инвалидацией: PATCH чаще
-    всего падает по сети, и восстанавливающий рефетч упал бы следом, оставив запись пропавшей
-    из списка; вставка при этом сверяет `hidden` записи с фильтром каждого кэша, иначе
-    нескрытый лид попадал бы в закэшированную выборку «только скрытые».
-    _(backend + frontend)_
-
-23. **Уточнённый промпт отбора по названию и починка кириллицы в настройках.** ✅ **Сделано.**
-    Две миграции данных. `SharpenVacancyTitlePrompt` переписывает `title_prompt` в редакцию
-    §4.12.2 — обоснование замером там же; UPDATE идёт с условием на прежний текст, чтобы
-    не затереть промпт, поправленный пользователем на фронте. `RepairVacancySearchSettingsEncoding`
-    чинит строку настроек в рабочей базе: в ней каждый кириллический символ полей
-    `exclude_keywords`, `title_prompt` и `description_prompt` был заменён на U+FFFD, уцелела
-    только ASCII-часть. Прогон миграций на чистой базе с нынешними артефактами даёт корректный
-    текст, то есть виноват не сид, а разовый запуск старой сборки, где исходник миграции
-    читался не как UTF-8. Проявлялось это тихо и потому неприятно: ИИ получал промпт
-    из «ромбиков» и отбирал вакансии наугад, а стоп-слово «стажёр» не срабатывало вовсе.
-    Условие на наличие U+FFFD обязательно по той же причине, что и в первой миграции;
-    `down()` пуст осознанно — вернуть он мог бы только испорченный текст, а это не откат,
-    а повторная порча. _(backend)_
-
-24. **Выравнивание колонок в шапке лида вакансии.** ✅ **Сделано.** Ячейка короткой зарплаты
-    в `VacancyLeadSummaryRow` рендерится всегда, даже когда зарплаты у вакансии нет (текст
-    внутри пустой — прочерк по-прежнему не показываем, §7.9.1). Пропущенная ячейка отдавала
-    свои 160px растущим `position` и `company` (`flex-grow: 1` у обоих), должность становилась
-    шире, и в строках без зарплаты компания уезжала вправо относительно строк с зарплатой —
-    колонки не выстраивались. _(frontend)_
-
-25. **Логотипы компаний переживают пересоздание контейнера.** ✅ **Сделано.** Каталог
-    `COMPANY_LOGO_DIR` в Docker переехал из `/tmp` на именованный том `logos`
-    (`/var/lib/job-hunter/logos`), каталог создаётся в образе с владельцем `node` — иначе
-    свежий том достался бы `root:root` и запись под `node` падала бы. Ставка §4.10 на
-    самолечение ближайшей синхронизацией не сыграла: каждый релиз пересоздаёт контейнер и
-    стирает логотипы всех записей разом, а закрытые записи не трогают ни «Обновить все
-    открытые», ни плановый прогон §4.7 — у них буква-фолбэк оставалась навсегда.
-    Дефолт `os.tmpdir()/job-hunter-logos` сохранён для дев-режима на хосте. _(инфраструктура)_
-
-26. **Логотипы компаний на экране «Вакансии».** ✅ **Сделано.** Добавлена
-    `vacancy_leads.company_logo_file` (миграция
-    `AddVacancyLeadCompanyLogoFile`), заполняется тем же `CompanyLogoService`, что и у
-    `applications` (§4.10): без нового HTTP-запроса, из страницы вакансии, уже загружаемой
-    `HhSearchService.fetchVacancyDescription` ради описания для ИИ (§4.11.7) — общий
-    `readHhCompanyLogoSrc` вынесен из `hh-page.parser.ts` в `hh-company-logo.helpers.ts`,
-    чтобы им пользовались и синхронизация, и поиск. Скачивание запускается строго после
-    вставки строки (`fileKey` — id уже существующей записи) и не повторяется на дубликате;
-    сбой скачивания/записи логотипа не входит в счётчики `created`/`failed` прогона — только
-    `logger.warn` с id записи. Лиды keyword-only-пути (без ИИ, страница не открывается)
-    логотипа не получают никогда — осознанное ограничение, backfill для старых записей не
-    делается. Отдача байт — `GET /api/vacancy-leads/:id/logo` (§5.7), буквально та же обвязка
-    (заголовки, коды ответа, Basic Auth), что у `GET /api/applications/:id/logo`, через общий
-    `readCompanyLogoOrFail`. `VacancyLeadDto.hasCompanyLogo` — признак наличия, как у
-    `ApplicationResponse.hasCompanyLogo`. _(backend)_
-    Фронт: `VacancyLead.hasCompanyLogo` в типе, `Avatar` слева от названия компании
-    в `VacancyLeadSummaryRow` (§7.9.1) — тот же приём, что в `ApplicationSummaryRow`
-    (`Avatar variant="rounded"`, буква-фолбэк, `alt=""`, рендерится всегда, даже без
-    логотипа, иначе колонки шапки разъезжаются). `buildCompanyLogoUrl`/`buildCompanyInitial`
-    вынесены из `utils/application.utils.ts` в общий `utils/company-logo.utils.ts`
-    (и `COMPANY_INITIAL_FALLBACK` — в `constants/company-logo.constants.ts`): один и тот же
-    код обслуживает оба экрана, эндпоинт — параметром функции. _(frontend)_
-
-27. **Бюджет детальных запросов прогона поиска поднят до 60.** ✅ **Сделано.** Дефолт
-    `VACANCY_SCAN_MAX_DETAILS` — `60` вместо `30` (`config.constants.ts`, `.env.example`,
-    `docker-compose.yml`, таблицы §4.11.8 и §11). Прогоны упирались в бюджет и вставали
-    с `stoppedReason = MAX_DETAILS`, не дойдя до части кандидатов, прошедших отбор
-    по названию. Код не менялся: значение читается из env, диапазон у переменной
-    не задан. Цена решения линейна — вдвое больше открытых страниц вакансий и вдвое
-    больше оценок описания моделью за прогон, дедлайн `VACANCY_SCAN_MAX_DURATION_MS`
-    (30 минут) остался прежним и по-прежнему обрывает затянувшийся прогон.
-    _(инфраструктура)_
-
-После шагов 4, 6, 8, 10, 12, 13, 14, 15 и 22 — обязательный проход `code-reviewer`.
+This section is kept as an anchor so those existing citations resolve. Every edit that changes
+application behaviour adds an entry to CHANGELOG.md; nothing is appended here.
