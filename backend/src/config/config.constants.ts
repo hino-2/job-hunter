@@ -126,7 +126,7 @@ export const VACANCY_SCAN_MAX_PAGES_MIN = 1;
 /** У hh.ru своя отсечка на 40-й странице (paging.lastPage.page = 39, §4.11.1). */
 export const VACANCY_SCAN_MAX_PAGES_MAX = 40;
 
-export const DEFAULT_VACANCY_SCAN_MAX_DETAILS = 30;
+export const DEFAULT_VACANCY_SCAN_MAX_DETAILS = 60;
 export const DEFAULT_VACANCY_SCAN_MAX_AGE_DAYS = 30;
 export const DEFAULT_VACANCY_SCAN_MAX_DURATION_MS = 1_800_000;
 
