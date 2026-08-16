@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  Matches,
   Max,
   Min,
   ValidateIf,
@@ -26,7 +25,6 @@ import {
   DEFAULT_HH_MAX_REQUESTS_PER_SECOND,
   DEFAULT_HH_MAX_RETRIES,
   DEFAULT_HH_REQUEST_TIMEOUT_MS,
-  DEFAULT_HH_SEARCH_URL_TEMPLATE,
   DEFAULT_HH_SITE_BASE_URL,
   DEFAULT_LOG_LEVEL,
   DEFAULT_NODE_ENV,
@@ -49,10 +47,6 @@ import {
   DEFAULT_VACANCY_SCAN_MAX_PAGES,
   HH_MAX_REQUESTS_PER_SECOND_MAX,
   HH_MAX_REQUESTS_PER_SECOND_MIN,
-  HH_SEARCH_URL_MISSING_PAGE_PLACEHOLDER_MESSAGE,
-  HH_SEARCH_URL_MISSING_TEXT_PLACEHOLDER_MESSAGE,
-  HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN,
-  HH_SEARCH_URL_TEXT_PLACEHOLDER_PATTERN,
   LOG_LEVELS,
   MAX_RETRIES_MAX,
   NODE_ENVS,
@@ -234,21 +228,6 @@ export class EnvironmentVariables {
   @Min(HH_MAX_REQUESTS_PER_SECOND_MIN)
   @Max(HH_MAX_REQUESTS_PER_SECOND_MAX)
   HH_MAX_REQUESTS_PER_SECOND: number = DEFAULT_HH_MAX_REQUESTS_PER_SECOND;
-
-  /**
-   * §4.11.1. Оба плейсхолдера обязательны — их отсутствие роняет старт приложения
-   * с внятной ошибкой (шаблон без {page} означал бы бесконечное чтение первой страницы).
-   */
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @Matches(HH_SEARCH_URL_TEXT_PLACEHOLDER_PATTERN, {
-    message: HH_SEARCH_URL_MISSING_TEXT_PLACEHOLDER_MESSAGE,
-  })
-  @Matches(HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN, {
-    message: HH_SEARCH_URL_MISSING_PAGE_PLACEHOLDER_MESSAGE,
-  })
-  HH_SEARCH_URL_TEMPLATE: string = DEFAULT_HH_SEARCH_URL_TEMPLATE;
 
   /** §4.11.8: бюджеты одного прогона поиска (§4.11). */
   @IsOptional()

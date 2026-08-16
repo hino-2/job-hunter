@@ -119,9 +119,12 @@ export const GETMATCH_STUB_BASE_URL = `http://${VACANCY_STUB_HOST}:${GETMATCH_ST
 export const TEST_HH_MAX_REQUESTS_PER_SECOND = '50';
 
 /**
- * §4.11.1: локальная заглушка вместо реального hh.ru — страховка от того, чтобы
- * будущий модуль поиска случайно не ушёл в интернет. Плановой синхронизации поиска
- * не существует (§4.11.10), поэтому маршрут ни один e2e фазы B1–B3 не запрашивает.
+ * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу теперь колонка
+ * vacancy_search_settings.search_url_template, а не env — через
+ * applyTestEnvironment() её больше не подставить. API отклоняет loopback-хост
+ * намеренно (allow-list hh.ru, §4.2), поэтому будущий e2e прогона поиска обязан
+ * установить это значение прямой SQL-командой (dataSource.query(UPDATE …)) на
+ * строку настроек, а не через PUT.
  */
 export const TEST_HH_SEARCH_URL_TEMPLATE = `${HH_STUB_BASE_URL}/search/vacancy?text={text}&page={page}`;
 

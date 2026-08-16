@@ -14,13 +14,13 @@ export class VacancySearchSettingsController {
   async find(): Promise<VacancySearchSettingsDto> {
     const entity = await this.settingsService.find();
 
-    return VacancySearchSettingsDto.fromEntity(entity, this.settingsService.searchUrlTemplate);
+    return VacancySearchSettingsDto.fromEntity(entity);
   }
 
   @Put()
   async update(@Body() dto: UpdateVacancySearchSettingsDto): Promise<VacancySearchSettingsDto> {
     const entity = await this.settingsService.update(dto);
 
-    return VacancySearchSettingsDto.fromEntity(entity, this.settingsService.searchUrlTemplate);
+    return VacancySearchSettingsDto.fromEntity(entity);
   }
 }

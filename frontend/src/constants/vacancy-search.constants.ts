@@ -225,6 +225,10 @@ export const AI_ENABLED_LABEL = 'Использовать ИИ-отбор';
 export const AI_ENABLED_DESCRIPTION =
   'При выключении работает отбор по ключевым словам, а описания вакансий не загружаются';
 export const URL_PREVIEW_LABEL = 'Первая страница поиска на hh.ru';
+export const SEARCH_URL_TEMPLATE_LABEL = 'Ссылка на выдачу hh.ru';
+export const SEARCH_URL_TEMPLATE_HINT =
+  'Обязательные плейсхолдеры: {text}, {page}. Только https и домены hh.ru';
+export const RESET_SEARCH_URL_TEMPLATE_LABEL = 'Вернуть ссылку по умолчанию';
 
 export const TITLE_PROMPT_HINT = 'Обязательные плейсхолдеры: {keywords}, {titles}';
 export const DESCRIPTION_PROMPT_HINT = 'Обязательные плейсхолдеры: {keywords}, {description}';
@@ -239,12 +243,24 @@ export const KEYWORDS_HINT = 'Через запятую';
 export const SEARCH_TEXT_MAX_LENGTH = 512;
 export const PROMPT_MAX_LENGTH = 8000;
 
+/** Ручная копия VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH бэкенда (ширина колонки). */
+export const SEARCH_URL_TEMPLATE_MAX_LENGTH = 2048;
+
 export const PLACEHOLDER_KEYWORDS_PATTERN = /\{keywords\}/;
 export const PLACEHOLDER_TITLES_PATTERN = /\{titles\}/;
 export const PLACEHOLDER_DESCRIPTION_PATTERN = /\{description\}/;
 
+/** §5.7: ручная копия HH_SEARCH_URL_*_PLACEHOLDER_PATTERN бэкенда (hh/hh.constants.ts). */
+export const SEARCH_URL_TEMPLATE_TEXT_PLACEHOLDER_PATTERN = /\{text\}/;
+export const SEARCH_URL_TEMPLATE_PAGE_PLACEHOLDER_PATTERN = /\{page\}/;
+
 /** §4.11.1: подставляется в searchUrlTemplate вместо буквального `{text}`. */
 export const SEARCH_URL_TEMPLATE_PLACEHOLDER = '{text}';
+export const SEARCH_URL_PAGE_PLACEHOLDER = '{page}';
+/** §7.9.4: блок подписан «Первая страница поиска» — предпросмотр всегда собирает страницу 0. */
+export const SEARCH_URL_PREVIEW_PAGE = '0';
+/** Ручная копия HH_SEARCH_URL_ALLOWED_PROTOCOL бэкенда (hh/hh.constants.ts). */
+export const SEARCH_URL_TEMPLATE_HTTPS_PREFIX = 'https:';
 
 /** §3.6: как в БД хранятся keywords/excludeKeywords — строка через запятую. */
 export const KEYWORD_LIST_SEPARATOR = ',';
@@ -259,6 +275,12 @@ export const TITLE_PROMPT_MISSING_PLACEHOLDERS_MESSAGE =
   'Промпт обязан содержать {keywords} и {titles}';
 export const DESCRIPTION_PROMPT_MISSING_PLACEHOLDERS_MESSAGE =
   'Промпт обязан содержать {keywords} и {description}';
+
+export const SEARCH_URL_TEMPLATE_REQUIRED_MESSAGE = 'Введите ссылку на выдачу';
+export const SEARCH_URL_TEMPLATE_TOO_LONG_MESSAGE = `Не длиннее ${SEARCH_URL_TEMPLATE_MAX_LENGTH} символов`;
+export const SEARCH_URL_TEMPLATE_MISSING_PLACEHOLDERS_MESSAGE =
+  'Ссылка обязана содержать {text} и {page}';
+export const SEARCH_URL_TEMPLATE_INVALID_MESSAGE = 'Нужна полная ссылка, начинающаяся с https://';
 
 /**
  * Дефолтные значения настроек — ручная копия сидинга миграции
@@ -284,3 +306,12 @@ export const DEFAULT_DESCRIPTION_PROMPT =
   'Реши, действительно ли эта вакансия соответствует профилю: нужны ли в ней перечисленные\n' +
   'технологии как основные, а не упомянуты вскользь. Ответь JSON-объектом.';
 export const DEFAULT_AI_ENABLED = false;
+
+/**
+ * Дословная копия дефолтного шаблона ссылки из миграции
+ * backend/src/database/migrations/1787100000000-AddVacancySearchUrlTemplate.ts,
+ * нужна кнопке «Вернуть ссылку по умолчанию» (§7.9.4). Менять только вместе с миграцией.
+ */
+export const DEFAULT_SEARCH_URL_TEMPLATE =
+  'https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true' +
+  '&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}';

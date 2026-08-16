@@ -16,6 +16,8 @@ export interface VacancySearchSettingsSnapshot {
   titlePrompt: string;
   descriptionPrompt: string;
   aiEnabled: boolean;
+  /** §3.6/§4.11.1/§5.7: читается один раз при старте прогона, как и остальные поля снимка. */
+  searchUrlTemplate: string;
   updatedAt: Date;
 }
 

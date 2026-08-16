@@ -50,6 +50,18 @@ export interface HhSearchItem {
   workFormats: string | null;
 }
 
+/**
+ * §4.11.1/§5.7: вход HhSearchService.fetchSearchPage. Шаблон приезжает СЮДА как
+ * данные снимка настроек прогона (VacancyScanService, vacancy-search/), а не через
+ * DI VacancySearchSettingsService — модульная зависимость зафиксирована в одну
+ * сторону (vacancy-search → hh), hh/ не имеет права знать о vacancy-search/.
+ */
+export interface HhSearchPageRequest {
+  searchUrlTemplate: string;
+  searchText: string;
+  page: number;
+}
+
 /** §4.11.3: результат разбора страницы выдачи целиком. */
 export interface HhSearchPage {
   items: HhSearchItem[];

@@ -191,3 +191,8 @@ export const SETTINGS_DIALOG_MAX_WIDTH = 'md' as const;
 /** Многострочные поля промптов — выше, чем заметки отклика: текст длиннее (до 8000 симв.). */
 export const MULTILINE_MIN_ROWS_PROMPT = 3;
 export const MULTILINE_MAX_ROWS_PROMPT = 8;
+
+/** Шаблон ссылки (§7.9.4) — одна длинная строка, но должна читаться без горизонтальной
+ *  прокрутки, отсюда несколько строк вместо однострочного TextField. */
+export const MULTILINE_MIN_ROWS_URL_TEMPLATE = 2;
+export const MULTILINE_MAX_ROWS_URL_TEMPLATE = 4;

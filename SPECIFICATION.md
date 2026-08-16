@@ -252,8 +252,9 @@ removes the record from the default list while leaving the key in place.
 
 ### 3.6 Table `vacancy_search_settings`
 
-Search settings the user edits **in the frontend** (§7.9), not in `.env`: search text, keywords and
-the two AI prompts. Env keeps only infrastructure (addresses, limits, budgets, §8).
+Search settings the user edits **in the frontend** (§7.9), not in `.env`: search text, keywords, the
+two AI prompts, and the results-page link template. Env keeps only infrastructure (addresses, limits,
+budgets, §8).
 
 The table holds **exactly one row**: `id smallint PK` with `CHECK (id = 1)`. Not a key-value settings
 table: the field set is known, the types differ, and "a second search configuration" is out of scope
@@ -268,13 +269,16 @@ table: the field set is known, the types differ, and "a second search configurat
 | `title_prompt`       | `text`         | yes  | see §4.12 | Stage 1 prompt — vacancy title evaluation                                           |
 | `description_prompt` | `text`         | yes  | see §4.12 | Stage 2 prompt — vacancy description evaluation                                     |
 | `ai_enabled`         | `boolean`      | yes  | `false`   | Whether AI screening (§4.12) is on. Off — keyword screening only                    |
+| `search_url_template` | `varchar(2048)` | yes | see §4.11.1 | hh.ru results URL template; `{text}` and `{page}` mandatory, https + hh.ru host (§5.7) |
 | `updated_at`         | `timestamptz`  | yes  | `now()`   |                                                                                     |
 
 The row is created **by the migration itself** (`INSERT … ON CONFLICT DO NOTHING`) with default
 values, not by code on first access: the service reading the settings must not be able to create
 them, otherwise there is a second data-creation path and a race at startup.
 
-Default `search_text` is `fullstack`; keyword and prompt defaults are in §4.11.4 and §4.12.
+Default `search_text` is `fullstack`; keyword and prompt defaults are in §4.11.4 and §4.12; the
+`search_url_template` default is the §4.11.1 literal, seeded by the `AddVacancySearchUrlTemplate`
+migration.
 
 ### 3.7 Table `vacancy_scan_position`
 
@@ -283,10 +287,11 @@ The saved resume position of a search run (§4.11.12) — where «Продолж
 every processed page, while the settings row is a user-owned resource read and replaced whole by
 `GET`/`PUT /api/vacancy-search-settings` with `forbidNonWhitelisted` (§5.7). Mixing the two would
 (a) bump the settings `updated_at` on every page, breaking the "changes apply from the next run"
-signal and the frontend settings cache, (b) force a read-only field into the `PUT` body — the wart
-the spec already tolerates only for `searchUrlTemplate`, (c) create a lost-update race between a
-per-page write and a user `PUT` of the whole row. A separate singleton table keeps both lifecycles
-and both contracts clean.
+signal and the frontend settings cache, (b) create a lost-update race between a per-page write and a
+user `PUT` of the whole row. The settings resource has no read-only field at all any more
+(`searchUrlTemplate` became an ordinary column, §3.6) — which is exactly why a machine-written
+position must not live there either: every field of that resource is user-owned. A separate singleton
+table keeps both lifecycles and both contracts clean.
 
 The table holds **exactly one row**: `id smallint PK` with `CHECK (id = 1)`, the same pattern as
 §3.6, seeded by the migration itself — the service must never create the row.
@@ -566,16 +571,19 @@ into `vacancy_leads` (§3.5) for a separate tab (§7.9). Module `vacancy-search/
 #### 4.11.1 Search results source and link template
 
 The public HTML search page, requested with the same `User-Agent` and `Accept` headers as the vacancy page
-(§4.1), `responseType: text`, redirects followed. Template (env `HH_SEARCH_URL_TEMPLATE`, default):
+(§4.1), `responseType: text`, redirects followed. Template (§3.6, `search_url_template`, edited in §7.9.4;
+default seeded by the migration):
 
 ```
 https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}
 ```
 
 - `{text}` — the search string from settings (§3.6, `search_text`), edited on the frontend (§7.9) and
-  substituted via `encodeURIComponent`; it changes often, hence DB, while the template is env. `{page}` —
-  `0, 1, 2, …`, substituted automatically. Both placeholders are mandatory: a template missing either must
-  fail startup with a clear error (without `{page}` the run would read the first page forever).
+  substituted via `encodeURIComponent`. `{page}` — `0, 1, 2, …`, substituted automatically. Both
+  placeholders are mandatory, together with an `https://` scheme and a host from the hh.ru allow-list
+  (§4.2) — validated on `PUT` (§5.7); a hand-corrupted row is caught fail-loud with a `500` when a run
+  reads it. The run reads the template in the same start-of-run snapshot as `search_text`, so a change
+  applies from the next run, and the saved resume position (§3.7) stays keyed on `search_text` only.
 - **`order_by=publication_time` is mandatory in substance:** it gives "newest first", on which the early
   stop by age (§4.11.6) depends; with relevance sorting the rule never fires and a run always reaches
   `VACANCY_SCAN_MAX_PAGES`.
@@ -1177,9 +1185,8 @@ pageProgress, stopRequested, resume, stoppedReason, message }`, where `progress`
 `200` — the single settings row (§3.6): `searchText`, `keywords[]`, `excludeKeywords[]`,
 `titlePrompt`, `descriptionPrompt`, `aiEnabled`, `searchUrlTemplate`
 (`"https://ekaterinburg.hh.ru/search/vacancy?text={text}&…&page={page}"`), `updatedAt`.
-`searchUrlTemplate` is **read-only** — an env value, not a setting; it is served so the frontend can
-preview the resulting URL as the search string is typed (§7.9.4). It **must not** appear in a `PUT`
-body — `forbidNonWhitelisted` gives `400`.
+`searchUrlTemplate` is an ordinary field of the row (§3.6), edited like the rest — served so the
+frontend can also preview the resulting URL as the search string is typed (§7.9.4).
 
 #### `PUT /api/vacancy-search-settings`
 
@@ -1191,7 +1198,11 @@ Validation (`400` on violation):
 - `excludeKeywords` — array of strings, may be empty;
 - `titlePrompt` — **must** contain `{keywords}` and `{titles}` (§4.12.2);
 - `descriptionPrompt` — **must** contain `{keywords}` and `{description}`;
-- both prompts — no longer than 8000 characters.
+- both prompts — no longer than 8000 characters;
+- `searchUrlTemplate` — 1…2048 characters, must contain `{text}` and `{page}`, and must parse as an
+  absolute `https://` URL whose host matches the hh.ru allow-list (§4.2).
+
+Violations return `400` with a message prefixed by the field name (§5.5).
 
 Response `200`: the saved settings. Changes apply from the **next** run; a running one works off the
 settings snapshot taken at start.
@@ -1409,8 +1420,11 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 
 «⚙ Настройки поиска» opens a `Dialog`:
 
-- **Строка поиска** (`searchText`) — substituted into `{text}` of the link (§4.11.1); below it a preview of the resulting first-page URL.
+- **Строка поиска** (`searchText`) — substituted into `{text}` of the link (§4.11.1).
   **Ключевые слова** and **стоп-слова** — comma-separated inputs (no `Chip` editor).
+- **Ссылка на выдачу hh.ru** (`searchUrlTemplate`) — an editable multiline `TextField` with a hint
+  about the mandatory placeholders `{text}`/`{page}` and a «Вернуть ссылку по умолчанию» button;
+  below it a read-only preview of the resulting first-page URL (`{text}` URL-encoded, `{page}` → `0`).
 - **Промпт для названия** and **промпт для описания** — multiline fields with a hint about the available placeholders (§4.12.2) and a
   «Вернуть промпт по умолчанию» button. **«Использовать ИИ-отбор»** (`aiEnabled`): off means keyword screening and no description fetch.
 - Saving — `PUT /api/vacancy-search-settings` in full; validation errors (`400`, in particular a missing placeholder) are shown under the
@@ -1446,7 +1460,6 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 | `COMPANY_LOGO_DIR`                 | no   | `os.tmpdir()/job-hunter-logos`             | Company-logo directory on disk (§4.10). In Docker — `/var/lib/job-hunter/logos` on named volume `logos`      |
 | `COMPANY_LOGO_REQUEST_TIMEOUT_MS`  | no   | `5000`                                     | Logo download timeout from the source CDN (§4.10), no retries                                                |
 | `HH_MAX_REQUESTS_PER_SECOND`       | no   | `2`                                        | Rate ceiling for **all** hh.ru requests: shared throttle (§4.11.2). Range 0.1…50                             |
-| `HH_SEARCH_URL_TEMPLATE`           | no   | `see §4.11.1`                              | hh.ru search-results URL template; placeholders {text} and {page} are mandatory, a missing one fails startup |
 | `VACANCY_SCAN_MAX_PAGES`           | no   | `40`                                       | Max search-results pages per run (§4.11.8). Range 1…40 — hh.ru itself cuts off at page 40                    |
 | `VACANCY_SCAN_MAX_DETAILS`         | no   | `600`                                      | Max opened vacancy pages (and model description scorings) per run — sized for a full 40-page sweep           |
 | `VACANCY_SCAN_MAX_AGE_DAYS`        | no   | `30`                                       | Vacancies older than N days are skipped (§4.11.6)                                                            |
@@ -1471,8 +1484,9 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 Env is validated at startup via `@nestjs/config` + a schema (`class-validator` or `joi`). A missing
 required variable **must** crash the process with a clear message.
 
-Keywords, exclude keywords, the search query and both AI prompts are **not** in env: they live in the
-settings table (§3.6) and are edited in the frontend (§7.9.4). Env holds only infrastructure and limits.
+Keywords, exclude keywords, the search query, the results-page link template and both AI prompts are
+**not** in env: they live in the settings table (§3.6) and are edited in the frontend (§7.9.4). Env
+holds only infrastructure and limits.
 
 `VACANCY_AI_API_KEY` is validated conditionally — required only when `VACANCY_AI_PROVIDER=openai`.
 

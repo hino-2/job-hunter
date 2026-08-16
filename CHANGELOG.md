@@ -6,6 +6,19 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**34. Search-results link template is a setting, not env.** _(backend + frontend)_
+New column `search_url_template varchar(2048)` in `vacancy_search_settings` (§3.6, migration
+`AddVacancySearchUrlTemplate`, seeded with the §4.11.1 default). `PUT /api/vacancy-search-settings`
+validates it (both `{text}`/`{page}` placeholders, length, and an `https://` + hh.ru host allow-list
+check to keep the endpoint from becoming an arbitrary-URL fetcher); `GET` no longer serves an env
+value. `HH_SEARCH_URL_TEMPLATE` is removed from env, `.env.example`, `docker-compose.yml` and startup
+validation — anyone who had customized it must paste that value into the settings dialog once after
+upgrading. `HhSearchService.fetchSearchPage` now takes the template as data inside the run's settings
+snapshot (`HhSearchPageRequest`), so `hh/` still does not import `vacancy-search/`; a hand-corrupted
+row is caught fail-loud at the start of a run with a `500`, not a 40-page loop over page 0. The
+«Настройки поиска» dialog turns the read-only preview into an editable multiline field with a
+«Вернуть ссылку по умолчанию» button, previewing the resulting page `0` URL live.
+
 **33. Hide/restore on a vacancy lead is a labelled button.** _(frontend)_
 `VacancyLeadSummaryRow` swaps the eye `IconButton` for a MUI `Button` — `variant="contained"`,
 `size="medium"`, no explicit `color` (theme `primary.main`, grey), like every other action button in the

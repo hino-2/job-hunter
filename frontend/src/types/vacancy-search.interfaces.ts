@@ -125,9 +125,9 @@ export interface ScanStatusResponse {
 }
 
 /**
- * Ответ GET/PUT /api/vacancy-search-settings (§3.6, §5.7). searchUrlTemplate — только
- * на чтение (значение env), нужен для предпросмотра итогового URL при наборе строки
- * поиска (§7.9.4); в теле PUT его нет.
+ * Ответ GET/PUT /api/vacancy-search-settings (§3.6, §5.7). searchUrlTemplate — обычное
+ * поле настроек, редактируемое в диалоге (§7.9.4), а не значение env; используется
+ * и для предпросмотра итогового URL при наборе строки поиска.
  */
 export interface VacancySearchSettings {
   searchText: string;
@@ -141,8 +141,8 @@ export interface VacancySearchSettings {
 }
 
 /**
- * Тело PUT /api/vacancy-search-settings (§5.7) — все поля настроек, кроме
- * searchUrlTemplate и updatedAt; форма всегда отправляет его целиком (ресурс один).
+ * Тело PUT /api/vacancy-search-settings (§5.7) — все поля настроек, кроме updatedAt;
+ * форма всегда отправляет его целиком (ресурс один).
  */
 export interface VacancySearchSettingsUpdate {
   searchText: string;
@@ -151,6 +151,7 @@ export interface VacancySearchSettingsUpdate {
   titlePrompt: string;
   descriptionPrompt: string;
   aiEnabled: boolean;
+  searchUrlTemplate: string;
 }
 
 /**

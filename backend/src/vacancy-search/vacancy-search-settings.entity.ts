@@ -5,6 +5,7 @@ import {
   VACANCY_SEARCH_SETTINGS_COLUMN,
   VACANCY_SEARCH_SETTINGS_ID_CHECK,
   VACANCY_SEARCH_SETTINGS_SEARCH_TEXT_LENGTH,
+  VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH,
   VACANCY_SEARCH_SETTINGS_SINGLETON_ID,
   VACANCY_SEARCH_SETTINGS_TABLE,
 } from './vacancy-search.constants';
@@ -37,6 +38,18 @@ export class VacancySearchSettings {
     length: VACANCY_SEARCH_SETTINGS_SEARCH_TEXT_LENGTH,
   })
   searchText!: string;
+
+  /**
+   * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу hh.ru — обычная колонка, а не env.
+   * Обязаны быть плейсхолдеры {text}/{page}, хост — из allow-list hh.ru
+   * (проверяется при PUT и, ещё раз fail-loud, при чтении снимка на старте прогона).
+   */
+  @Column({
+    type: COLUMN_TYPE.VARCHAR,
+    name: VACANCY_SEARCH_SETTINGS_COLUMN.SEARCH_URL_TEMPLATE,
+    length: VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH,
+  })
+  searchUrlTemplate!: string;
 
   /** §4.11.4: ключевые слова через запятую — и для детерминированного отбора, и для промптов. */
   @Column({ type: COLUMN_TYPE.TEXT, name: VACANCY_SEARCH_SETTINGS_COLUMN.KEYWORDS })

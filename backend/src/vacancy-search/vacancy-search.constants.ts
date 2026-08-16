@@ -82,6 +82,7 @@ export const VACANCY_SEARCH_SETTINGS_COLUMN = {
   TITLE_PROMPT: 'title_prompt',
   DESCRIPTION_PROMPT: 'description_prompt',
   AI_ENABLED: 'ai_enabled',
+  SEARCH_URL_TEMPLATE: 'search_url_template',
   UPDATED_AT: 'updated_at',
 } as const;
 
@@ -91,6 +92,12 @@ export const VACANCY_SEARCH_SETTINGS_SINGLETON_ID = 1;
 export const VACANCY_SEARCH_SETTINGS_ID_CHECK = 'CHK_vacancy_search_settings_id';
 
 export const VACANCY_SEARCH_SETTINGS_SEARCH_TEXT_LENGTH = 512;
+
+/** §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу hh.ru теперь колонка, а не env. */
+export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH = 2048;
+
+/** Имя ValidatorConstraint, проверяющего протокол и хост шаблона ссылки (search-url-template.validator.ts). */
+export const SEARCH_URL_TEMPLATE_CONSTRAINT_NAME = 'searchUrlTemplateOrigin';
 
 export const VACANCY_SEARCH_SETTINGS_ROUTE = 'vacancy-search-settings';
 
@@ -136,6 +143,28 @@ export const VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_KEYWORDS_MESSAGE
   '$property: обязан содержать плейсхолдер {keywords}';
 export const VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_DESCRIPTION_MESSAGE =
   '$property: обязан содержать плейсхолдер {description}';
+
+/**
+ * §5.7: сообщения валидации searchUrlTemplate при PUT. Плейсхолдеры проверяются
+ * теми же паттернами, что и buildHhSearchUrl (перенесены в hh/hh.constants.ts,
+ * потому что подстановка — их код); происхождение (https + hh.ru) проверяет
+ * SearchUrlTemplateConstraint.
+ */
+export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_MISSING_TEXT_MESSAGE =
+  '$property: обязан содержать плейсхолдер {text}';
+export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_MISSING_PAGE_MESSAGE =
+  '$property: обязан содержать плейсхолдер {page}, иначе прогон читал бы первую страницу бесконечно';
+export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_ORIGIN_MESSAGE =
+  '$property: ссылка обязана начинаться с https:// и вести на hh.ru (или региональный домен hh)';
+
+/**
+ * §4.11.1: строка засеивается той же миграцией, что и остальные поля (§3.6) —
+ * повреждённое значение (руками правленный SQL) обнаруживается только при старте
+ * прогона (VacancySearchSettingsService.getSnapshot), поэтому GET продолжает
+ * отдавать его как есть — иначе пользователь не смог бы открыть диалог и починить.
+ */
+export const VACANCY_SEARCH_SETTINGS_INVALID_URL_TEMPLATE_MESSAGE =
+  'Шаблон ссылки на выдачу в настройках повреждён: нет плейсхолдеров {text}/{page} либо хост не hh.ru';
 
 /** Общий делитель для бюджета по возрасту (§4.11.6, VACANCY_SCAN_MAX_AGE_DAYS). */
 export const MS_IN_DAY = 86_400_000;

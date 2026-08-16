@@ -126,17 +126,22 @@ export const HH_FORBIDDEN_MESSAGE =
 
 export const HH_TRANSPORT_ERROR_MESSAGE = 'Запрос к hh.ru не выполнен';
 
-/**
- * §4.11.1: та же переменная, что валидируется при старте (config/environment.validation.ts)
- * на наличие плейсхолдеров {text}/{page}; здесь она читается по имени сервисами,
- * которым нужно её значение (HhSearchService и, для предпросмотра на фронте,
- * VacancySearchSettingsService из vacancy-search/, §5.7).
- */
-export const HH_SEARCH_URL_TEMPLATE_ENV_KEY = 'HH_SEARCH_URL_TEMPLATE';
-
 /** §4.11.1: плейсхолдеры шаблона ссылки на выдачу — подставляются buildHhSearchUrl. */
 export const HH_SEARCH_TEXT_PLACEHOLDER = '{text}';
 export const HH_SEARCH_PAGE_PLACEHOLDER = '{page}';
+
+/**
+ * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу — теперь колонка
+ * vacancy_search_settings.search_url_template, а не env. Оба плейсхолдера
+ * обязательны (без {page} прогон читал бы первую страницу бесконечно) —
+ * проверяются при PUT (vacancy-search/) и здесь же переиспользуются
+ * hasHhSearchUrlPlaceholders для fail-loud проверки на старте прогона.
+ */
+export const HH_SEARCH_URL_TEXT_PLACEHOLDER_PATTERN = /\{text\}/;
+export const HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN = /\{page\}/;
+
+/** §5.7: шаблон обязан быть абсолютным https:// URL — иначе SSRF через PUT настроек. */
+export const HH_SEARCH_URL_ALLOWED_PROTOCOL = 'https:';
 
 /**
  * §4.11.3: состояние выдачи лежит в <template id="HH-Lux-InitialState">…</template>,

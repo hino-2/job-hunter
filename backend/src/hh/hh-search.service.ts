@@ -23,7 +23,6 @@ import {
   HH_RATE_LIMITED_MESSAGE,
   HH_SEARCH_DESCRIPTION_MISSING_MESSAGE,
   HH_SEARCH_PAGE_UNPARSABLE_MESSAGE,
-  HH_SEARCH_URL_TEMPLATE_ENV_KEY,
   HH_SITE_BASE_URL_ENV_KEY,
   HH_TRANSPORT_ERROR_MESSAGE,
   HH_UNEXPECTED_STATUS_MESSAGE,
@@ -33,6 +32,7 @@ import { parseHhVacancyDescription } from './hh-description.parser';
 import { HhRequestThrottle } from './hh-request.throttle';
 import { buildHhSearchUrl } from './hh-search-url.helpers';
 import { parseHhSearchPage } from './hh-search.parser';
+import type { HhSearchPageRequest } from './hh.interfaces';
 import type { HhDescriptionResult, HhSearchPageResult } from './hh.type';
 
 /**
@@ -48,7 +48,6 @@ import type { HhDescriptionResult, HhSearchPageResult } from './hh.type';
 export class HhSearchService {
   private readonly logger = new Logger(HhSearchService.name);
   private readonly maxRetries: number;
-  private readonly searchUrlTemplate: string;
   private readonly siteBaseUrl: string;
 
   constructor(
@@ -57,7 +56,6 @@ export class HhSearchService {
     private readonly throttle: HhRequestThrottle,
   ) {
     this.maxRetries = configService.getOrThrow<number>(HH_MAX_RETRIES_ENV_KEY);
-    this.searchUrlTemplate = configService.getOrThrow<string>(HH_SEARCH_URL_TEMPLATE_ENV_KEY);
     // §4.11.3: тот же базовый хост, что и у страницы вакансии — vacancyUrl каждого
     // элемента выдачи собирается каноническим, а не из links.desktop (региональный хост).
     this.siteBaseUrl = configService.getOrThrow<string>(HH_SITE_BASE_URL_ENV_KEY);
@@ -71,8 +69,9 @@ export class HhSearchService {
    */
   readonly acquireRequestSlot = (): Promise<void> => this.throttle.acquire();
 
-  fetchSearchPage(searchText: string, page: number): Promise<HhSearchPageResult> {
-    const url = buildHhSearchUrl(this.searchUrlTemplate, searchText, page);
+  fetchSearchPage(request: HhSearchPageRequest): Promise<HhSearchPageResult> {
+    const { searchUrlTemplate, searchText, page } = request;
+    const url = buildHhSearchUrl(searchUrlTemplate, searchText, page);
 
     return fetchWithRetries<HhSearchPageResult>(
       {

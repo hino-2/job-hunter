@@ -1,11 +1,7 @@
 import { parseKeywordList } from '../vacancy-keywords.helpers';
 import type { VacancySearchSettings } from '../vacancy-search-settings.entity';
 
-/**
- * Ответ GET/PUT /api/vacancy-search-settings (§5.7). searchUrlTemplate передаётся
- * отдельным аргументом, а не читается из entity — это значение env
- * (VacancySearchSettingsService.searchUrlTemplate), а не колонка БД.
- */
+/** Ответ GET/PUT /api/vacancy-search-settings (§5.7). */
 export class VacancySearchSettingsDto {
   searchText!: string;
   keywords!: string[];
@@ -13,11 +9,11 @@ export class VacancySearchSettingsDto {
   titlePrompt!: string;
   descriptionPrompt!: string;
   aiEnabled!: boolean;
-  /** §5.7: только на чтение — нужен фронту для предпросмотра итогового URL (§7.9.4). */
+  /** §3.6/§4.11.1: обычное поле настроек — читается из entity, а не из env (§5.7). */
   searchUrlTemplate!: string;
   updatedAt!: string;
 
-  static fromEntity(entity: VacancySearchSettings, searchUrlTemplate: string): VacancySearchSettingsDto {
+  static fromEntity(entity: VacancySearchSettings): VacancySearchSettingsDto {
     const dto = new VacancySearchSettingsDto();
 
     dto.searchText = entity.searchText;
@@ -26,7 +22,7 @@ export class VacancySearchSettingsDto {
     dto.titlePrompt = entity.titlePrompt;
     dto.descriptionPrompt = entity.descriptionPrompt;
     dto.aiEnabled = entity.aiEnabled;
-    dto.searchUrlTemplate = searchUrlTemplate;
+    dto.searchUrlTemplate = entity.searchUrlTemplate;
     dto.updatedAt = entity.updatedAt.toISOString();
 
     return dto;

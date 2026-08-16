@@ -119,7 +119,7 @@ export async function fetchVacancySearchSettings(): Promise<VacancySearchSetting
 
 /**
  * PUT /api/vacancy-search-settings (§5.7) — ресурс один, форма всегда отправляет
- * его целиком (searchUrlTemplate и updatedAt в тело не входят).
+ * его целиком (updatedAt в тело не входит, его выставляет сервер).
  */
 export async function updateVacancySearchSettings(
   payload: VacancySearchSettingsUpdate,

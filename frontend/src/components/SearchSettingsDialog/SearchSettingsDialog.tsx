@@ -19,13 +19,16 @@ import {
   DIALOG_CONTENT_PADDING_TOP,
   FIELD_GAP,
   MULTILINE_MAX_ROWS_PROMPT,
+  MULTILINE_MAX_ROWS_URL_TEMPLATE,
   MULTILINE_MIN_ROWS_PROMPT,
+  MULTILINE_MIN_ROWS_URL_TEMPLATE,
   SETTINGS_DIALOG_MAX_WIDTH,
 } from '../../constants/layout.constants';
 import {
   AI_ENABLED_DESCRIPTION,
   AI_ENABLED_LABEL,
   DEFAULT_DESCRIPTION_PROMPT,
+  DEFAULT_SEARCH_URL_TEMPLATE,
   DEFAULT_TITLE_PROMPT,
   DESCRIPTION_PROMPT_HINT,
   DESCRIPTION_PROMPT_LABEL,
@@ -41,10 +44,20 @@ import {
   PROMPT_REQUIRED_MESSAGE,
   PROMPT_TOO_LONG_MESSAGE,
   RESET_PROMPT_LABEL,
+  RESET_SEARCH_URL_TEMPLATE_LABEL,
   SEARCH_TEXT_LABEL,
   SEARCH_TEXT_MAX_LENGTH,
   SEARCH_TEXT_REQUIRED_MESSAGE,
   SEARCH_TEXT_TOO_LONG_MESSAGE,
+  SEARCH_URL_TEMPLATE_HINT,
+  SEARCH_URL_TEMPLATE_INVALID_MESSAGE,
+  SEARCH_URL_TEMPLATE_LABEL,
+  SEARCH_URL_TEMPLATE_MAX_LENGTH,
+  SEARCH_URL_TEMPLATE_MISSING_PLACEHOLDERS_MESSAGE,
+  SEARCH_URL_TEMPLATE_PAGE_PLACEHOLDER_PATTERN,
+  SEARCH_URL_TEMPLATE_REQUIRED_MESSAGE,
+  SEARCH_URL_TEMPLATE_TEXT_PLACEHOLDER_PATTERN,
+  SEARCH_URL_TEMPLATE_TOO_LONG_MESSAGE,
   SETTINGS_DIALOG_TITLE,
   SETTINGS_LOAD_ERROR_MESSAGE,
   TITLE_PROMPT_HINT,
@@ -61,6 +74,7 @@ import {
   buildSettingsFormValues,
   buildSettingsUpdatePayload,
   hasAllPlaceholders,
+  isValidSearchUrlTemplateShape,
   parseKeywordsInput,
 } from '../../utils/vacancy-search-settings.utils';
 import { SEARCH_SETTINGS_SERVER_VALIDATED_FIELDS } from './search-settings-dialog.constants';
@@ -90,6 +104,7 @@ function SearchSettingsForm({
   const [isKeywordsTouched, setKeywordsTouched] = useState(false);
   const [isTitlePromptTouched, setTitlePromptTouched] = useState(false);
   const [isDescriptionPromptTouched, setDescriptionPromptTouched] = useState(false);
+  const [isSearchUrlTemplateTouched, setSearchUrlTemplateTouched] = useState(false);
 
   const writeValues = (next: SearchSettingsFormValues) => {
     valuesRef.current = next;
@@ -116,6 +131,14 @@ function SearchSettingsForm({
     PLACEHOLDER_KEYWORDS_PATTERN,
     PLACEHOLDER_DESCRIPTION_PATTERN,
   ]);
+  const trimmedSearchUrlTemplate = values.searchUrlTemplate.trim();
+  const isSearchUrlTemplateEmpty = trimmedSearchUrlTemplate.length === 0;
+  const isSearchUrlTemplateTooLong = values.searchUrlTemplate.length > SEARCH_URL_TEMPLATE_MAX_LENGTH;
+  const isSearchUrlTemplateMissingPlaceholders = !hasAllPlaceholders(values.searchUrlTemplate, [
+    SEARCH_URL_TEMPLATE_TEXT_PLACEHOLDER_PATTERN,
+    SEARCH_URL_TEMPLATE_PAGE_PLACEHOLDER_PATTERN,
+  ]);
+  const isSearchUrlTemplateMalformed = !isValidSearchUrlTemplateShape(values.searchUrlTemplate);
 
   // Заведомо невалидные значения на сервер не отправляются вовсе (§10): каждая проверка
   // здесь дублирует правило UpdateVacancySearchSettingsDto (§5.7).
@@ -129,7 +152,11 @@ function SearchSettingsForm({
     isTitlePromptMissingPlaceholders ||
     isDescriptionPromptEmpty ||
     isDescriptionPromptTooLong ||
-    isDescriptionPromptMissingPlaceholders;
+    isDescriptionPromptMissingPlaceholders ||
+    isSearchUrlTemplateEmpty ||
+    isSearchUrlTemplateTooLong ||
+    isSearchUrlTemplateMissingPlaceholders ||
+    isSearchUrlTemplateMalformed;
 
   const titlePromptClientError = !isTitlePromptTouched
     ? null
@@ -153,6 +180,20 @@ function SearchSettingsForm({
           : null;
   const descriptionPromptError =
     descriptionPromptClientError ?? serverFieldErrors.descriptionPrompt ?? null;
+
+  const searchUrlTemplateClientError = !isSearchUrlTemplateTouched
+    ? null
+    : isSearchUrlTemplateEmpty
+      ? SEARCH_URL_TEMPLATE_REQUIRED_MESSAGE
+      : isSearchUrlTemplateTooLong
+        ? SEARCH_URL_TEMPLATE_TOO_LONG_MESSAGE
+        : isSearchUrlTemplateMissingPlaceholders
+          ? SEARCH_URL_TEMPLATE_MISSING_PLACEHOLDERS_MESSAGE
+          : isSearchUrlTemplateMalformed
+            ? SEARCH_URL_TEMPLATE_INVALID_MESSAGE
+            : null;
+  const searchUrlTemplateError =
+    searchUrlTemplateClientError ?? serverFieldErrors.searchUrlTemplate ?? null;
 
   const searchTextError = !isSearchTextTouched
     ? null
@@ -200,15 +241,26 @@ function SearchSettingsForm({
     patchValues({ aiEnabled: event.target.checked });
   };
 
+  const handleSearchUrlTemplateChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    patchValues({ searchUrlTemplate: event.target.value });
+    onFieldEdited('searchUrlTemplate');
+  };
+
+  const handleResetSearchUrlTemplate = () => {
+    patchValues({ searchUrlTemplate: DEFAULT_SEARCH_URL_TEMPLATE });
+    onFieldEdited('searchUrlTemplate');
+  };
+
   const handleSubmit = () => {
     setSearchTextTouched(true);
     setKeywordsTouched(true);
     setTitlePromptTouched(true);
     setDescriptionPromptTouched(true);
+    setSearchUrlTemplateTouched(true);
     onSubmit(valuesRef.current);
   };
 
-  const urlPreview = buildSearchUrlPreview(settings.searchUrlTemplate, values.searchText);
+  const urlPreview = buildSearchUrlPreview(values.searchUrlTemplate, values.searchText);
 
   return (
     <>
@@ -225,6 +277,29 @@ function SearchSettingsForm({
             onBlur={() => setSearchTextTouched(true)}
             slotProps={{ htmlInput: { maxLength: SEARCH_TEXT_MAX_LENGTH } }}
           />
+
+          <Stack spacing={0}>
+            <TextField
+              fullWidth
+              multiline
+              minRows={MULTILINE_MIN_ROWS_URL_TEMPLATE}
+              maxRows={MULTILINE_MAX_ROWS_URL_TEMPLATE}
+              label={SEARCH_URL_TEMPLATE_LABEL}
+              value={values.searchUrlTemplate}
+              error={searchUrlTemplateError !== null}
+              helperText={searchUrlTemplateError ?? SEARCH_URL_TEMPLATE_HINT}
+              onChange={handleSearchUrlTemplateChange}
+              onBlur={() => setSearchUrlTemplateTouched(true)}
+              slotProps={{ htmlInput: { maxLength: SEARCH_URL_TEMPLATE_MAX_LENGTH } }}
+            />
+            <Button
+              size="small"
+              onClick={handleResetSearchUrlTemplate}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              {RESET_SEARCH_URL_TEMPLATE_LABEL}
+            </Button>
+          </Stack>
 
           <Box>
             <Typography variant="caption" color="text.secondary">

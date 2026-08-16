@@ -231,7 +231,11 @@ export class VacancyScanService {
         handle.setCurrentPage(page);
         resumePage = page;
 
-        const pageResult = await this.hhSearch.fetchSearchPage(settings.searchText, page);
+        const pageResult = await this.hhSearch.fetchSearchPage({
+          searchUrlTemplate: settings.searchUrlTemplate,
+          searchText: settings.searchText,
+          page,
+        });
 
         if (!pageResult.ok) {
           // §4.11.3: неразбираемая страница выдачи — fail-loud, останов прогона.

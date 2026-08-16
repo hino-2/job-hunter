@@ -96,31 +96,6 @@ export const HH_MAX_REQUESTS_PER_SECOND_MIN = 0.1;
 export const HH_MAX_REQUESTS_PER_SECOND_MAX = 50;
 
 /**
- * §4.11.1. Дефолтный шаблон выдачи hh.ru — сортировка по свежести публикации
- * (на ней держится ранняя остановка по возрасту, §4.11.6) плюс явные фильтры,
- * повторяющие анонимно подборку «под резюме» (cookie-сессия отклонена пользователем,
- * см. §4.11.1). Региональный хост (ekaterinburg) не важен — вакансия одна и та же
- * для всех региональных доменов, а в vacancy_url всё равно пишется канонический адрес.
- */
-export const DEFAULT_HH_SEARCH_URL_TEMPLATE =
-  'https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true' +
-  '&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}';
-
-/**
- * Оба плейсхолдера обязательны (§4.11.1): без {page} прогон читал бы первую страницу
- * бесконечно. Проверка через .test() — совпадение в любом месте строки, а не
- * полное совпадение шаблона целиком.
- */
-export const HH_SEARCH_URL_TEXT_PLACEHOLDER_PATTERN = /\{text\}/;
-export const HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN = /\{page\}/;
-
-export const HH_SEARCH_URL_MISSING_TEXT_PLACEHOLDER_MESSAGE =
-  'HH_SEARCH_URL_TEMPLATE обязан содержать плейсхолдер {text}';
-export const HH_SEARCH_URL_MISSING_PAGE_PLACEHOLDER_MESSAGE =
-  'HH_SEARCH_URL_TEMPLATE обязан содержать плейсхолдер {page}, иначе прогон читал бы' +
-  ' первую страницу бесконечно';
-
-/**
  * §4.11.8: бюджеты одного прогона поиска. Дефолт 40 совпадает с собственным
  * потолком hh.ru (paging.lastPage.page = 39, §4.11.1) — прогон по умолчанию
  * вычерпывает всю доступную выдачу, MAX_PAGES и LAST_PAGE на полном прогоне
