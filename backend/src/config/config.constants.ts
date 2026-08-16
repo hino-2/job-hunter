@@ -131,9 +131,22 @@ export const VACANCY_SCAN_MAX_PAGES_MIN = 1;
 /** У hh.ru своя отсечка на 40-й странице (paging.lastPage.page = 39, §4.11.1). */
 export const VACANCY_SCAN_MAX_PAGES_MAX = 40;
 
-export const DEFAULT_VACANCY_SCAN_MAX_DETAILS = 60;
+/**
+ * Бюджет открытия страниц вакансий рассчитан на полный прогон по 40 страницам:
+ * на первом прогоне до ИИ по описанию доходят сотни позиций, а прежние 60 обрывали
+ * его на шестой-седьмой странице. На повторных прогонах бюджет почти не расходуется —
+ * известные вакансии отсеиваются дедупликацией до всякого ИИ (§4.11.5).
+ */
+export const DEFAULT_VACANCY_SCAN_MAX_DETAILS = 600;
 export const DEFAULT_VACANCY_SCAN_MAX_AGE_DAYS = 30;
-export const DEFAULT_VACANCY_SCAN_MAX_DURATION_MS = 1_800_000;
+/**
+ * Дедлайн прогона — 4 часа. Замер на живой выдаче: 6 страниц за 30 минут, то есть
+ * все 40 страниц требуют около 3.5 часов, и прежние 30 минут гарантированно обрывали
+ * прогон задолго до конца. Дедлайн держится не на hh.ru (её запросы при 2 rps дают
+ * ≈20 с на прогон), а на времени ответа модели. Страховка от зависшего прогона теперь
+ * не только здесь: §4.11.12 даёт ручную остановку.
+ */
+export const DEFAULT_VACANCY_SCAN_MAX_DURATION_MS = 14_400_000;
 
 /** §4.11.4: режим детерминированного отбора до/вместо ИИ. */
 export const VACANCY_PREFILTER_MODES = ['exclude_only', 'full', 'off'] as const;

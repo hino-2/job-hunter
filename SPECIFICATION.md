@@ -746,14 +746,20 @@ From the vacancy page's `<script type="application/ld+json">` (`schema.org/JobPo
 | Limiter                        | Default   | Purpose                                                          |
 | ------------------------------ | --------- | ---------------------------------------------------------------- |
 | `VACANCY_SCAN_MAX_PAGES`       | `40`      | 2000 positions per run; equal to hh.ru's own ceiling (§4.11.1)   |
-| `VACANCY_SCAN_MAX_DETAILS`     | `60`      | Vacancy pages opened per run — costs both requests and AI        |
-| `VACANCY_SCAN_MAX_AGE_DAYS`    | `30`      | Freshness cutoff (§4.11.6)                                       |
-| `VACANCY_SCAN_MAX_DURATION_MS` | `1800000` | Hard run deadline — 30 minutes                                   |
+| `VACANCY_SCAN_MAX_DETAILS`     | `600`      | Vacancy pages opened per run — costs both requests and AI       |
+| `VACANCY_SCAN_MAX_AGE_DAYS`    | `30`       | Freshness cutoff (§4.11.6)                                      |
+| `VACANCY_SCAN_MAX_DURATION_MS` | `14400000` | Hard run deadline — 4 hours                                     |
 
 Hitting a budget is not an error: the run reports `stoppedReason` and the next picks up the rest. One
 vacancy's error does not abort a run (§4.6): a description failure is `descriptionsFailed`, an insert
 failure is `failed`. Only an unparsable results page aborts a run (§4.11.3, fail-loud). The deadline is
 dominated by the local model, not hh.ru — hh.ru requests at 2 rps take ≈ 20 s.
+
+**Both budgets are sized for one full 40-page sweep.** Measured against live results: 6 pages took 30
+minutes, so all 40 need roughly 3.5 hours, and the previous `1800000` / `60` defaults cut a run off around
+the sixth page. A repeat run barely touches either budget — known vacancies are dropped by deduplication
+before any AI (§4.11.5), so only genuinely new positions reach stage 3. A run that goes wrong no longer has
+to wait out the deadline either: it can be stopped by hand (§4.11.12).
 
 #### 4.11.9 The run is asynchronous
 
@@ -1442,9 +1448,9 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 | `HH_MAX_REQUESTS_PER_SECOND`       | no   | `2`                                        | Rate ceiling for **all** hh.ru requests: shared throttle (§4.11.2). Range 0.1…50                             |
 | `HH_SEARCH_URL_TEMPLATE`           | no   | `see §4.11.1`                              | hh.ru search-results URL template; placeholders {text} and {page} are mandatory, a missing one fails startup |
 | `VACANCY_SCAN_MAX_PAGES`           | no   | `40`                                       | Max search-results pages per run (§4.11.8). Range 1…40 — hh.ru itself cuts off at page 40                    |
-| `VACANCY_SCAN_MAX_DETAILS`         | no   | `60`                                       | Max opened vacancy pages (and model description scorings) per run                                            |
+| `VACANCY_SCAN_MAX_DETAILS`         | no   | `600`                                      | Max opened vacancy pages (and model description scorings) per run — sized for a full 40-page sweep           |
 | `VACANCY_SCAN_MAX_AGE_DAYS`        | no   | `30`                                       | Vacancies older than N days are skipped (§4.11.6)                                                            |
-| `VACANCY_SCAN_MAX_DURATION_MS`     | no   | `1800000`                                  | Hard run deadline — 30 min (§4.11.8)                                                                         |
+| `VACANCY_SCAN_MAX_DURATION_MS`     | no   | `14400000`                                 | Hard run deadline — 4 hours (§4.11.8)                                                                        |
 | `VACANCY_PREFILTER_MODE`           | no   | `exclude_only`                             | `exclude_only` / `full` / `off` — what is checked deterministically before AI (§4.11.4)                      |
 | `VACANCY_MATCH_MODE`               | no   | `any`                                      | `any` / `all` — keyword screening mode when AI is off or unavailable                                         |
 | `VACANCY_LEADS_LIST_LIMIT`         | no   | `500`                                      | Max records in the GET /api/vacancy-leads response (§5.7)                                                    |

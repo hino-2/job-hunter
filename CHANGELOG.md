@@ -6,6 +6,16 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**32. Run budgets sized for a full 40-page sweep.** _(backend)_
+`VACANCY_SCAN_MAX_DURATION_MS` default `1800000 → 14400000` (30 min → 4 h) and
+`VACANCY_SCAN_MAX_DETAILS` default `60 → 600` (`config.constants.ts`, `.env.example`,
+`docker-compose.yml`, §4.11.8, §11). Measured against live results, 6 pages take ~30 minutes, so the
+old deadline stopped a run around the sixth page with `stoppedReason: 'DEADLINE'` — far short of the
+40 pages step 31 made reachable, and the details budget would have bound next. A repeat run barely
+touches either budget: known vacancies are dropped by deduplication before any AI (§4.11.5). A long
+deadline is no longer the only escape hatch from a bad run — §4.11.12 added manual stop. No code
+change.
+
 **31. Deeper runs, cheaper dedup, stop and resume.** _(backend + frontend)_
 `VACANCY_SCAN_MAX_PAGES` default `10 → 40` (§4.11.1, §4.11.8) — now equal to hh.ru's own ceiling, a
 default run exhausts the whole result set. Dedup echelon 2 (§4.11.5) moved **before** the title AI
