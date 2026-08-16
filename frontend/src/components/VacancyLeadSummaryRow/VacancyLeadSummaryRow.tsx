@@ -1,7 +1,5 @@
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import { Avatar, Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
 import { memo } from 'react';
 import type { MouseEvent } from 'react';
 
@@ -155,19 +153,17 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
         </Box>
       </Tooltip>
 
-      <Tooltip title={lead.hidden ? RESTORE_VACANCY_LABEL : HIDE_VACANCY_LABEL}>
-        <IconButton
-          aria-label={lead.hidden ? RESTORE_VACANCY_LABEL : HIDE_VACANCY_LABEL}
-          onClick={handleToggleHidden}
-          sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.auto }}
-        >
-          {lead.hidden ? (
-            <VisibilityOutlinedIcon fontSize="small" />
-          ) : (
-            <VisibilityOffOutlinedIcon fontSize="small" />
-          )}
-        </IconButton>
-      </Tooltip>
+      {/*
+       * Обычная кнопка с подписью вместо иконки: действие скрытия используется чаще
+       * остальных, подпись читается без наведения — поэтому Tooltip здесь не нужен.
+       */}
+      <Button
+        size="medium"
+        onClick={handleToggleHidden}
+        sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.auto }}
+      >
+        {lead.hidden ? RESTORE_VACANCY_LABEL : HIDE_VACANCY_LABEL}
+      </Button>
     </Box>
   );
 });
