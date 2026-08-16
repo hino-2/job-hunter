@@ -23,13 +23,13 @@ strings stay Russian per §10.
 ## Development pipeline
 
 The pipeline itself — step 0 effort estimate, the `architect` →
-`backend-developer`/`frontend-developer` → `code-reviewer` chain, and the rule that a
-not-small task never gets a "small fix on the side" — is defined once in the user-level
-`~/.claude/CLAUDE.md` and is not repeated here. Project specifics only:
+`backend-developer`/`frontend-developer` → `backend-code-reviewer`/`frontend-code-reviewer`
+chain, and the rule that a not-small task never gets a "small fix on the side" — is defined
+once in the user-level `~/.claude/CLAUDE.md` and is not repeated here. Project specifics only:
 
 - The public contracts whose change makes a task **not small** are §3 (data model) and §5
   (REST API).
-- `code-reviewer` checks §10 conventions in addition to the blueprint.
+- Both reviewers check §10 conventions in addition to the blueprint.
 - **Gates:** `npm run lint` / `typecheck` / `test` / `build` must pass, and an entry must be
   added to CHANGELOG.md when application behaviour changes. Only then — commit the step.
 
