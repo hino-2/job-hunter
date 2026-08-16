@@ -6,6 +6,7 @@ import { GetmatchModule } from '../getmatch/getmatch.module';
 import { HhModule } from '../hh/hh.module';
 import { LogosModule } from '../logos/logos.module';
 import { VacanciesController } from './vacancies.controller';
+import { VacancyLogoService } from './vacancy-logo.service';
 import { VacancyProviderRegistry } from './vacancy-provider.registry';
 import { VacancySyncService } from './vacancy-sync.service';
 
@@ -23,13 +24,18 @@ import { VacancySyncService } from './vacancy-sync.service';
  * GetmatchModule зарегистрирован фазой B3: реестр теперь знает про оба источника.
  *
  * LogosModule (§4.10) не зависит ни от applications, ни от vacancies — импорт сюда
- * не создаёт цикла: VacancySyncService использует CompanyLogoService для скачивания
- * логотипов по правилам §4.3.
+ * не создаёт цикла: VacancyLogoService использует CompanyLogoService для скачивания
+ * логотипов по правилам §4.3/§4.10.
+ *
+ * VacancyLogoService экспортируется отдельно от VacancySyncService: он нужен ещё и
+ * ApplicationsService (create-путь, §4.4/§4.10) — направление зависимостей остаётся
+ * прежним, ApplicationsModule → VacanciesModule → { HhModule, GetmatchModule, LogosModule },
+ * без forwardRef.
  */
 @Module({
   imports: [TypeOrmModule.forFeature([Application]), HhModule, GetmatchModule, LogosModule],
   controllers: [VacanciesController],
-  providers: [VacancyProviderRegistry, VacancySyncService],
-  exports: [VacancyProviderRegistry, VacancySyncService],
+  providers: [VacancyProviderRegistry, VacancySyncService, VacancyLogoService],
+  exports: [VacancyProviderRegistry, VacancySyncService, VacancyLogoService],
 })
 export class VacanciesModule {}

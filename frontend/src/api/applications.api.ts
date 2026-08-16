@@ -1,6 +1,7 @@
 import {
   API_PATH_SEPARATOR,
   APPLICATIONS_ENDPOINT,
+  CREATE_REQUEST_TIMEOUT_MS,
   SYNC_OPEN_PATH_SEGMENT,
   SYNC_OPEN_REQUEST_TIMEOUT_MS,
   SYNC_PATH_SEGMENT,
@@ -65,9 +66,15 @@ export async function updateApplication(
   return response.data;
 }
 
-/** POST /api/applications (§5.1, §7.4). status не отправляется — бэкенд создаёт OPEN. */
+/**
+ * POST /api/applications (§5.1, §7.4). status не отправляется — бэкенд создаёт OPEN. Таймаут
+ * поднят: бэкенд синхронно докачивает логотип компании (§4.4, §4.10), поэтому запрос
+ * штатно может занимать до ≈32 с.
+ */
 export async function createApplication(payload: ApplicationCreate): Promise<Application> {
-  const response = await apiClient.post<Application>(APPLICATIONS_ENDPOINT, payload);
+  const response = await apiClient.post<Application>(APPLICATIONS_ENDPOINT, payload, {
+    timeout: CREATE_REQUEST_TIMEOUT_MS,
+  });
 
   return response.data;
 }

@@ -360,6 +360,15 @@ the user has not typed them; suggestions stay editable. `position` gets the §4.
 preview error must not block saving and is shown as a non-blocking notification. `vacancyType` is not in
 the preview contract — neither source has an analogue.
 
+On `POST /api/applications` the backend additionally downloads the company logo (§4.10) **after** the row
+is inserted — `fileKey` must be an existing record id, so this cannot reuse the preview request (which
+runs before any row exists and whose contract never carries `logoUrl`, §4.2). This is therefore a second
+request to the source, sharing §4.10's rules (`vacancies/vacancy-logo.service.ts`) with sync. The create
+path writes **only** `company_logo_file`: an unrecognized or unsupported `vacancy_url` produces no
+`SKIPPED_UNSUPPORTED` (no `last_sync_*` column is touched at all), and any failure (unrecognized source,
+network error, no logo on the page, CDN failure) is silent — `logger.warn`/`debug` only, record id only —
+and `POST` still answers `201` with the record as inserted.
+
 ### 4.5 Enum `SyncOutcome`
 
 | Value                 | Meaning                                                                                 | UI label (ru)               |
@@ -454,6 +463,14 @@ optional with a safe default.
 During sync (§4.3) the backend also downloads the company logo to a file on disk; the DB stores only the
 **file name** (`company_logo_file`, §3.1), never a URL or bytes, and `ApplicationResponse` exposes only a
 boolean `hasCompanyLogo`.
+
+Two entry points share one rule set — "download or not" — in `vacancies/vacancy-logo.service.ts`
+(`VacancyLogoService.resolveLogoFile`): the sync path (§4.3 item 5, `VacancySyncService.decide`) and the
+create path (§4.4, `ApplicationsService.create` via `VacancyLogoService.downloadOnCreate`). Rules: `OK`
+outcome only, `logoUrl`/`logoAllowedHostPattern` both required, an already-downloaded file is not
+re-fetched, `fileKey = application.id`, and the throttle slot comes from the source provider
+(`acquireRequestSlot`, §4.11.2). `VacancySyncService` keeps only the §4.3 patch (`last_sync_*`,
+`vacancy_archived`, `status`, `position`); it does not decide on the logo itself anymore.
 
 | Source      | Where the logo address lives                                           |
 | ----------- | ---------------------------------------------------------------------- |
@@ -885,7 +902,10 @@ Body — `CreateApplicationDto`: `company` (required, 1..255, trim, non-empty); 
 (ISO 8601 | `null`); `notes` (≤10000). Every field except `company` is optional. Computes
 `vacancySource` and `vacancyExternalId` from `vacancyUrl` (§4.2, §4.8 — providers tried in turn via
 `VacancyProviderRegistry`). Response `201`: `ApplicationDto`. `interviewUrl` is accepted by `POST`
-and `PATCH`, but the create form (§7.4) does not show it.
+and `PATCH`, but the create form (§7.4) does not show it. The response may already carry
+`hasCompanyLogo: true` — the backend downloads the company logo (§4.10) before answering, which makes
+the endpoint slow (one source request plus one logo request, worst case ≈ 32 s); the client raises its
+timeout for this call accordingly (`CREATE_REQUEST_TIMEOUT_MS`).
 
 #### `GET /api/applications/:id`
 
@@ -1181,6 +1201,8 @@ All §7.2 sizes (`FIELD_GAP`, `ACCORDION_GAP`, `SUMMARY_COMPANY_WIDTH_PX`, every
 Результат, Заметки. Status is not in the form (always `OPEN`); «Где собес» (`interviewUrl`) is not either — it is filled later in the
 expanded record (§7.2.2). On `onBlur` of the vacancy-link field — `POST /api/vacancies/preview` and autofill (§4.4). Buttons «Отмена» and
 «Добавить» (disabled while `Компания` is empty); on success the dialog closes, the list is invalidated, `Snackbar` «Вакансия добавлена».
+«Добавить» may take a few seconds when a recognized vacancy link is present — the backend downloads the company logo before answering
+(§4.4, §4.10).
 
 ### 7.5 Deletion
 
@@ -1473,6 +1495,8 @@ job-hunter/
 │     │  ├─ vacancies.controller.ts      # POST /api/vacancies/preview
 │     │  ├─ vacancy-provider.registry.ts # single dispatch point by source
 │     │  ├─ vacancy-sync.service.ts      # §4.3 rules, bulk run (§4.6)
+│     │  ├─ vacancy-logo.service.ts      # §4.10 rules, shared by sync and create (§4.4)
+│     │  ├─ vacancy-error.helpers.ts     # describeErrorReason
 │     │  ├─ vacancy-url.helpers.ts       # normalizeVacancyUrl
 │     │  ├─ vacancy-retry.helpers.ts     # fetchWithRetries, describeTransportError
 │     │  ├─ vacancy-http-options.factory.ts

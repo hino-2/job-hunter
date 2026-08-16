@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import type { SelectQueryBuilder } from 'typeorm';
 
 import { buildLikePattern } from '../common/like.helpers';
+import { VacancyLogoService } from '../vacancies/vacancy-logo.service';
 import { VacancyProviderRegistry } from '../vacancies/vacancy-provider.registry';
 import { Application } from './application.entity';
 import {
@@ -53,8 +54,8 @@ function toDateOrNull(value: string | null | undefined): Date | null {
  * CRUD над applications. Возвращает сущности, а не DTO: в маппинг их превращает
  * контроллер, а сервис переиспользует правила синхронизации (vacancy-sync.service.ts).
  *
- * Repository, Application и VacancyProviderRegistry импортируются как значения —
- * этого требует emitDecoratorMetadata для DI (§2.4 п.4).
+ * Repository, Application, VacancyProviderRegistry и VacancyLogoService импортируются
+ * как значения — этого требует emitDecoratorMetadata для DI (§2.4 п.4).
  */
 @Injectable()
 export class ApplicationsService {
@@ -64,6 +65,7 @@ export class ApplicationsService {
     @InjectRepository(Application)
     private readonly applications: Repository<Application>,
     private readonly registry: VacancyProviderRegistry,
+    private readonly vacancyLogos: VacancyLogoService,
   ) {}
 
   /**
@@ -102,8 +104,13 @@ export class ApplicationsService {
 
     this.logger.log(`Создана запись ${saved.id} (${saved.company})`);
 
-    // Перечитываем: колонки, которые мы не писали (last_sync_*), иначе
-    // остались бы undefined в объекте, хотя в БД они null.
+    // §4.4/§4.10: докачка логотипа возможна только после INSERT — fileKey логотипа
+    // это id уже существующей записи. Ждём результат: ответ POST обязан отдавать
+    // актуальный hasCompanyLogo. Метод не бросает и sync-колонок не трогает.
+    await this.vacancyLogos.downloadOnCreate(saved);
+
+    // Перечитываем: колонки, которые мы не писали (last_sync_*), иначе остались бы
+    // undefined; этот же перечит поднимает company_logo_file, записанный выше.
     return this.findOneOrFail(saved.id);
   }
 

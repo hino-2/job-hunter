@@ -136,7 +136,9 @@ tooling (TypeScript, ESLint, Prettier) in root `devDependencies` so versions can
   otherwise a cycle and `forwardRef`. The §5.2 endpoints answer `200` on any outcome; `404`
   means only "no such record". The patch is applied to the entity before `save()`, so a failed
   `save()` rolls the entity back from a snapshot (`ApplicationSyncSnapshot`) — state that is
-  not in the DB must never be returned.
+  not in the DB must never be returned. The §4.10 "download the logo or not" decision no longer
+  lives here — it moved to `vacancies/vacancy-logo.service.ts` (`VacancyLogoService`), shared
+  by this class and by `ApplicationsService.create()` (§4.4).
 - **`vacancy_source`/`vacancy_external_id` are written only as a pair and only on the
   `vacancy_url` write path** (`ApplicationsService.resolveVacancyRef`); `VacancySyncService.decide()`
   trusts the column and never parses the URL. A data migration touching either column must

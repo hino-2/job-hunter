@@ -20,7 +20,8 @@ import type {
   SyncOutcomeCounts,
 } from '../applications/applications.type';
 import { mapWithConcurrency } from '../common/async.helpers';
-import { CompanyLogoService } from '../logos/company-logo.service';
+import { describeErrorReason } from './vacancy-error.helpers';
+import { VacancyLogoService } from './vacancy-logo.service';
 import { normalizeVacancyPosition } from './vacancy-position.helpers';
 import { VacancyProviderRegistry } from './vacancy-provider.registry';
 import {
@@ -32,7 +33,7 @@ import {
   VACANCY_SKIPPED_UNSUPPORTED_MESSAGE,
   VACANCY_UNKNOWN_SOURCE_MESSAGE,
 } from './vacancies.constants';
-import type { VacancySourceProvider, VacancySyncDecision } from './vacancies.interfaces';
+import type { VacancySyncDecision } from './vacancies.interfaces';
 import type { VacancyFetchResult } from './vacancies.type';
 
 /** Нули по всем пяти исходам §4.5: сводка обязана содержать каждый ключ, даже пустой. */
@@ -157,10 +158,6 @@ function describeCounts(counts: SyncOutcomeCounts): string {
     .join(', ');
 }
 
-function describeErrorReason(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 /**
  * Значения sync-колонок ДО применения патча. Снимаются перед Object.assign, чтобы
  * откатить сущность, если save() не прошёл.
@@ -190,6 +187,10 @@ function takeSyncSnapshot(application: Application): ApplicationSyncSnapshot {
  * forwardRef. Цена — дублирование findOneBy с NotFoundException; она принята
  * сознательно (наследуется от прежнего решения для hh-sync.service.ts).
  *
+ * §4.10 «качать логотип или нет» этот класс больше не решает сам — правило переехало
+ * в VacancyLogoService (resolveLogoFile), общий с create-путём (§4.4); здесь остаётся
+ * только вызов и запись результата в патч по правилам §4.3.
+ *
  * Repository, Application и ConfigService импортируются как значения: этого
  * требует emitDecoratorMetadata для DI (§2.4 п.4).
  */
@@ -203,7 +204,7 @@ export class VacancySyncService {
     @InjectRepository(Application)
     private readonly applications: Repository<Application>,
     private readonly registry: VacancyProviderRegistry,
-    private readonly logos: CompanyLogoService,
+    private readonly vacancyLogos: VacancyLogoService,
     configService: ConfigService,
   ) {
     this.concurrency = configService.getOrThrow<number>(SYNC_CONCURRENCY_ENV_KEY);
@@ -337,52 +338,7 @@ export class VacancySyncService {
 
     return buildFetchedDecision(
       fetched,
-      await this.resolveLogoFile(application, fetched, provider),
-    );
-  }
-
-  /**
-   * §4.10: качать логотип или нет. undefined — «колонку не трогать» (см. комментарий
-   * к buildFetchedDecision), а не null. Порядок отказов: не OK → не узнали о вакансии
-   * вообще; нет logoUrl → источник логотип не отдал; файл уже на диске → не перекачиваем
-   * (иначе массовый прогон по всем открытым записям заново скачивал бы то, что уже есть).
-   * CompanyLogoService.download сам не бросает — здесь дополнительный try/catch не нужен.
-   *
-   * provider передаётся третьим аргументом ради acquireRequestSlot (§4.11.2): скачивание
-   * логотипа обязано идти через тот же троттл, что и страница вакансии этого источника.
-   */
-  private async resolveLogoFile(
-    application: Application,
-    fetched: VacancyFetchResult,
-    provider: VacancySourceProvider,
-  ): Promise<string | undefined> {
-    if (fetched.outcome !== SYNC_OUTCOME.OK) {
-      return undefined;
-    }
-
-    const { logoUrl, logoAllowedHostPattern } = fetched.vacancy;
-
-    // Оба поля заполняются парсером источника вместе (§4.10) — logoAllowedHostPattern
-    // здесь null означал бы, что парсер прислал URL без allow-list'а, чего не бывает;
-    // проверка на всякий случай сохраняет тип allowedHostPattern ниже необязательным.
-    if (logoUrl === null || logoAllowedHostPattern === null) {
-      return undefined;
-    }
-
-    if (
-      application.companyLogoFile !== null &&
-      (await this.logos.exists(application.companyLogoFile))
-    ) {
-      return undefined;
-    }
-
-    return (
-      (await this.logos.download({
-        fileKey: application.id,
-        logoUrl,
-        allowedHostPattern: logoAllowedHostPattern,
-        acquireSlot: provider.acquireRequestSlot,
-      })) ?? undefined
+      await this.vacancyLogos.resolveLogoFile(application, fetched, provider),
     );
   }
 }

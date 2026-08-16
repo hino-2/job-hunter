@@ -6,6 +6,15 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**30. Company logo downloaded on record create.** _(backend + frontend)_
+`POST /api/applications` now downloads the company logo (§4.10) right after the row is inserted, so a
+newly created record can show it without a manual 🔄. New `VacancyLogoService`
+(`vacancies/vacancy-logo.service.ts`) owns the §4.10 "download or not" rules for both the sync path
+(`VacancySyncService`) and the new create path (`ApplicationsService.create`); the create path writes
+only `company_logo_file` — no `last_sync_*`/`status`/`position` change, no `SKIPPED_UNSUPPORTED` for an
+unrecognized link, failures are silent (`logger.warn`). One extra throttled source request per create;
+frontend raises its request timeout for this call (`CREATE_REQUEST_TIMEOUT_MS = 45 000`).
+
 **29. A summary-row click on «Вакансии» opens the vacancy.** _(frontend)_
 `VacancyLeadAccordion`: the summary row opens `vacancyUrl` in a new tab (`window.open`,
 `noopener,noreferrer`) instead of expanding; expansion moved onto the `ExpandMore` arrow, now an
