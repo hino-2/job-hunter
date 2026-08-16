@@ -150,31 +150,6 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
         {salary}
       </Typography>
 
-      <Tooltip title={OPEN_VACANCY_LABEL}>
-        <Box
-          component="span"
-          onClick={handleOpenWrapperClick}
-          sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.auto, display: 'inline-flex' }}
-        >
-          {href === null ? (
-            // disabled нельзя вешать на IconButton component="a" — см. UrlField.
-            <IconButton disabled aria-label={OPEN_VACANCY_LABEL}>
-              <OpenInNewIcon fontSize="small" />
-            </IconButton>
-          ) : (
-            <IconButton
-              component="a"
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={OPEN_VACANCY_LABEL}
-            >
-              <OpenInNewIcon fontSize="small" />
-            </IconButton>
-          )}
-        </Box>
-      </Tooltip>
-
       {/*
        * Обычная кнопка с подписью вместо иконки: действие скрытия используется чаще
        * остальных, подпись читается без наведения — поэтому Tooltip здесь не нужен.
