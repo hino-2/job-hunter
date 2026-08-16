@@ -135,6 +135,8 @@ export const VACANCY_LEADS_SEARCH_PLACEHOLDER = 'Поиск…';
 export const VACANCY_LEADS_HIDDEN_TOGGLE_LABEL = 'Скрытые';
 
 export const OPEN_VACANCY_LABEL = 'Открыть на hh.ru';
+export const EXPAND_VACANCY_LABEL = 'Развернуть';
+export const COLLAPSE_VACANCY_LABEL = 'Свернуть';
 export const HIDE_VACANCY_LABEL = 'Скрыть';
 export const RESTORE_VACANCY_LABEL = 'Вернуть';
 export const HIDE_VACANCY_ERROR_FALLBACK_MESSAGE = 'Не удалось скрыть вакансию';

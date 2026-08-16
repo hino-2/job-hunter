@@ -1,7 +1,7 @@
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { Accordion, AccordionDetails, AccordionSummary } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, IconButton } from '@mui/material';
 import { memo } from 'react';
-import type { SyntheticEvent } from 'react';
+import type { MouseEvent } from 'react';
 
 import {
   ACCORDION_DETAILS_PADDING_BOTTOM,
@@ -13,7 +13,16 @@ import {
   SUMMARY_PADDING_X,
   SUMMARY_TEXT_MIN_WIDTH_PX,
 } from '../../constants/layout.constants';
-import { ACCORDION_SLOT_PROPS } from './vacancy-lead-accordion.constants';
+import {
+  COLLAPSE_VACANCY_LABEL,
+  EXPAND_VACANCY_LABEL,
+} from '../../constants/vacancy-search.constants';
+import { toExternalHref } from '../../utils/url.utils';
+import {
+  ACCORDION_SLOT_PROPS,
+  EXTERNAL_WINDOW_FEATURES,
+  EXTERNAL_WINDOW_TARGET,
+} from './vacancy-lead-accordion.constants';
 import type { VacancyLeadAccordionProps } from './vacancy-lead-accordion.interfaces';
 import { VacancyLeadFields } from '../VacancyLeadFields/VacancyLeadFields';
 import { VacancyLeadSummaryRow } from '../VacancyLeadSummaryRow/VacancyLeadSummaryRow';
@@ -32,8 +41,25 @@ export const VacancyLeadAccordion = memo(function VacancyLeadAccordion({
   onToggle,
   onToggleHidden,
 }: VacancyLeadAccordionProps) {
-  const handleChange = (_event: SyntheticEvent, isExpanded: boolean) => {
-    onToggle(lead.id, isExpanded);
+  const href = toExternalHref(lead.vacancyUrl);
+  const expandLabel = expanded ? COLLAPSE_VACANCY_LABEL : EXPAND_VACANCY_LABEL;
+
+  // Клик по шапке открывает вакансию, а не разворачивает запись (§7.9.1): описание
+  // читается на источнике, раскрытые поля нужны реже. Поэтому у Accordion нет onChange —
+  // иначе тот же клик ещё и переключал бы раскрытость.
+  const handleSummaryClick = () => {
+    if (href === null) {
+      return;
+    }
+
+    window.open(href, EXTERNAL_WINDOW_TARGET, EXTERNAL_WINDOW_FEATURES);
+  };
+
+  // Раскрытие живёт только на стрелке справа; stopPropagation обязателен — без него
+  // клик всплыл бы до шапки и открыл вакансию заодно с разворотом.
+  const handleExpandClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onToggle(lead.id, !expanded);
   };
 
   return (
@@ -41,13 +67,17 @@ export const VacancyLeadAccordion = memo(function VacancyLeadAccordion({
       disableGutters
       elevation={ACCORDION_ELEVATION}
       expanded={expanded}
-      onChange={handleChange}
       slotProps={ACCORDION_SLOT_PROPS}
       sx={{ width: '100%' }}
     >
       <AccordionSummary
         component="div"
-        expandIcon={<ExpandMoreIcon />}
+        onClick={handleSummaryClick}
+        expandIcon={
+          <IconButton aria-label={expandLabel} onClick={handleExpandClick}>
+            <ExpandMoreIcon />
+          </IconButton>
+        }
         sx={{ minHeight: SUMMARY_MIN_HEIGHT_PX, px: SUMMARY_PADDING_X }}
         slotProps={{
           content: {

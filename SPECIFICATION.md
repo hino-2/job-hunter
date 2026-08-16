@@ -1231,7 +1231,10 @@ summary; below that the list.
   `AccordionSummary` as `component="div"`, `memo`, expansion via `useExpandedIds` and a `boolean` slice by id.
 - **Collapsed summary row:** publication date (`DD.MM`), position, company with the logo left of the name (`Avatar`, letter fallback,
   §4.10, §7.2.1), short salary, `OpenInNew` (opens `vacancyUrl` in a new tab) and «Скрыть». Both buttons start with `stopPropagation()`,
-  otherwise the click toggles the accordion (§13.10.3).
+  otherwise the click reaches the summary row (§13.10.3).
+- **A summary-row click opens `vacancyUrl` in a new tab** (`window.open`, `noopener,noreferrer`) — unlike §7.2, it does **not** expand the
+  record; with no usable URL the click does nothing. Expansion lives **only** on the `ExpandMore` arrow on the right, which is an
+  `IconButton` with `stopPropagation()`. `Accordion` therefore gets no `onChange`: MUI's own toggle would fire on any summary click.
 - **Expanded state — fields from the search results** (§4.11.3), in two rows: full salary (`от … до … ₽, до вычета`), region, required
   experience, employment type, work format, full publication date, when the run first saw the vacancy, the model's reasons
   (`aiTitleReason`, `aiDescriptionReason`) and matched keywords. Empty fields are omitted, not shown as dashes.

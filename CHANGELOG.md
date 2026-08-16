@@ -6,6 +6,12 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**29. A summary-row click on «Вакансии» opens the vacancy.** _(frontend)_
+`VacancyLeadAccordion`: the summary row opens `vacancyUrl` in a new tab (`window.open`,
+`noopener,noreferrer`) instead of expanding; expansion moved onto the `ExpandMore` arrow, now an
+`IconButton` with `stopPropagation()`. `Accordion` lost its `onChange` — MUI's own toggle fires on any
+summary click, so keeping it would open and expand at once (§7.9.1).
+
 **28. Documentation translated to English and condensed.** _(documentation)_
 `SPECIFICATION.md` (3068 → 1664 lines) and `CLAUDE.md` (8.8k → ~4.5k tokens) rewritten in English;
 §14 moved here as this file. All `§` numbering is unchanged — code comments cite it — and §14 remains
