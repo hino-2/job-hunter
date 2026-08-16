@@ -40,6 +40,8 @@ export const VacancyLeadAccordion = memo(function VacancyLeadAccordion({
   expanded,
   onToggle,
   onToggleHidden,
+  isApplying,
+  onApply,
 }: VacancyLeadAccordionProps) {
   const href = toExternalHref(lead.vacancyUrl);
   const expandLabel = expanded ? COLLAPSE_VACANCY_LABEL : EXPAND_VACANCY_LABEL;
@@ -89,7 +91,12 @@ export const VacancyLeadAccordion = memo(function VacancyLeadAccordion({
           },
         }}
       >
-        <VacancyLeadSummaryRow lead={lead} onToggleHidden={onToggleHidden} />
+        <VacancyLeadSummaryRow
+          lead={lead}
+          onToggleHidden={onToggleHidden}
+          isApplying={isApplying}
+          onApply={onApply}
+        />
       </AccordionSummary>
 
       <AccordionDetails

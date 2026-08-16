@@ -18,12 +18,15 @@ import { ApplicationsService } from './applications.service';
  * чтобы читать байты логотипа для GET /:id/logo; LogosModule не зависит ни от applications,
  * ни от vacancies, поэтому оба импортируют его напрямую без цикла и forwardRef.
  *
- * ApplicationsService не экспортируется: он нужен только своему контроллеру, а
- * VacancySyncService работает с репозиторием напрямую (см. комментарий в vacancies.module.ts).
+ * ApplicationsService экспортируется (§5.7): VacancySearchModule импортирует этот модуль
+ * ради VacancyLeadApplicationService (создание отклика из лида ровно тем же путём, что
+ * ручное создание, и признак hasApplication в VacancyLeadDto). Импорт односторонний —
+ * ApplicationsModule ничего не знает о vacancy-search/, иначе получился бы цикл.
  */
 @Module({
   imports: [TypeOrmModule.forFeature([Application]), VacanciesModule, LogosModule],
   controllers: [ApplicationsController],
   providers: [ApplicationsService],
+  exports: [ApplicationsService],
 })
 export class ApplicationsModule {}

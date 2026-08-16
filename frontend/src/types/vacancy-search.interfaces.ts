@@ -40,6 +40,7 @@ export interface VacancyLead {
   aiTitleReason: string | null;
   aiDescriptionReason: string | null;
   hidden: boolean;
+  hasApplication: boolean;
   firstSeenAt: string;
   lastSeenAt: string;
 }

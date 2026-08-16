@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { ApplicationsModule } from '../applications/applications.module';
 import { HhModule } from '../hh/hh.module';
 import { LogosModule } from '../logos/logos.module';
 import { VacancyAiModule } from '../vacancy-ai/vacancy-ai.module';
 import { VacancyAiCheckService } from './vacancy-ai-check.service';
+import { VacancyLeadApplicationService } from './vacancy-lead-application.service';
 import { VacancyLead } from './vacancy-lead.entity';
 import { VacancyLeadsController } from './vacancy-leads.controller';
 import { VacancyLeadsService } from './vacancy-leads.service';
@@ -24,9 +26,12 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
  * vacancy_scan_position и VacancyScanPositionService — сохранённую позицию
  * прогона, переживающую рестарт процесса, в отличие от VacancyScanStateService
  * (только память). Зависимость модулей — VacancySearchModule → { HhModule,
- * VacancyAiModule, LogosModule } — циклов нет: ни hh/, ни vacancy-ai/, ни logos/
- * не импортируют vacancy-search/. LogosModule добавлен шагом №26 (§14, §4.10) —
- * CompanyLogoService нужен VacancyScanService для скачивания логотипа лида.
+ * VacancyAiModule, LogosModule, ApplicationsModule } — циклов нет: ни hh/, ни
+ * vacancy-ai/, ни logos/, ни applications/ не импортируют vacancy-search/. LogosModule
+ * добавлен шагом №26 (§14, §4.10) — CompanyLogoService нужен VacancyScanService для
+ * скачивания логотипа лида. ApplicationsModule добавлен ради VacancyLeadApplicationService
+ * (§5.7): кнопка «Отклик» создаёт запись тем же путём, что ручное создание, а
+ * ApplicationsModule → vacancy-search/ обратной ссылки нет и не будет.
  */
 @Module({
   imports: [
@@ -34,6 +39,7 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
     HhModule,
     VacancyAiModule,
     LogosModule,
+    ApplicationsModule,
   ],
   controllers: [VacancySearchSettingsController, VacancyLeadsController],
   providers: [
@@ -43,6 +49,7 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
     VacancyScanPositionService,
     VacancyScanService,
     VacancyAiCheckService,
+    VacancyLeadApplicationService,
   ],
 })
 export class VacancySearchModule {}

@@ -6,6 +6,29 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**35. Applying to a lead creates an application.** _(backend + frontend)_
+`POST /api/vacancy-leads/:id/apply` (§5.7) reuses `ApplicationsService.create()` verbatim — same
+§4.2 `vacancy_source`/`vacancy_external_id` resolution, same §4.4/§4.10 post-insert logo download —
+so a lead-born record is indistinguishable from a manually created one. No migration: whether a lead
+already has an application is derived from the pair (`vacancy_source`, `vacancy_external_id`)
+against `applications`, never stored on `vacancy_leads` (§3.5). `ApplicationsService` gained
+`findOneByVacancyRef` (409 check in `VacancyLeadApplicationService.applyToLead`) and
+`findAppliedVacancyRefs` — a single unparameterized `SELECT` over `applications`, cheaper than a
+tuple-`IN` keyed by up to `VACANCY_LEADS_LIST_LIMIT` (500) leads, since the table itself only holds
+hundreds of rows (§1.2). `VacancyLeadDto.hasApplication` is filled from a `Set` of serialized refs
+computed once per `GET /api/vacancy-leads` request. Route declared above `PATCH :id`, same order
+rule as `scan`/`scan/stop`/`scan/status`/`:id/logo`. `ApplicationsModule` now exports
+`ApplicationsService`; the dependency stays one-way, `VacancySearchModule → ApplicationsModule`.
+On the screen (§7.9.1) every lead's collapsed summary row ends with an "Отклик" button, right of
+"Скрыть", cycling through `Отклик` → `Создаём…` → `Отклик создан` and disabled once
+`hasApplication` is true. `useApplyVacancyLead` keeps the set of in-flight ids itself and hands the
+list a boolean slice, so applying to two leads in a row does not re-render their neighbours; success
+patches `hasApplication` in place and invalidates only the applications caches — refetching 500
+leads to change one flag would repaint the screen. The three outcome channels stay separate: `409`
+is a normal outcome (info snackbar plus the same patch), a failed request is an error snackbar, and
+a `404` purges the lead from the caches. The request raises its timeout to the same 45 s
+`POST /api/applications` uses, since the logo is downloaded synchronously.
+
 **34. Search-results link template is a setting, not env.** _(backend + frontend)_
 New column `search_url_template varchar(2048)` in `vacancy_search_settings` (§3.6, migration
 `AddVacancySearchUrlTemplate`, seeded with the §4.11.1 default). `PUT /api/vacancy-search-settings`

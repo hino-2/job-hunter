@@ -180,6 +180,17 @@ export const VACANCY_LEADS_SCAN_STATUS_ROUTE = 'scan/status';
 /** §4.10, §4.11, §5.7: та же логика порядка маршрутов, что у APPLICATION_LOGO_ROUTE. */
 export const VACANCY_LEAD_LOGO_ROUTE = `${VACANCY_LEAD_BY_ID_ROUTE}/logo`;
 
+/**
+ * §5.7 (создание отклика из лида): по тому же правилу порядка маршрутов, что и
+ * scan/scan-stop/scan-status/:id/logo выше — объявляется в контроллере ВЫШЕ
+ * методов с ':id', иначе Express сматчил бы 'apply' как значение :id.
+ */
+export const VACANCY_LEAD_APPLY_ROUTE = `${VACANCY_LEAD_BY_ID_ROUTE}/apply`;
+
+export const LEAD_ALREADY_APPLIED_MESSAGE = 'Отклик по этой вакансии уже создан';
+
+export const LEAD_APPLIED_LOG_MESSAGE = 'Из лида создан отклик';
+
 export const VACANCY_LEADS_ALIAS = 'vacancyLead';
 
 export const VACANCY_LEAD_NOT_FOUND_MESSAGE = 'Вакансия не найдена';

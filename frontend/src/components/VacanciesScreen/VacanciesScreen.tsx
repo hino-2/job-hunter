@@ -5,6 +5,8 @@ import { CONTAINER_PADDING_X, CONTAINER_PADDING_Y, FIELD_GAP } from '../../const
 import { NOTIFICATION_SEVERITY } from '../../constants/notification.constants';
 import { SEARCH_DEBOUNCE_MS } from '../../constants/query.constants';
 import {
+  APPLY_VACANCY_ERROR_FALLBACK_MESSAGE,
+  APPLY_VACANCY_SUCCESS_MESSAGE,
   DEFAULT_VACANCY_LEADS_FILTERS,
   EMPTY_SCAN_RESUME_STATE,
   EMPTY_VACANCY_LEADS,
@@ -17,6 +19,7 @@ import {
   SETTINGS_SAVE_ERROR_FALLBACK_MESSAGE,
   SETTINGS_SAVE_SUCCESS_MESSAGE,
 } from '../../constants/vacancy-search.constants';
+import { useApplyVacancyLead } from '../../hooks/useApplyVacancyLead';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useExpandedIds } from '../../hooks/useExpandedIds';
 import { useStartVacancyScan } from '../../hooks/useStartVacancyScan';
@@ -124,6 +127,24 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
     [notification],
   );
 
+  const handleApplied = useCallback(() => {
+    notification.notify(APPLY_VACANCY_SUCCESS_MESSAGE, NOTIFICATION_SEVERITY.SUCCESS);
+  }, [notification]);
+
+  const handleAlreadyApplied = useCallback(
+    (message: string) => {
+      notification.notify(message, NOTIFICATION_SEVERITY.INFO);
+    },
+    [notification],
+  );
+
+  const handleApplyFailed = useCallback(
+    (error: Error) => {
+      notification.notifyError(extractApiErrorMessage(error, APPLY_VACANCY_ERROR_FALLBACK_MESSAGE));
+    },
+    [notification],
+  );
+
   const startScan = useStartVacancyScan({
     onAlreadyRunning: handleScanAlreadyRunning,
     onFailed: handleScanFailed,
@@ -139,6 +160,11 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   const { mutate: toggleHidden } = useUpdateVacancyLead({
     onToggled: () => {},
     onFailed: handleToggleFailed,
+  });
+  const { applyingIds, apply } = useApplyVacancyLead({
+    onApplied: handleApplied,
+    onAlreadyApplied: handleAlreadyApplied,
+    onFailed: handleApplyFailed,
   });
 
   const handleScanFresh = () => {
@@ -199,6 +225,8 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
             expandedIds={expanded.expandedIds}
             onToggle={expanded.actions.toggle}
             onToggleHidden={handleToggleHidden}
+            applyingIds={applyingIds}
+            onApply={apply}
           />
         </Stack>
       </Container>

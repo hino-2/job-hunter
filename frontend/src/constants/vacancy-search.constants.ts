@@ -150,6 +150,14 @@ export const RESTORE_VACANCY_LABEL = 'Вернуть';
 export const HIDE_VACANCY_ERROR_FALLBACK_MESSAGE = 'Не удалось скрыть вакансию';
 export const RESTORE_VACANCY_ERROR_FALLBACK_MESSAGE = 'Не удалось вернуть вакансию';
 
+/** §5.7, §7.9.1: кнопка «Отклик» — создание Application из лида, три состояния подписи. */
+export const APPLY_VACANCY_LABEL = 'Отклик';
+export const APPLY_VACANCY_PENDING_LABEL = 'Создаём…';
+export const APPLY_VACANCY_DONE_LABEL = 'Отклик создан';
+export const APPLY_VACANCY_SUCCESS_MESSAGE = 'Отклик создан';
+export const APPLY_VACANCY_ALREADY_MESSAGE = 'Отклик по этой вакансии уже есть';
+export const APPLY_VACANCY_ERROR_FALLBACK_MESSAGE = 'Не удалось создать отклик';
+
 /** §7.9.1: подписи полей раскрытого состояния лида. */
 export const VACANCY_LEAD_FIELD_LABELS = {
   salary: 'Зарплата',

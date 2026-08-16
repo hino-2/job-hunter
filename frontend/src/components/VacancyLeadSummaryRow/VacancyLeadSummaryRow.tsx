@@ -13,6 +13,9 @@ import {
   VACANCY_LEAD_SUMMARY_FLEX,
 } from '../../constants/layout.constants';
 import {
+  APPLY_VACANCY_DONE_LABEL,
+  APPLY_VACANCY_LABEL,
+  APPLY_VACANCY_PENDING_LABEL,
   HIDE_VACANCY_LABEL,
   OPEN_VACANCY_LABEL,
   RESTORE_VACANCY_LABEL,
@@ -33,6 +36,8 @@ import type { VacancyLeadSummaryRowProps } from './vacancy-lead-summary-row.inte
 export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
   lead,
   onToggleHidden,
+  isApplying,
+  onApply,
 }: VacancyLeadSummaryRowProps) {
   const salary = formatSalaryShort(lead);
   const href = toExternalHref(lead.vacancyUrl);
@@ -52,6 +57,23 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
     event.stopPropagation();
     onToggleHidden(lead.id, !lead.hidden);
   };
+
+  // Тот же приём, что у handleOpenWrapperClick: disabled Button тоже получает от MUI
+  // pointer-events: none, и клик по нему без обёртки провалился бы в шапку.
+  const handleApplyWrapperClick = (event: MouseEvent<HTMLSpanElement>) => {
+    event.stopPropagation();
+  };
+
+  const handleApply = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onApply(lead.id);
+  };
+
+  const applyLabel = lead.hasApplication
+    ? APPLY_VACANCY_DONE_LABEL
+    : isApplying
+      ? APPLY_VACANCY_PENDING_LABEL
+      : APPLY_VACANCY_LABEL;
 
   return (
     <Box
@@ -167,6 +189,27 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
       >
         {lead.hidden ? RESTORE_VACANCY_LABEL : HIDE_VACANCY_LABEL}
       </Button>
+
+      {/*
+       * Кнопка «Отклик» — последняя в ряду (§7.9.1). Обёртка со stopPropagation
+       * обязательна: у disabled Button pointer-events: none, и клик по спиннеру-подписи
+       * провалился бы в шапку мимо собственного onClick (тот же приём, что у 🔄 откликов).
+       */}
+      <Box
+        component="span"
+        onClick={handleApplyWrapperClick}
+        sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.apply, display: 'inline-flex' }}
+      >
+        <Button
+          fullWidth
+          variant="contained"
+          size="medium"
+          disabled={lead.hasApplication || isApplying}
+          onClick={handleApply}
+        >
+          {applyLabel}
+        </Button>
+      </Box>
     </Box>
   );
 });

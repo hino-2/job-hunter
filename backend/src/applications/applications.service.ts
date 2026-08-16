@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import type { SelectQueryBuilder } from 'typeorm';
 
 import { buildLikePattern } from '../common/like.helpers';
 import { VacancyLogoService } from '../vacancies/vacancy-logo.service';
 import { VacancyProviderRegistry } from '../vacancies/vacancy-provider.registry';
+import type { VacancyRef } from '../vacancies/vacancies.interfaces';
 import { Application } from './application.entity';
 import {
   APPLICATION_NOT_FOUND_MESSAGE,
@@ -96,6 +97,39 @@ export class ApplicationsService {
     }
 
     return entity;
+  }
+
+  /** §5.7: пара (vacancy_source, vacancy_external_id) → уже созданный отклик или null, не бросает. */
+  findOneByVacancyRef(ref: VacancyRef): Promise<Application | null> {
+    return this.applications.findOneBy({ vacancySource: ref.source, vacancyExternalId: ref.externalId });
+  }
+
+  /**
+   * §5.7: все пары (vacancy_source, vacancy_external_id) уже созданных откликов — питает
+   * признак hasApplication в списке лидов (VacancyLeadApplicationService.findAppliedRefKeys).
+   *
+   * Выборка без параметров, а не tuple-IN по конкретным ключам лидов страницы: таблица
+   * откликов — сотни строк (§1.2), а лидов на экране может быть до VACANCY_LEADS_LIST_LIMIT
+   * (по умолчанию 500) — цельный SELECT дешевле, чем IN с полутысячей троек параметров.
+   *
+   * filter типы не сузит (`vacancySource`/`vacancyExternalId` остаются `VacancySource | null`
+   * и `string | null` в типе Application), поэтому сборка VacancyRef[] — обычный цикл
+   * с явной проверкой на null, а не `any` (§10 п.4).
+   */
+  async findAppliedVacancyRefs(): Promise<VacancyRef[]> {
+    const rows = await this.applications.find({
+      select: { vacancySource: true, vacancyExternalId: true },
+      where: { vacancySource: Not(IsNull()), vacancyExternalId: Not(IsNull()) },
+    });
+    const refs: VacancyRef[] = [];
+
+    for (const row of rows) {
+      if (row.vacancySource !== null && row.vacancyExternalId !== null) {
+        refs.push({ source: row.vacancySource, externalId: row.vacancyExternalId });
+      }
+    }
+
+    return refs;
   }
 
   async create(dto: CreateApplicationDto): Promise<Application> {

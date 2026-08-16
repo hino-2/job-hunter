@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { ApplicationDto } from '../applications/dto/application.dto';
 import { readCompanyLogoOrFail } from '../logos/company-logo-response.helpers';
 import {
   CONTENT_TYPE_OPTIONS_HEADER,
@@ -33,10 +34,13 @@ import { isResumablePosition } from './vacancy-scan-position.helpers';
 import { VacancyScanPositionService } from './vacancy-scan-position.service';
 import { VacancyScanStateService } from './vacancy-scan-state.service';
 import { VacancyScanService } from './vacancy-scan.service';
+import { VacancyLeadApplicationService } from './vacancy-lead-application.service';
+import { serializeVacancyRefKey } from './vacancy-lead-key.helpers';
 import { VacancyLeadsService } from './vacancy-leads.service';
 import { VacancySearchSettingsService } from './vacancy-search-settings.service';
 import {
   DEFAULT_SCAN_MODE,
+  VACANCY_LEAD_APPLY_ROUTE,
   VACANCY_LEAD_BY_ID_ROUTE,
   VACANCY_LEAD_ID_PARAM,
   VACANCY_LEAD_LOGO_ROUTE,
@@ -49,10 +53,11 @@ import {
 import type { VacancyScanResumeState } from './vacancy-search.interfaces';
 
 /**
- * Список/скрытие лидов и запуск/остановка/статус прогона поиска (§5.7, §4.11.12).
+ * Список/скрытие лидов, создание отклика из лида (§5.7) и запуск/остановка/статус
+ * прогона поиска (§4.11.12).
  *
- * ВАЖНО: маршруты 'scan', 'scan/stop', 'scan/status' и ':id/logo' объявлены ВЫШЕ
- * метода с ':id', иначе Express сматчил бы их хвост как значение :id — то же
+ * ВАЖНО: маршруты 'scan', 'scan/stop', 'scan/status', ':id/logo' и ':id/apply' объявлены
+ * ВЫШЕ метода с ':id', иначе Express сматчил бы их хвост как значение :id — то же
  * правило, что у sync-open/:id/logo в ApplicationsController (§5.2, §4.10, шаг №26 §14).
  */
 @Controller(VACANCY_LEADS_ROUTE)
@@ -66,6 +71,7 @@ export class VacancyLeadsController {
     private readonly positionService: VacancyScanPositionService,
     private readonly settingsService: VacancySearchSettingsService,
     private readonly companyLogoService: CompanyLogoService,
+    private readonly leadApplicationService: VacancyLeadApplicationService,
     configService: ConfigService,
   ) {
     this.maxPages = configService.getOrThrow<number>(VACANCY_SCAN_MAX_PAGES_ENV_KEY);
@@ -73,9 +79,17 @@ export class VacancyLeadsController {
 
   @Get()
   async findAll(@Query() query: FindVacancyLeadsQueryDto): Promise<VacancyLeadDto[]> {
-    const entities = await this.leadsService.findAll(query);
+    const [entities, appliedKeys] = await Promise.all([
+      this.leadsService.findAll(query),
+      this.leadApplicationService.findAppliedRefKeys(),
+    ]);
 
-    return entities.map((entity) => VacancyLeadDto.fromEntity(entity));
+    return entities.map((entity) =>
+      VacancyLeadDto.fromEntity(
+        entity,
+        appliedKeys.has(serializeVacancyRefKey({ source: entity.source, externalId: entity.externalId })),
+      ),
+    );
   }
 
   /**
@@ -132,13 +146,28 @@ export class VacancyLeadsController {
     return readCompanyLogoOrFail(this.companyLogoService, entity.companyLogoFile);
   }
 
+  /**
+   * POST /api/vacancy-leads/:id/apply (§5.7) — создаёт Application из лида ровно тем же
+   * путём, что ручное создание (§4.2, §4.4/§4.10). Тела запроса нет, @HttpCode не
+   * ставится — дефолтный 201 верен: ресурс создаётся. 404 — нет лида, 409 — отклик по
+   * этой паре (vacancy_source, vacancy_external_id) уже создан. Закрыт глобальным Basic
+   * Auth, @Public() не ставится.
+   */
+  @Post(VACANCY_LEAD_APPLY_ROUTE)
+  async apply(@Param(VACANCY_LEAD_ID_PARAM, ParseUUIDPipe) id: string): Promise<ApplicationDto> {
+    const entity = await this.leadApplicationService.applyToLead(id);
+
+    return ApplicationDto.fromEntity(entity);
+  }
+
   @Patch(VACANCY_LEAD_BY_ID_ROUTE)
   async update(
     @Param(VACANCY_LEAD_ID_PARAM, ParseUUIDPipe) id: string,
     @Body() dto: UpdateVacancyLeadDto,
   ): Promise<VacancyLeadDto> {
     const entity = await this.leadsService.setHidden(id, dto.hidden);
+    const hasApplication = await this.leadApplicationService.hasApplication(entity);
 
-    return VacancyLeadDto.fromEntity(entity);
+    return VacancyLeadDto.fromEntity(entity, hasApplication);
   }
 }

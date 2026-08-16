@@ -13,6 +13,10 @@ function toIsoOrNull(value: Date | null): string | null {
  * поля хранятся строкой через ту же запятую, что и keywords/exclude_keywords),
  * hidden — булево вместо hiddenAt (фронту нужен признак, а не момент времени).
  * Описания в DTO нет по определению (§3.5, §4.11.7).
+ *
+ * hasApplication — вычисляемый признак «отклик по этой вакансии уже создан», выводимый
+ * из пары (vacancy_source, vacancy_external_id) таблицы applications
+ * (VacancyLeadApplicationService), а не колонка и не внешний ключ (§3.5).
  */
 export class VacancyLeadDto {
   id!: string;
@@ -38,10 +42,11 @@ export class VacancyLeadDto {
   aiTitleReason!: string | null;
   aiDescriptionReason!: string | null;
   hidden!: boolean;
+  hasApplication!: boolean;
   firstSeenAt!: string;
   lastSeenAt!: string;
 
-  static fromEntity(entity: VacancyLead): VacancyLeadDto {
+  static fromEntity(entity: VacancyLead, hasApplication: boolean): VacancyLeadDto {
     const dto = new VacancyLeadDto();
 
     dto.id = entity.id;
@@ -68,6 +73,7 @@ export class VacancyLeadDto {
     dto.aiTitleReason = entity.aiTitleReason;
     dto.aiDescriptionReason = entity.aiDescriptionReason;
     dto.hidden = entity.hiddenAt !== null;
+    dto.hasApplication = hasApplication;
     dto.firstSeenAt = entity.firstSeenAt.toISOString();
     dto.lastSeenAt = entity.lastSeenAt.toISOString();
 

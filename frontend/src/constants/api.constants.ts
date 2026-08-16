@@ -37,6 +37,9 @@ export const VACANCY_LEADS_SCAN_PATH_SEGMENT = 'scan';
 export const VACANCY_LEADS_SCAN_STOP_PATH_SEGMENT = 'scan/stop';
 export const VACANCY_LEADS_SCAN_STATUS_PATH_SEGMENT = 'scan/status';
 
+/** §5.7: POST /api/vacancy-leads/:id/apply — создание отклика из найденной вакансии. */
+export const VACANCY_LEAD_APPLY_PATH_SEGMENT = 'apply';
+
 /** §5.1: GET /api/applications/:id/logo — байты логотипа компании (§4.10). */
 export const LOGO_PATH_SEGMENT = 'logo';
 

@@ -1,11 +1,14 @@
 import {
   API_PATH_SEPARATOR,
+  CREATE_REQUEST_TIMEOUT_MS,
+  VACANCY_LEAD_APPLY_PATH_SEGMENT,
   VACANCY_LEADS_ENDPOINT,
   VACANCY_LEADS_SCAN_PATH_SEGMENT,
   VACANCY_LEADS_SCAN_STATUS_PATH_SEGMENT,
   VACANCY_LEADS_SCAN_STOP_PATH_SEGMENT,
   VACANCY_SEARCH_SETTINGS_ENDPOINT,
 } from '../constants/api.constants';
+import type { Application } from '../types/application.interfaces';
 import type {
   ScanAcceptedResponse,
   ScanStatusResponse,
@@ -64,6 +67,23 @@ export async function updateVacancyLead(
   const response = await apiClient.patch<VacancyLead>(
     `${VACANCY_LEADS_ENDPOINT}${API_PATH_SEPARATOR}${id}`,
     patch,
+  );
+
+  return response.data;
+}
+
+/**
+ * POST /api/vacancy-leads/:id/apply (§5.7) — создание отклика из лида. Тела запроса
+ * нет. Таймаут поднят до CREATE_REQUEST_TIMEOUT_MS: как и POST /api/applications,
+ * запрос синхронно докачивает логотип компании (§4.4, §4.10). 409 (отклик по этой
+ * вакансии уже есть) и 404 (лид исчез) — штатные исходы, различает их вызывающий хук,
+ * здесь исключение просто пробрасывается.
+ */
+export async function applyVacancyLead(id: string): Promise<Application> {
+  const response = await apiClient.post<Application>(
+    `${VACANCY_LEADS_ENDPOINT}${API_PATH_SEPARATOR}${id}${API_PATH_SEPARATOR}${VACANCY_LEAD_APPLY_PATH_SEGMENT}`,
+    undefined,
+    { timeout: CREATE_REQUEST_TIMEOUT_MS },
   );
 
   return response.data;

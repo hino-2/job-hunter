@@ -6,14 +6,17 @@ import type { VacancyLead, VacancyLeadsQueryParams } from '../types/vacancy-sear
 import type { VacancyLeadsHiddenFilter } from '../types/vacancy-search.type';
 
 /**
- * Единственное место, знающее форму кэша списка лидов (§7.9.3), тем же приёмом,
+ * Единственное место, знающее форму кэша списка лидов (§7.9.3, §5.7), тем же приёмом,
  * что applications-cache.utils.ts: префиксный фильтр по VACANCY_LEADS_QUERY_KEY
  * накрывает разом все закэшированные комбинации фильтров.
  *
- * В отличие от откликов, здесь нет функции patch: у лида ровно одно мутируемое поле
- * (hidden), и его смена — это смена членства в текущей выборке (hidden=exclude/only),
- * а не правка видимого значения поля на месте. Поэтому скрытие всегда убирает запись
- * из текущего кэша целиком, а не подменяет в ней одно поле.
+ * У лида теперь два мутируемых поля. Смена hidden — это смена членства в текущей
+ * выборке (hidden=exclude/only), поэтому скрытие всегда убирает запись из текущего
+ * кэша целиком, а не подменяет в ней одно поле (removeVacancyLeadFromCaches /
+ * insertVacancyLeadIntoCaches). А смена hasApplication (§7.9.1, POST :id/apply) —
+ * это правка значения на месте: сама запись остаётся в выборке, меняется только
+ * булев признак, поэтому здесь нужен обычный patch (patchVacancyLeadInCaches),
+ * как у откликов.
  */
 
 export function readVacancyLeadFromCaches(client: QueryClient, id: string): VacancyLead | undefined {
@@ -28,6 +31,27 @@ export function readVacancyLeadFromCaches(client: QueryClient, id: string): Vaca
   }
 
   return undefined;
+}
+
+/** Точечная правка полей лида на месте (§7.9.1), тем же приёмом, что patchApplicationInCaches. */
+export function patchVacancyLeadInCaches(
+  client: QueryClient,
+  id: string,
+  patch: Partial<VacancyLead>,
+): void {
+  client.setQueriesData<VacancyLead[]>({ queryKey: VACANCY_LEADS_QUERY_KEY }, (items) => {
+    if (items === undefined) {
+      return items;
+    }
+
+    // Та же ссылка, если записи в этом кэше нет — иначе React Query пометит изменёнными
+    // все закэшированные варианты фильтров и вызовет лишние рендеры.
+    if (!items.some((item) => item.id === id)) {
+      return items;
+    }
+
+    return items.map((item) => (item.id === id ? { ...item, ...patch } : item));
+  });
 }
 
 /** Оптимистичное скрытие/возврат (§7.9.3): запись пропадает из текущей выборки сразу. */

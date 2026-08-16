@@ -191,8 +191,12 @@ Per the project code conventions (§10):
 
 Candidate vacancies found by the hh.ru search (§4.11). The table is **independent** of
 `applications`: a lead is not yet an application, and there is no foreign key between the tables and
-never will be. A user who decides to apply creates an entry in «Отклики» the normal way (§7.4);
-there is no automatic lead-to-application conversion (§12).
+never will be. The link between a lead and its application is **derived**, not stored: it is computed
+from the pair (`vacancy_source`, `vacancy_external_id`) shared by both tables (§5.7, `hasApplication`
+on `VacancyLeadDto`) — there is still no column or FK dedicated to it. A user applies either by
+creating an entry in «Отклики» the normal way (§7.4) or with the «Отклик» button on a lead (§5.7,
+§7.9.1), both going through the same `ApplicationsService.create()` path; there is no automatic
+(unattended) lead-to-application conversion (§12).
 
 | Column (DB)             | DB type        | Req. | Default             | Description                                                                                                                                                                             |
 | ----------------------- | -------------- | ---- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -401,6 +405,10 @@ path writes **only** `company_logo_file`: an unrecognized or unsupported `vacanc
 `SKIPPED_UNSUPPORTED` (no `last_sync_*` column is touched at all), and any failure (unrecognized source,
 network error, no logo on the page, CDN failure) is silent — `logger.warn`/`debug` only, record id only —
 and `POST` still answers `201` with the record as inserted.
+
+`POST /api/vacancy-leads/:id/apply` (§5.7, §7.9.1 — the «Отклик» button) reuses this exact same
+`ApplicationsService.create()` path: no separate creation logic for leads, same resolution, same
+logo download, same silent-failure rules.
 
 ### 4.5 Enum `SyncOutcome`
 
@@ -1117,12 +1125,14 @@ Response `200`: `VacancyLeadDto[]` — flat array, no pagination (§12), but wit
 (`"2026-08-12T10:16:19.420+03:00"`), `publishedOn` (`"2026-08-12"`), `areaName`, `salaryFrom`,
 `salaryTo`, `salaryCurrency`, `salaryGross`, `experience`, `employmentForm`, `workFormats`,
 `matchedKeywords`, `matchSource`, `aiModel`, `aiTitleReason`, `aiDescriptionReason`, `hidden`,
-`firstSeenAt`, `lastSeenAt`.
+`hasApplication`, `firstSeenAt`, `lastSeenAt`.
 
 - `matchedKeywords`, `workFormats` — arrays outward, comma-separated in storage (§3.5), parsed in
   the DTO. `hidden` — boolean, not `hiddenAt`. No description in the DTO by definition (§3.5, §4.11.7).
 - `hasCompanyLogo` (step №26 §14) — like `ApplicationResponse.hasCompanyLogo` (§4.10), a presence
   flag, not a file name; always `false` for keyword-only leads.
+- `hasApplication` — computed, not stored (§3.5): `true` when `applications` already has a row whose
+  (`vacancy_source`, `vacancy_external_id`) matches this lead's (`source`, `externalId`).
 
 #### `GET /api/vacancy-leads/:id/logo`
 
@@ -1131,13 +1141,25 @@ Lead company logo bytes (§4.10, step №26 §14) — identical to `GET /api/app
 `X-Content-Type-Options: nosniff`; `404` — no record, no logo, or file gone from disk; `400` —
 invalid UUID; `401` — without Basic Auth. Declared above the `PATCH :id` route.
 
+#### `POST /api/vacancy-leads/:id/apply`
+
+Creates an application from the lead, reusing exactly the same path as manual creation on
+`POST /api/applications` (§4.4): `vacancy_source`/`vacancy_external_id` resolved from `vacancy_url`
+(§4.2), company logo downloaded **after** the `INSERT` (§4.4/§4.10). No request body. `201` —
+`ApplicationDto` for the newly created record. `409 Conflict` — an application already exists for
+this lead's (`vacancy_source`, `vacancy_external_id`) pair (§3.5). `404` — no such lead. `400` —
+invalid UUID. Declared **above** the `PATCH :id` route, by the same route-order rule as `scan`,
+`scan/stop`, `scan/status` and `:id/logo`. No sync runs afterwards — manual creation does not sync
+either.
+
 #### `PATCH /api/vacancy-leads/:id`
 
 Body — `UpdateVacancyLeadDto`, exactly one field: `{ "hidden": true }`. Response `200`:
 `VacancyLeadDto`. `404` — no record, `400` — invalid UUID. Sets or clears `hidden_at` (§3.5); a
 repeat call with the same value is idempotent and does not rewrite `hidden_at`. The lead's only
-mutating endpoint: creation happens only through a run, and `DELETE` **must not** be exposed
-(§3.5, §12) — deleting the deduplication key would bring the vacancy back on the next run.
+other mutating endpoint besides `apply` above: creation happens only through a run, and `DELETE`
+**must not** be exposed (§3.5, §12) — deleting the deduplication key would bring the vacancy back on
+the next run.
 
 #### `POST /api/vacancy-leads/scan`
 
@@ -1146,8 +1168,8 @@ absent treated as `FRESH` (so the pre-existing button keeps working unchanged). 
 (§4.11.9): responds without waiting for the run to finish. `202 Accepted`:
 `{ "status": "RUNNING", "startedAt": "2026-08-14T05:00:00.000Z" }`. `409 Conflict` — either a run
 is already in progress, or (`mode: "RESUME"` only) there is no valid saved position to continue
-from (§4.11.12), each with its own message (§5.5). Routes `scan`, `scan/stop`, `scan/status` and
-`:id/logo` **must** be declared **above** the `:id` routes (§5.2, §4.10).
+from (§4.11.12), each with its own message (§5.5). Routes `scan`, `scan/stop`, `scan/status`,
+`:id/logo` and `:id/apply` **must** be declared **above** the `:id` routes (§5.2, §4.10).
 
 #### `POST /api/vacancy-leads/scan/stop`
 
@@ -1374,8 +1396,13 @@ toggle; below it the `Alert` with run progress / last summary; below that the li
 - **One vacancy = one `Accordion`**, same rules as §7.2: `disableGutters`, `elevation={1}`, the same `transition` slot props,
   `AccordionSummary` as `component="div"`, `memo`, expansion via `useExpandedIds` and a `boolean` slice by id.
 - **Collapsed summary row:** publication date (`DD.MM`), position, company with the logo left of the name (`Avatar`, letter fallback,
-  §4.10, §7.2.1), short salary, `OpenInNew` (opens `vacancyUrl` in a new tab) and «Скрыть». Both buttons start with `stopPropagation()`,
-  otherwise the click reaches the summary row (§13.10.3).
+  §4.10, §7.2.1), short salary, `OpenInNew` (opens `vacancyUrl` in a new tab), «Отклик» and, to its right, «Скрыть». All three start with
+  `stopPropagation()`, otherwise the click reaches the summary row (§13.10.3).
+- **«Отклик» button** (`POST /api/vacancy-leads/:id/apply`, §5.7, §4.4) has three states: «Отклик» (nothing created yet), «Создаём…»
+  (request in flight, disabled), «Отклик создан» (disabled, `hasApplication === true`) — driven by the DTO field, not by local-only state,
+  so a lead already applied to in a previous session or another tab renders disabled from the first render. Notification channels are
+  separated, same principle as sync (§7.6): `409` (already applied) → info-`Snackbar` with the server's message; a failed request →
+  error-`Snackbar`; a successful `201` → success-`Snackbar` and the button switches to «Отклик создан» without a list refetch.
 - **A summary-row click opens `vacancyUrl` in a new tab** (`window.open`, `noopener,noreferrer`) — unlike §7.2, it does **not** expand the
   record; with no usable URL the click does nothing. Expansion lives **only** on the `ExpandMore` arrow on the right, which is an
   `IconButton` with `stopPropagation()`. `Accordion` therefore gets no `onChange`: MUI's own toggle would fire on any summary click.
@@ -1739,8 +1766,9 @@ Take values from there, never hardcode them in JSX.
   (§4.11.9) is an in-process flag plus status polling; still no WebSocket/SSE.
 - **Out of scope:** starting a search automatically (schedule, process start, event). Frontend button
   only (§4.11.10) — no code, env vars, or "disabled by default" interval.
-- **Out of scope:** deleting a lead, read marks, favorites, tags, priorities; creating an application
-  from the list in one click; auto-apply. Hiding (§7.9.3) is the only user action on a lead.
+- **Out of scope:** deleting a lead, read marks, favorites, tags, priorities; auto-apply (unattended,
+  scheduled application creation). Hiding (§7.9.3) and applying (§5.7, §7.9.1) are the only user
+  actions on a lead.
 - **Out of scope:** search on getmatch.ru (§4.9 stays the per-vacancy data source), several saved
   queries at once, pagination/virtualization of the vacancy list, new-vacancy notifications, run
   history in the DB.

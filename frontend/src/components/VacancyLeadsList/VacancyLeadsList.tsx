@@ -27,6 +27,8 @@ export function VacancyLeadsList({
   expandedIds,
   onToggle,
   onToggleHidden,
+  applyingIds,
+  onApply,
 }: VacancyLeadsListProps) {
   if (isPending) {
     return (
@@ -82,6 +84,8 @@ export function VacancyLeadsList({
           expanded={expandedIds.has(lead.id)}
           onToggle={onToggle}
           onToggleHidden={onToggleHidden}
+          isApplying={applyingIds.has(lead.id)}
+          onApply={onApply}
         />
       ))}
     </Stack>

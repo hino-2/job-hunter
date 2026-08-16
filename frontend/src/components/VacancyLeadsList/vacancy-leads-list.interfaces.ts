@@ -14,4 +14,7 @@ export interface VacancyLeadsListProps {
   expandedIds: ReadonlySet<string>;
   onToggle: (id: string, expanded: boolean) => void;
   onToggleHidden: (id: string, hidden: boolean) => void;
+  /** id лидов с летящим POST :id/apply (§7.9.1) — в аккордеон уходит срез-boolean. */
+  applyingIds: ReadonlySet<string>;
+  onApply: (id: string) => void;
 }
