@@ -142,7 +142,6 @@ export const VACANCY_LEADS_RESET_FILTERS_LABEL = 'Сбросить фильтр�
 export const VACANCY_LEADS_SEARCH_PLACEHOLDER = 'Поиск…';
 export const VACANCY_LEADS_HIDDEN_TOGGLE_LABEL = 'Скрытые';
 
-export const OPEN_VACANCY_LABEL = 'Открыть на hh.ru';
 export const EXPAND_VACANCY_LABEL = 'Развернуть';
 export const COLLAPSE_VACANCY_LABEL = 'Свернуть';
 export const HIDE_VACANCY_LABEL = 'Скрыть';

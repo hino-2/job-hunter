@@ -1,5 +1,4 @@
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { Avatar, Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, Button, Typography } from '@mui/material';
 import { memo } from 'react';
 import type { MouseEvent } from 'react';
 
@@ -17,11 +16,9 @@ import {
   APPLY_VACANCY_LABEL,
   APPLY_VACANCY_PENDING_LABEL,
   HIDE_VACANCY_LABEL,
-  OPEN_VACANCY_LABEL,
   RESTORE_VACANCY_LABEL,
 } from '../../constants/vacancy-search.constants';
 import { buildCompanyInitial, buildCompanyLogoUrl } from '../../utils/company-logo.utils';
-import { toExternalHref } from '../../utils/url.utils';
 import { formatPublishedOnShort, formatSalaryShort } from '../../utils/vacancy-lead.utils';
 import type { VacancyLeadSummaryRowProps } from './vacancy-lead-summary-row.interfaces';
 
@@ -40,18 +37,9 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
   onApply,
 }: VacancyLeadSummaryRowProps) {
   const salary = formatSalaryShort(lead);
-  const href = toExternalHref(lead.vacancyUrl);
   const logoSrc = lead.hasCompanyLogo
     ? buildCompanyLogoUrl(VACANCY_LEADS_ENDPOINT, lead.id)
     : undefined;
-
-  // stopPropagation обязателен (§7.9.1): без него клик по кнопке всплыл бы до
-  // AccordionSummary и переключил раскрытость (§13.10.3). Оборачиваем в span, а не
-  // вешаем прямо на IconButton/ссылку: у disabled IconButton pointer-events: none,
-  // и клик по нему провалился бы в шапку мимо собственного onClick.
-  const handleOpenWrapperClick = (event: MouseEvent<HTMLSpanElement>) => {
-    event.stopPropagation();
-  };
 
   const handleToggleHidden = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
