@@ -7,8 +7,10 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 ---
 
 **33. Hide/restore on a vacancy lead is a labelled button.** _(frontend)_
-`VacancyLeadSummaryRow` swaps the eye `IconButton` for a plain MUI `Button` of `size="medium"` showing
-"Скрыть"/"Вернуть". The `Tooltip` goes away with it — the label is now visible without hovering. The
+`VacancyLeadSummaryRow` swaps the eye `IconButton` for a MUI `Button` — `variant="contained"`,
+`size="medium"`, no explicit `color` (theme `primary.main`, grey), like every other action button in the
+app — showing "Скрыть"/"Вернуть". The `Tooltip` goes away with it — the label is now visible
+without hovering. The
 `stopPropagation` handler is unchanged: a click must not bubble to `AccordionSummary`, which opens the
 vacancy (§7.9.1).
 

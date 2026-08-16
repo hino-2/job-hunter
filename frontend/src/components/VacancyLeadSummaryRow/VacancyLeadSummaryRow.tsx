@@ -156,8 +156,11 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
       {/*
        * Обычная кнопка с подписью вместо иконки: действие скрытия используется чаще
        * остальных, подпись читается без наведения — поэтому Tooltip здесь не нужен.
+       * variant="contained" без color — как у остальных кнопок действия проекта, цвет
+       * берётся из темы (`primary.main`, серый).
        */}
       <Button
+        variant="contained"
         size="medium"
         onClick={handleToggleHidden}
         sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.auto }}
