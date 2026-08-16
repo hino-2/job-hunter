@@ -11,6 +11,9 @@ import { buildDedupKey, derivePublishedOn, serializeDedupKey } from './vacancy-l
 import { buildVacancyLeadRow } from './vacancy-lead.builder';
 import { VacancyLeadsService } from './vacancy-leads.service';
 import { hasExcluded, isKeywordMatch, matchKeywords } from './vacancy-keywords.helpers';
+import { resolveLastPageIndex, resolveTotalPages } from './vacancy-scan-progress.helpers';
+import { isExhaustedStop, isResumablePosition } from './vacancy-scan-position.helpers';
+import { VacancyScanPositionService } from './vacancy-scan-position.service';
 import { VacancyScanStateService } from './vacancy-scan-state.service';
 import { VacancySearchSettingsService } from './vacancy-search-settings.service';
 import {
@@ -21,10 +24,14 @@ import {
   VACANCY_PREFILTER_MODE_ENV_KEY,
   VACANCY_SCAN_ALREADY_RUNNING_MESSAGE,
   VACANCY_SCAN_FINISHED_MESSAGE,
+  VACANCY_SCAN_INITIAL_PAGE,
   VACANCY_SCAN_MAX_AGE_DAYS_ENV_KEY,
   VACANCY_SCAN_MAX_DETAILS_ENV_KEY,
   VACANCY_SCAN_MAX_DURATION_MS_ENV_KEY,
   VACANCY_SCAN_MAX_PAGES_ENV_KEY,
+  VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE,
+  VACANCY_SCAN_NOT_RUNNING_MESSAGE,
+  VACANCY_SCAN_STOP_REQUESTED_MESSAGE,
   VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE,
 } from './vacancy-search.constants';
 import type {
@@ -35,7 +42,7 @@ import type {
   VacancySearchSettingsSnapshot,
   VacancyTitleDecision,
 } from './vacancy-search.interfaces';
-import type { ScanStoppedReason, VacancyMatchMode, VacancyPrefilterMode } from './vacancy-search.type';
+import type { ScanMode, ScanStoppedReason, VacancyMatchMode, VacancyPrefilterMode } from './vacancy-search.type';
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -91,14 +98,16 @@ function passesPrefilter(
 }
 
 /**
- * §4.11: конвейер отбора «стоп-слова → ИИ по названию → дедупликация → загрузка
- * страницы → ИИ по описанию» (§4.11.4). Единственный публичный вход — start(),
- * синхронный check-and-set через VacancyScanStateService.tryStart() (§4.11.9):
- * второй POST /scan при идущем прогоне получает 409 ДО первого await.
+ * §4.11: конвейер отбора «стоп-слова → дедупликация → ИИ по названию → загрузка
+ * страницы → ИИ по описанию» (§4.11.4). Публичные входы — start(mode) и
+ * requestStop() (§4.11.12). start() резолвит стартовую страницу (снимок настроек,
+ * для RESUME — сохранённая позиция), а затем СИНХРОННО вызывает
+ * VacancyScanStateService.tryStart() (§4.11.9) — единственный check-and-set,
+ * второй POST /scan при идущем прогоне получает 409 ДО первого await ниже него.
  *
  * Настройки поиска берутся снимком РОВНО ОДИН РАЗ на старте прогона (§5.7) —
- * VacancySearchSettingsService.getSnapshot(). Бюджеты и режимы читаются в
- * конструкторе (env не меняется без рестарта — §2.4).
+ * VacancySearchSettingsService.getSnapshot(), передаются в run() параметром.
+ * Бюджеты и режимы читаются в конструкторе (env не меняется без рестарта — §2.4).
  */
 @Injectable()
 export class VacancyScanService {
@@ -114,6 +123,7 @@ export class VacancyScanService {
   constructor(
     private readonly state: VacancyScanStateService,
     private readonly settingsService: VacancySearchSettingsService,
+    private readonly position: VacancyScanPositionService,
     private readonly hhSearch: HhSearchService,
     private readonly leadsService: VacancyLeadsService,
     private readonly aiService: VacancyAiService,
@@ -129,9 +139,30 @@ export class VacancyScanService {
     this.aiBatchSize = configService.getOrThrow<number>(VACANCY_AI_BATCH_SIZE_ENV_KEY);
   }
 
-  /** §5.7 POST /api/vacancy-leads/scan: отвечает сразу (202), прогон уходит в фон. */
-  start(): Date {
-    const handle = this.state.tryStart();
+  /**
+   * §5.7 POST /api/vacancy-leads/scan: отвечает сразу (202), прогон уходит в фон.
+   * mode === 'RESUME' требует валидную сохранённую позицию (§4.11.12) — иначе 409
+   * с отдельным сообщением, не путать с «прогон уже идёт».
+   *
+   * ВАЖНО: между this.state.tryStart(startPage) и void this.run(...) НЕ ДОЛЖНО быть
+   * ни одного await — иначе tryStart() перестаёт быть единственным арбитром
+   * конкурентности и два одновременных RESUME могли бы породить два прогона.
+   */
+  async start(mode: ScanMode): Promise<Date> {
+    const settings = await this.settingsService.getSnapshot();
+    let startPage: number = VACANCY_SCAN_INITIAL_PAGE;
+
+    if (mode === 'RESUME') {
+      const position = await this.position.load();
+
+      if (!isResumablePosition(position, settings.searchText, this.maxPages)) {
+        throw new ConflictException(VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE);
+      }
+
+      startPage = position.nextPage;
+    }
+
+    const handle = this.state.tryStart(startPage);
 
     if (handle === null) {
       throw new ConflictException(VACANCY_SCAN_ALREADY_RUNNING_MESSAGE);
@@ -142,18 +173,38 @@ export class VacancyScanService {
     // void: run() сама ловит все ошибки (try/finally на state.finish) — необработанный
     // реджект уронил бы процесс (Node --unhandled-rejections=throw), тот же приём,
     // что у ScheduledSyncService.runScheduledSync (§4.7).
-    void this.run(handle);
+    void this.run(handle, settings, startPage);
 
     return startedAt;
   }
 
+  /**
+   * §4.11.12: отмена приходит из другого HTTP-запроса — сюда только через
+   * VacancyScanStateService.requestStop(), который сам решает, идёт ли прогон.
+   */
+  requestStop(): void {
+    if (!this.state.requestStop()) {
+      throw new ConflictException(VACANCY_SCAN_NOT_RUNNING_MESSAGE);
+    }
+
+    this.logger.log(VACANCY_SCAN_STOP_REQUESTED_MESSAGE);
+  }
+
   /** ОБЯЗАН вызывать state.finish() на любом пути, включая исключение — иначе статус навсегда останется RUNNING. */
-  private async run(handle: ScanRunHandle): Promise<void> {
+  private async run(
+    handle: ScanRunHandle,
+    settings: VacancySearchSettingsSnapshot,
+    startPage: number,
+  ): Promise<void> {
     let stoppedReason: ScanStoppedReason = SCAN_STOPPED_REASON.COMPLETED;
     let message: string | null = null;
+    let resumePage = startPage;
 
     try {
-      const settings = await this.settingsService.getSnapshot();
+      // startPage === 0 заодно стирает позицию прошлого прогона: свежий прогон,
+      // умерший на нулевой странице, не должен оставлять после себя нечего продолжать.
+      await this.position.save(startPage, settings.searchText);
+
       const deadlineAt = Date.now() + this.maxDurationMs;
       const ageCutoffMs = Date.now() - this.maxAgeDays * MS_IN_DAY;
       const seenInRun = new Set<string>();
@@ -161,9 +212,14 @@ export class VacancyScanService {
       let lastPage: number | null = null;
       let outcome: ScanStoppedReason | null = null;
 
-      for (let page = 0; page < this.maxPages; page += 1) {
+      for (let page = startPage; page < this.maxPages; page += 1) {
         if (lastPage !== null && page > lastPage) {
           outcome = SCAN_STOPPED_REASON.LAST_PAGE;
+          break;
+        }
+
+        if (handle.isStopRequested()) {
+          outcome = SCAN_STOPPED_REASON.STOPPED;
           break;
         }
 
@@ -171,6 +227,9 @@ export class VacancyScanService {
           outcome = SCAN_STOPPED_REASON.DEADLINE;
           break;
         }
+
+        handle.setCurrentPage(page);
+        resumePage = page;
 
         const pageResult = await this.hhSearch.fetchSearchPage(settings.searchText, page);
 
@@ -186,7 +245,8 @@ export class VacancyScanService {
         handle.increment('skippedInvalid', pageResult.page.skippedInvalid);
 
         if (pageResult.page.lastPage !== null) {
-          lastPage = Math.min(pageResult.page.lastPage, this.maxPages - 1);
+          lastPage = resolveLastPageIndex(pageResult.page.lastPage, this.maxPages);
+          handle.setTotalPages(resolveTotalPages(lastPage, this.maxPages));
         }
 
         if (pageResult.page.items.length === 0) {
@@ -209,6 +269,11 @@ export class VacancyScanService {
           outcome = pageStop;
           break;
         }
+
+        // Страница обработана целиком — сохраняем позицию ДО следующей: SIGKILL
+        // между страницами не должен стоить больше одной страницы (§4.11.12).
+        resumePage = page + 1;
+        await this.position.save(resumePage, settings.searchText);
       }
 
       stoppedReason = outcome ?? SCAN_STOPPED_REASON.MAX_PAGES;
@@ -217,6 +282,14 @@ export class VacancyScanService {
       message = describeError(error);
       this.logger.error(VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE, message);
     } finally {
+      // Порядок важен: GET .../scan/status, который первым увидит DONE, обязан уже
+      // видеть финальную позицию (§4.11.12) — поэтому позиция пишется ДО state.finish().
+      if (isExhaustedStop(stoppedReason)) {
+        await this.position.clear();
+      } else {
+        await this.position.save(resumePage, settings.searchText);
+      }
+
       this.state.finish(stoppedReason, message);
       this.logger.log(`${VACANCY_SCAN_FINISHED_MESSAGE}: ${stoppedReason}`);
     }
@@ -271,7 +344,35 @@ export class VacancyScanService {
       return null;
     }
 
-    const decisions = await this.decideTitleMatches(survivors, settings, handle);
+    // §4.11.5 эшелон 2: один SELECT по ключам страницы — ДО ИИ по названию. При 40
+    // страницах большинство позиций уже в БД, и повторный ИИ-запрос по уже известному
+    // названию — потерянные токены; last_seen_at при этом обновляется у КАЖДОГО
+    // известного лида страницы, а не только у тех, что прошли бы ИИ.
+    const existingByKey = await this.leadsService.findExistingKeys(
+      survivors.map((survivor) => survivor.dedupKey),
+    );
+    const duplicateIds: string[] = [];
+    const fresh: VacancyScanSurvivor[] = [];
+
+    for (const survivor of survivors) {
+      const existingId = existingByKey.get(serializeDedupKey(survivor.dedupKey));
+
+      if (existingId !== undefined) {
+        handle.increment('duplicates');
+        duplicateIds.push(existingId);
+        continue;
+      }
+
+      fresh.push(survivor);
+    }
+
+    await this.leadsService.touchLastSeen(duplicateIds);
+
+    if (fresh.length === 0) {
+      return null;
+    }
+
+    const decisions = await this.decideTitleMatches(fresh, settings, handle);
     const matched: VacancyTitleDecision[] = [];
 
     for (const decision of decisions) {
@@ -286,28 +387,13 @@ export class VacancyScanService {
       return null;
     }
 
-    // §4.11.5 эшелон 2: один SELECT по ключам страницы, уже после ИИ по названию.
-    const existingByKey = await this.leadsService.findExistingKeys(
-      matched.map((decision) => decision.dedupKey),
-    );
-    const duplicateIds: string[] = [];
-    const toProcess: VacancyTitleDecision[] = [];
-
     for (const decision of matched) {
-      const existingId = existingByKey.get(serializeDedupKey(decision.dedupKey));
-
-      if (existingId !== undefined) {
-        handle.increment('duplicates');
-        duplicateIds.push(existingId);
-        continue;
+      // §4.11.12: проверка ПЕРВОЙ — покрывает и ветку без ИИ (KEYWORDS) ниже, иначе
+      // остановка не срабатывала бы, пока отбор идёт целиком по ключевым словам.
+      if (handle.isStopRequested()) {
+        return SCAN_STOPPED_REASON.STOPPED;
       }
 
-      toProcess.push(decision);
-    }
-
-    await this.leadsService.touchLastSeen(duplicateIds);
-
-    for (const decision of toProcess) {
       if (decision.matchSource === MATCH_SOURCE.KEYWORDS) {
         // §4.11.4: без ИИ (выключен или батч не ответил) описание не грузим —
         // этапы 3–4 пропускаются целиком, вакансия сразу идёт на вставку. Страница
@@ -331,7 +417,7 @@ export class VacancyScanService {
     return null;
   }
 
-  /** §4.11.4 этап 1: ИИ батчами до VACANCY_AI_BATCH_SIZE либо (ИИ выключен/недоступен) ключевые слова. */
+  /** §4.11.4 этап 2: ИИ батчами до VACANCY_AI_BATCH_SIZE либо (ИИ выключен/недоступен) ключевые слова. */
   private async decideTitleMatches(
     survivors: readonly VacancyScanSurvivor[],
     settings: VacancySearchSettingsSnapshot,

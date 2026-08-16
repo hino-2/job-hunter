@@ -6,6 +6,23 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**31. Deeper runs, cheaper dedup, stop and resume.** _(backend + frontend)_
+`VACANCY_SCAN_MAX_PAGES` default `10 → 40` (§4.11.1, §4.11.8) — now equal to hh.ru's own ceiling, a
+default run exhausts the whole result set. Dedup echelon 2 (§4.11.5) moved **before** the title AI
+(§4.11.4): at 40 pages most candidates on a re-run are already in the DB, so a re-judged known title
+is a wasted AI call; `duplicates` now grows earlier, `rejectedTitle` shrinks to only what the model
+actually saw, and `last_seen_at` is refreshed for every known lead on the page. New singleton table
+`vacancy_scan_position` (§3.7, migration `CreateVacancyScanPositionTable`) persists a resume position
+across restarts, separate from the in-memory `VacancyScanStateService` and from the user-owned
+`vacancy_search_settings` row. New `POST /api/vacancy-leads/scan/stop` (§5.7) requests cooperative
+cancellation — a boolean flag checked at page and per-lead checkpoints — ending the run with
+`stoppedReason: 'STOPPED'`; `POST /scan` now takes an optional `{ mode: 'FRESH' | 'RESUME' }` body,
+with `409` covering both "already running" and "no valid saved position" (§4.11.12). `GET /scan/status`
+gained `pageProgress` («page N of M»), `stopRequested` and `resume`; the frontend shows a page counter
+with a determinate `LinearProgress` and three buttons («Начать поиск», «Продолжить», «Остановить»).
+Saving search settings now also invalidates the scan-status cache, so changing `searchText` disables
+«Продолжить» immediately (§7.9.4).
+
 **30. Company logo downloaded on record create.** _(backend + frontend)_
 `POST /api/applications` now downloads the company logo (§4.10) right after the row is inserted, so a
 newly created record can show it without a manual 🔄. New `VacancyLogoService`

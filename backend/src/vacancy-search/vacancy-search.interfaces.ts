@@ -49,6 +49,29 @@ export interface VacancyScanProgress {
  */
 export interface ScanRunHandle {
   increment(counter: keyof VacancyScanProgress, delta?: number): void;
+  /** Кооперативная отмена (§4.11.12): проверяется в тех же точках, что и дедлайн. */
+  isStopRequested(): boolean;
+  /** Абсолютный 0-based номер страницы выдачи, которая обрабатывается прямо сейчас. */
+  setCurrentPage(page: number): void;
+  setTotalPages(total: number): void;
+}
+
+/** §5.7, §4.11.12: индикатор «страница N из M». currentPage — 0-based индекс, totalPages — количество. */
+export interface VacancyScanPageProgress {
+  currentPage: number | null;
+  totalPages: number;
+}
+
+/** §3.7: сохранённая позиция прогона и текст поиска, при котором она была взята. */
+export interface VacancyScanPositionSnapshot {
+  nextPage: number;
+  searchText: string | null;
+}
+
+/** §5.7, §4.11.12: можно ли продолжить прогон с сохранённой позиции. */
+export interface VacancyScanResumeState {
+  available: boolean;
+  nextPage: number | null;
 }
 
 /** §5.7: тело GET .../scan/status — статус, прогресс и итог последнего прогона. */
@@ -57,6 +80,8 @@ export interface VacancyScanStateSnapshot {
   startedAt: Date | null;
   finishedAt: Date | null;
   progress: VacancyScanProgress;
+  pageProgress: VacancyScanPageProgress;
+  stopRequested: boolean;
   stoppedReason: ScanStoppedReason | null;
   message: string | null;
 }
@@ -103,7 +128,11 @@ export interface VacancyLeadRowInput {
   aiDescriptionReason: string | null;
 }
 
-/** §4.11.4: кандидат страницы, переживший этап 0 (стоп-слова) и внутрипрогонную дедупликацию (эшелон 1). */
+/**
+ * §4.11.4: кандидат страницы, переживший этап 0 (стоп-слова), внутрипрогонную
+ * дедупликацию (эшелон 1) и дедупликацию по БД (эшелон 2) — то есть уже прошедший
+ * оба эшелона дедупликации ДО ИИ по названию.
+ */
 export interface VacancyScanSurvivor {
   item: HhSearchItem;
   dedupKey: VacancyLeadDedupKey;
@@ -120,7 +149,7 @@ export interface VacancyLeadLogoSource {
   allowedHostPattern: RegExp;
 }
 
-/** §4.11.4: итог этапа 1 (ИИ по названию либо детерминированный фолбэк на ключевые слова). */
+/** §4.11.4: итог этапа 2 (ИИ по названию либо детерминированный фолбэк на ключевые слова). */
 export interface VacancyTitleDecision {
   item: HhSearchItem;
   dedupKey: VacancyLeadDedupKey;

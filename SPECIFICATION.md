@@ -276,6 +276,34 @@ them, otherwise there is a second data-creation path and a race at startup.
 
 Default `search_text` is `fullstack`; keyword and prompt defaults are in §4.11.4 and §4.12.
 
+### 3.7 Table `vacancy_scan_position`
+
+The saved resume position of a search run (§4.11.12) — where «Продолжить» would restart from.
+**Not** a column of `vacancy_search_settings` (§3.6): the position is written by the server on
+every processed page, while the settings row is a user-owned resource read and replaced whole by
+`GET`/`PUT /api/vacancy-search-settings` with `forbidNonWhitelisted` (§5.7). Mixing the two would
+(a) bump the settings `updated_at` on every page, breaking the "changes apply from the next run"
+signal and the frontend settings cache, (b) force a read-only field into the `PUT` body — the wart
+the spec already tolerates only for `searchUrlTemplate`, (c) create a lost-update race between a
+per-page write and a user `PUT` of the whole row. A separate singleton table keeps both lifecycles
+and both contracts clean.
+
+The table holds **exactly one row**: `id smallint PK` with `CHECK (id = 1)`, the same pattern as
+§3.6, seeded by the migration itself — the service must never create the row.
+
+| Column (DB)   | DB type        | Req. | Default | Description                                                                 |
+| ------------- | -------------- | ---- | ------- | ---------------------------------------------------------------------------- |
+| `id`          | `smallint` PK  | yes  | `1`     | Always `1` (`CHECK (id = 1)`)                                                |
+| `next_page`   | `integer`      | yes  | `0`     | 0-based page to resume from on the next `RESUME` start                       |
+| `search_text` | `varchar(512)` | no   | `null`  | `search_text` (§3.6) the position was saved under — a resume is only offered when it still matches the current settings |
+| `updated_at`  | `timestamptz`  | yes  | `now()` | Auto-updated on every save (once per processed page during a run)           |
+
+`next_page = 0` together with `search_text = null` (the seeded/cleared state) is never resumable
+(§4.11.12): `isResumablePosition` also requires `next_page > 0` and `next_page < VACANCY_SCAN_MAX_PAGES`.
+`search_text` travels with the position rather than being re-read from `vacancy_search_settings` at
+resume time, so a settings change between saving the position and clicking «Продолжить» reliably
+disables the button instead of silently resuming a different search.
+
 ---
 
 ## 4. Integration with vacancy sources
@@ -554,7 +582,10 @@ https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true
 - The regional host `ekaterinburg.hh.ru` is harmless: state content is domain-independent, and
   `vacancy_url` always stores the canonical address on `HH_SITE_BASE_URL`.
 - **Depth ceiling — 40 pages** (`paging.lastPage.page = 39`; hh.ru serves at most 2000 positions per
-  query). A run stops at `min(paging.lastPage.page, VACANCY_SCAN_MAX_PAGES - 1)`.
+  query). A run stops at `min(paging.lastPage.page, VACANCY_SCAN_MAX_PAGES - 1)`. The default
+  `VACANCY_SCAN_MAX_PAGES` is **40** (§4.11.8), i.e. equal to hh.ru's own ceiling: a default run
+  now exhausts the whole available result set, so `MAX_PAGES` and `LAST_PAGE` coincide on a full
+  run.
 - **Verified on live results (14.08.2026):** anonymous request → `200`, ~1.3 MB HTML, **50 vacancies per
   page**, all metadata in the page state block, not the markup.
 
@@ -626,21 +657,25 @@ page. Both are judged by the same model, with different prompts from settings (�
 ```
 элемент выдачи
    │
-   ├─0─ стоп-слова (детерминированно)          ── отсеян → skippedExcluded
-   ├─1─ ИИ по названию   (title_prompt)        ── нет → rejectedTitle
-   ├─2─ дедупликация по (компания+должность+дата) ── есть в БД → duplicates
+   ├─0─ стоп-слова (детерминированно)              ── отсеян → skippedExcluded
+   ├─1─ дедупликация по (компания+должность+дата)  ── есть в БД → duplicates
+   ├─2─ ИИ по названию   (title_prompt)            ── нет → rejectedTitle
    ├─3─ загрузка страницы вакансии → описание
-   ├─4─ ИИ по описанию   (description_prompt)  ── нет → rejectedDescription
-   └─5─ INSERT … ON CONFLICT DO NOTHING        ── created
+   ├─4─ ИИ по описанию   (description_prompt)      ── нет → rejectedDescription
+   └─5─ INSERT … ON CONFLICT DO NOTHING            ── created
 ```
 
 - **Stage 0.** Any match from `exclude_keywords` (§3.6) drops the vacancy before any AI; including keywords
   are **not** checked here — their semantics is exactly what the model must judge. `VACANCY_PREFILTER_MODE`
   = `exclude_only` (default) | `full` (also check including keywords) | `off`.
-- **Stage 1.** A batch of up to `VACANCY_AI_BATCH_SIZE` titles (§4.12) with settings keywords substituted;
+- **Stage 1** (§4.11.5) runs **before** the title AI, over every candidate that survived stage 0 and the
+  within-run dedup: the publication date is already known from the results page (§4.11.6), so a known
+  vacancy is filtered out — and its `last_seen_at` refreshed — without spending a single AI token on it. At
+  the default 40-page depth most positions on a re-run are already in the DB, so moving this stage ahead of
+  the title AI is a deliberate token-cost cut, not just a reordering; `duplicates` grows earlier and
+  `rejectedTitle` now counts only vacancies the model actually saw.
+- **Stage 2.** A batch of up to `VACANCY_AI_BATCH_SIZE` titles (§4.12) with settings keywords substituted;
   verdict = boolean + `ai_title_reason`.
-- **Stage 2** (§4.11.5) must run **before** stage 3: the publication date is already known from the results
-  page (§4.11.6), so a known vacancy is filtered out without opening its page.
 - **Stage 3** (§4.11.7) goes through the same throttle. **Stage 4** is one request per vacancy
   (descriptions must not be batched — each is thousands of characters); verdict = boolean +
   `ai_description_reason`.
@@ -664,9 +699,12 @@ clamp to column width. Normalized values must be stored as **separate columns**,
 1. **Within a run** — a `Set` of processed keys, applied **right after exclude keywords, before AI**: one
    results page easily holds regional clones with identical title, company and date. A clone counts into
    `duplicates`, not `rejectedTitle`.
-2. **Before fetching the page** — one `SELECT` over the page's keys
-   (`WHERE (company_key, position_key, published_on) IN (…)`), after the title AI, so the DB is touched
-   only for those that passed.
+2. **Against the DB, before the title AI** (§4.11.4 stage 1) — one `SELECT` over every survivor of stage 0
+   and echelon 1 (`WHERE (company_key, position_key, published_on) IN (…)`); a hit updates `last_seen_at`
+   and counts into `duplicates`, never reaching the model. Running this **before** rather than after the
+   title AI is the point: at the default 40-page depth most candidates on a re-run are already known, and
+   judging their title again would be a wasted AI call. As a consequence `last_seen_at` is now refreshed for
+   every known lead on the page, not only for those that would have passed the title model.
 3. **On insert** — `INSERT … ON CONFLICT DO NOTHING`; the unique index stays the source of truth.
 
 A duplicate is not silent: the existing row's `last_seen_at` is updated and it counts into `duplicates`.
@@ -707,7 +745,7 @@ From the vacancy page's `<script type="application/ld+json">` (`schema.org/JobPo
 
 | Limiter                        | Default   | Purpose                                                          |
 | ------------------------------ | --------- | ---------------------------------------------------------------- |
-| `VACANCY_SCAN_MAX_PAGES`       | `10`      | 500 positions per run; hh.ru's own ceiling is 40 pages (§4.11.1) |
+| `VACANCY_SCAN_MAX_PAGES`       | `40`      | 2000 positions per run; equal to hh.ru's own ceiling (§4.11.1)   |
 | `VACANCY_SCAN_MAX_DETAILS`     | `60`      | Vacancy pages opened per run — costs both requests and AI        |
 | `VACANCY_SCAN_MAX_AGE_DAYS`    | `30`      | Freshness cutoff (§4.11.6)                                       |
 | `VACANCY_SCAN_MAX_DURATION_MS` | `1800000` | Hard run deadline — 30 minutes                                   |
@@ -725,7 +763,10 @@ Inference time means a run does **not** fit a synchronous HTTP response (unlike 
   is excluded by a boolean flag: a second `POST /scan` during a run answers `409` (§5.7).
 - Run state lives **in `api` process memory** — one instance (§9.1), single-threaded Node; a runs table and
   advisory locks would be speculative abstraction (same reasoning as §4.7). A container restart aborts the
-  run; the status is then `IDLE` and created leads stay in the DB.
+  run; the status is then `IDLE` and created leads stay in the DB. **The one exception is the resume
+  position** (§3.7, §4.11.12): it is written to the DB after every processed page precisely so that a
+  restart does not also cost «Продолжить» — `resume.available` on `GET /scan/status` is computed from that
+  row, not from process memory.
 - `GET /api/vacancy-leads/scan/status` returns status and current counters; the frontend polls every 2
   seconds while `RUNNING` (§7.9). **Polling, not a queue or worker** — WebSocket/SSE, brokers and separate
   containers stay out of scope (§12).
@@ -753,10 +794,54 @@ unchanged. A run loads the CPU with the local model (§4.12), so the user must p
 | `created`             | Rows actually inserted                                                                             |
 | `failed`              | Insert errors                                                                                      |
 | `aiFallbacks`         | Times AI was unavailable and keywords decided (§4.12)                                              |
-| `stoppedReason`       | `COMPLETED` \| `LAST_PAGE` \| `MAX_PAGES` \| `MAX_DETAILS` \| `DEADLINE` \| `AGE_LIMIT` \| `ERROR` |
+| `stoppedReason`       | `COMPLETED` \| `LAST_PAGE` \| `MAX_PAGES` \| `MAX_DETAILS` \| `DEADLINE` \| `AGE_LIMIT` \| `STOPPED` \| `ERROR` |
 | `message`             | Explanation on `ERROR`, otherwise `null`                                                           |
 
-`GET …/scan/status` returns the same counters during a run — that is the progress display.
+`GET …/scan/status` returns the same counters during a run — that is the progress display, alongside the
+`pageProgress` indicator (§4.11.12): «page N of M». `STOPPED` (§4.11.12) is a user-requested stop, not a
+failure — like every other non-`ERROR` reason it is still an operation result reported with HTTP `200`.
+Since dedup now runs before the title AI (§4.11.4, §4.11.5), `duplicates` counts hits found either within
+the run or already in the DB before the title model ever ran, and `rejectedTitle` counts only candidates
+the model actually judged.
+
+#### 4.11.12 Stopping and resuming a run
+
+**Stopping is cooperative, not preemptive.** `POST /api/vacancy-leads/scan/stop` (§5.7) sets a boolean flag
+on the in-memory run state and answers `202` immediately; `409` if nothing is running. The flag is exposed
+through the run's own handle (`isStopRequested()`), so a stop requested after a run has already finished can
+never leak into the next one — `tryStart()` resets the flag on every start. Nothing in flight is aborted: the
+running `run()` observes the flag at the next checkpoint — the start of the next results page, and the start
+of processing each surviving candidate within a page — and only then unwinds with `stoppedReason = 'STOPPED'`.
+A stop can therefore take as long as the slowest in-flight step (one hh.ru request or one AI call,
+§4.11.2/§4.12); `GET /scan/status` exposes `stopRequested: true` while this is pending so the frontend can
+show "stopping…" rather than implying the run has already ended.
+
+**The resume position** (§3.7, table `vacancy_scan_position`) is saved after every fully processed page and
+also once at the very start of a run (which also clears a stale position left by an older run). On
+termination the `finally` block either **clears** the position — for the exhaustion outcomes `COMPLETED`,
+`LAST_PAGE`, `MAX_PAGES`, `AGE_LIMIT`, where there is nothing sensible left to continue — or **saves** it —
+for `STOPPED`, `DEADLINE`, `MAX_DETAILS`, `ERROR`, where a next page genuinely remains. This bookkeeping
+happens **before** `state.finish()`, so any `GET /scan/status` that first observes the run as no longer
+`RUNNING` already sees the final, correct resume availability.
+
+**Resuming re-runs the last, possibly partially processed page** rather than skipping straight to the next
+one: this is safe and cheap precisely because dedup (§4.11.5) now runs before the title AI — any lead already
+inserted from that page on the previous attempt is filtered out by the DB lookup before a single AI token is
+spent on it again.
+
+**A resume is only offered when it still matches.** `isResumablePosition` requires the saved `search_text`
+to equal the current settings' `search_text`, and `0 < next_page < VACANCY_SCAN_MAX_PAGES`. `search_text` is
+stored **with** the position (not re-read from `vacancy_search_settings` at resume time) so that editing the
+search string between saving a position and clicking «Продолжить» reliably disables the button instead of
+silently resuming a different search; `PUT /api/vacancy-search-settings` therefore also invalidates the
+frontend's scan-status cache (§7.9.4). Lowering `VACANCY_SCAN_MAX_PAGES` below a saved `next_page` after the
+fact self-heals on the next `FRESH` run: the loop body never executes, `stoppedReason` falls through to
+`MAX_PAGES`, and the position is cleared like any other exhaustion.
+
+**Two start modes** travel in the `POST /scan` body (§5.7): `FRESH` (default, starts at page 0) and `RESUME`
+(starts at the saved `next_page`). Both still go through the same synchronous `tryStart()` check-and-set, so
+a `409` for "a run is already in progress" is unaffected; `RESUME` additionally answers `409` when no valid
+saved position exists, with a distinct message (§5.5).
 
 ### 4.12 AI screening: a local model in Ollama
 
@@ -1042,24 +1127,44 @@ mutating endpoint: creation happens only through a run, and `DELETE` **must not*
 
 #### `POST /api/vacancy-leads/scan`
 
-Starts a search run (§4.11). No request body. **Asynchronous** (§4.11.9): responds without waiting
-for the run to finish. `202 Accepted`: `{ "status": "RUNNING", "startedAt": "2026-08-14T05:00:00.000Z" }`.
-`409 Conflict` — a run is already in progress; the only rejection code. Routes `scan`,
-`scan/status` and `:id/logo` **must** be declared **above** the `:id` routes (§5.2, §4.10).
+Starts a search run (§4.11). Body — `StartScanDto`, optional: `{ "mode"?: "FRESH" | "RESUME" }`,
+absent treated as `FRESH` (so the pre-existing button keeps working unchanged). **Asynchronous**
+(§4.11.9): responds without waiting for the run to finish. `202 Accepted`:
+`{ "status": "RUNNING", "startedAt": "2026-08-14T05:00:00.000Z" }`. `409 Conflict` — either a run
+is already in progress, or (`mode: "RESUME"` only) there is no valid saved position to continue
+from (§4.11.12), each with its own message (§5.5). Routes `scan`, `scan/stop`, `scan/status` and
+`:id/logo` **must** be declared **above** the `:id` routes (§5.2, §4.10).
+
+#### `POST /api/vacancy-leads/scan/stop`
+
+Requests cooperative cancellation of the running run (§4.11.12). No request body. `202 Accepted`:
+`{ "status": "RUNNING", "stopRequested": true }` — the run has not necessarily stopped yet, only
+the flag is set; poll `GET /scan/status` for the actual end. `409 Conflict` — no run is currently
+`RUNNING`.
 
 #### `GET /api/vacancy-leads/scan/status`
 
 Progress and result of the last run. `200`: `{ status, startedAt, finishedAt, progress,
-stoppedReason, message }`, where `progress` holds counters `pagesFetched`, `itemsSeen`,
-`skippedInvalid`, `skippedOld`, `skippedExcluded`, `rejectedTitle`, `duplicates`,
-`descriptionsFailed`, `rejectedDescription`, `created`, `failed`, `aiFallbacks`.
+pageProgress, stopRequested, resume, stoppedReason, message }`, where `progress` holds counters
+`pagesFetched`, `itemsSeen`, `skippedInvalid`, `skippedOld`, `skippedExcluded`, `rejectedTitle`,
+`duplicates`, `descriptionsFailed`, `rejectedDescription`, `created`, `failed`, `aiFallbacks`.
 
 - `status`: `IDLE` (no run since process start) | `RUNNING` | `DONE` | `ERROR`.
 - `progress` fills in as the run goes (the UI indicator); after completion the same place holds the
   final summary (§4.11.11), `stoppedReason` and `message`. State lives in process memory:
-  restarting `api` returns `IDLE` (§4.11.9).
-- An unsuccessful `stoppedReason` (including `ERROR`) is returned with status **`200`** — an
-  operation result, not an HTTP error; same rule as sync (§5.2).
+  restarting `api` returns `IDLE` (§4.11.9), except for `resume` (below).
+- `pageProgress`: `{ currentPage: number | null, totalPages: number }` — the "page N of M"
+  indicator (§4.11.12). `currentPage` is `null` before the first page of a run has started;
+  `totalPages` starts at `VACANCY_SCAN_MAX_PAGES` and narrows to `min(paging.lastPage, MAX_PAGES - 1) + 1`
+  once hh.ru reports `lastPage`. Both are 0-based page indexes on the wire; the frontend adds 1 for
+  display.
+- `stopRequested`: `true` once `POST /scan/stop` has been accepted for the current run, `false`
+  otherwise; reset by the next `tryStart()`.
+- `resume`: `{ available: boolean, nextPage: number | null }` — whether `mode: "RESUME"` would
+  currently succeed, computed from the persisted position (§3.7) and the current search settings
+  (§4.11.12); `nextPage` is `null` unless `available`.
+- An unsuccessful `stoppedReason` (including `ERROR` and `STOPPED`) is returned with status
+  **`200`** — an operation result, not an HTTP error; same rule as sync (§5.2).
 
 #### `GET /api/vacancy-search-settings`
 
@@ -1246,8 +1351,8 @@ Two screens switched by MUI `Tabs` («Отклики», «Вакансии») un
 
 #### 7.9.1 The «Вакансии» screen
 
-Filter bar: «🔎 Найти вакансии», «⚙ Настройки поиска», a search field, a «Скрытые» toggle; below it the `Alert` with run progress / last
-summary; below that the list.
+Filter bar: «Начать поиск», «Продолжить», «Остановить», «⚙ Настройки поиска», a search field, a «Скрытые»
+toggle; below it the `Alert` with run progress / last summary; below that the list.
 
 - **One vacancy = one `Accordion`**, same rules as §7.2: `disableGutters`, `elevation={1}`, the same `transition` slot props,
   `AccordionSummary` as `component="div"`, `memo`, expansion via `useExpandedIds` and a `boolean` slice by id.
@@ -1266,16 +1371,27 @@ summary; below that the list.
 
 #### 7.9.2 The run and its progress
 
-- «🔎 Найти вакансии» sends `POST /api/vacancy-leads/scan` and **does not wait** (§4.11.9): `202` returns at once. While the run is active
-  the button is disabled and `GET …/scan/status` is polled every 2 s (`refetchInterval`, dropped once status is not `RUNNING`); polling
-  replaces WebSocket/SSE, which the project does not have (§12).
-- The same `Alert` shows progress and the final summary: during the run «страниц: 3, найдено: 2, отклонено моделью: 12» with
-  `LinearProgress`; afterwards the final counters (§4.11.11) and `stoppedReason` as human text.
+- **Three buttons** (§4.11.12): «Начать поиск» (`mode: 'FRESH'`, from page 0), «Продолжить» (`mode: 'RESUME'`,
+  from the saved position — label grows a page number, «Продолжить со страницы N», when known), «Остановить»
+  (`POST /scan/stop`). Each sends its request and **does not wait** (§4.11.9): `202` returns at once. While
+  a run is `RUNNING`, «Начать» and «Продолжить» are disabled; «Продолжить» is additionally disabled whenever
+  `resume.available` is `false` (no saved position, or one that no longer matches the current `searchText`,
+  §4.11.12); «Остановить» is enabled only while `RUNNING` and not yet `stopRequested`, and shows a pending
+  label once clicked. `GET …/scan/status` is polled every 2 s (`refetchInterval`, dropped once status is not
+  `RUNNING`); polling replaces WebSocket/SSE, which the project does not have (§12).
+- The same `Alert` shows progress and the final summary: during the run a page line «страница 18 из 40»
+  (from `pageProgress`, omitted while `currentPage` is still `null`) above «страниц: 3, найдено: 2, отклонено
+  моделью: 12», with `LinearProgress` switching to `variant="determinate"` once the page total is known and
+  staying indeterminate otherwise; afterwards the final counters (§4.11.11) and `stoppedReason` as human
+  text, including a dedicated «Прогон остановлен вручную» line for `STOPPED`.
 - Channels are separated as in §7.7: request failure → error-`Snackbar`; `stoppedReason = 'ERROR'` → `Alert severity="error"`; a
   successful run → `success`, and `created === 0` → `info`.
 - On `RUNNING` → `DONE`/`ERROR` — **invalidate the leads list key entirely**, never merge records into the cache (§7.7).
-- `409` on the button is not an error: info-`Snackbar` «Поиск уже выполняется», polling starts as usual. Status is also polled on screen
-  mount, so a run started in another tab or before a reload is visible.
+- `409` on «Начать»/«Продолжить» is not an error: info-`Snackbar` with the server's message (§5.7 — either
+  "already running" or "no valid resume position"), polling starts as usual. `409` on «Остановить» (nothing
+  is running) is likewise an info-`Snackbar`, not an error. Status is also polled on screen mount, so a run
+  started in another tab, before a reload, or surviving a container restart as a resumable position
+  (§4.11.9) is visible immediately.
 
 #### 7.9.3 Hiding a vacancy
 
@@ -1292,7 +1408,9 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 - **Промпт для названия** and **промпт для описания** — multiline fields with a hint about the available placeholders (§4.12.2) and a
   «Вернуть промпт по умолчанию» button. **«Использовать ИИ-отбор»** (`aiEnabled`): off means keyword screening and no description fetch.
 - Saving — `PUT /api/vacancy-search-settings` in full; validation errors (`400`, in particular a missing placeholder) are shown under the
-  corresponding field, not as a general notification. After saving — invalidate the settings key; a running run is unaffected (§5.7).
+  corresponding field, not as a general notification. After saving — invalidate the settings key **and** the scan-status key
+  (§4.11.12): `resume.available` depends on `searchText`, so a saved change must immediately disable a now-stale «Продолжить». A
+  running run is unaffected — it works off the settings snapshot taken at its own start (§5.7).
 
 ## 8. Configuration (env)
 
@@ -1323,7 +1441,7 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 | `COMPANY_LOGO_REQUEST_TIMEOUT_MS`  | no   | `5000`                                     | Logo download timeout from the source CDN (§4.10), no retries                                                |
 | `HH_MAX_REQUESTS_PER_SECOND`       | no   | `2`                                        | Rate ceiling for **all** hh.ru requests: shared throttle (§4.11.2). Range 0.1…50                             |
 | `HH_SEARCH_URL_TEMPLATE`           | no   | `see §4.11.1`                              | hh.ru search-results URL template; placeholders {text} and {page} are mandatory, a missing one fails startup |
-| `VACANCY_SCAN_MAX_PAGES`           | no   | `10`                                       | Max search-results pages per run (§4.11.8). Range 1…40 — hh.ru itself cuts off at page 40                    |
+| `VACANCY_SCAN_MAX_PAGES`           | no   | `40`                                       | Max search-results pages per run (§4.11.8). Range 1…40 — hh.ru itself cuts off at page 40                    |
 | `VACANCY_SCAN_MAX_DETAILS`         | no   | `60`                                       | Max opened vacancy pages (and model description scorings) per run                                            |
 | `VACANCY_SCAN_MAX_AGE_DAYS`        | no   | `30`                                       | Vacancies older than N days are skipped (§4.11.6)                                                            |
 | `VACANCY_SCAN_MAX_DURATION_MS`     | no   | `1800000`                                  | Hard run deadline — 30 min (§4.11.8)                                                                         |

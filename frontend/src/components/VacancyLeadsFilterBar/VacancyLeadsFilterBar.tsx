@@ -1,6 +1,8 @@
 import ClearIcon from '@mui/icons-material/Clear';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SearchIcon from '@mui/icons-material/Search';
 import SettingsIcon from '@mui/icons-material/Settings';
+import StopIcon from '@mui/icons-material/Stop';
 import {
   Box,
   Button,
@@ -15,18 +17,32 @@ import { FIELD_GAP, SEARCH_FIELD_WIDTH_PX } from '../../constants/layout.constan
 import {
   SCAN_BUTTON_LABEL,
   SCAN_BUTTON_PENDING_LABEL,
+  SCAN_STOP_BUTTON_LABEL,
+  SCAN_STOP_BUTTON_PENDING_LABEL,
   SETTINGS_BUTTON_LABEL,
   VACANCY_LEADS_HIDDEN_TOGGLE_LABEL,
   VACANCY_LEADS_SEARCH_PLACEHOLDER,
 } from '../../constants/vacancy-search.constants';
+import { formatResumeButtonLabel } from '../../utils/vacancy-scan.utils';
 import type { VacancyLeadsFilterBarProps } from './vacancy-leads-filter-bar.interfaces';
 
-/** Панель фильтров экрана «Вакансии» (§7.9.1): прогон, настройки, поиск, «Скрытые». */
+/**
+ * Панель фильтров экрана «Вакансии» (§7.9.1, §7.9.2, §4.11.12): три кнопки прогона
+ * («Начать поиск», «Продолжить», «Остановить»), настройки, поиск, «Скрытые». Кнопки
+ * видимы всегда — доступность решают только описанные ниже правила, никакой другой
+ * логики в компоненте нет (owner decision).
+ */
 export function VacancyLeadsFilterBar({
   filters,
   onFiltersChange,
-  onScan,
+  onScanFresh,
+  onScanResume,
+  onScanStop,
   isScanRunning,
+  isStopRequested,
+  isStartPending,
+  isStopPending,
+  resume,
   onOpenSettings,
 }: VacancyLeadsFilterBarProps) {
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -46,10 +62,29 @@ export function VacancyLeadsFilterBar({
       <Button
         variant="contained"
         startIcon={<SearchIcon />}
-        disabled={isScanRunning}
-        onClick={onScan}
+        disabled={isScanRunning || isStartPending}
+        onClick={onScanFresh}
       >
         {isScanRunning ? SCAN_BUTTON_PENDING_LABEL : SCAN_BUTTON_LABEL}
+      </Button>
+
+      <Button
+        variant="outlined"
+        startIcon={<PlayArrowIcon />}
+        disabled={isScanRunning || isStartPending || !resume.available}
+        onClick={onScanResume}
+      >
+        {formatResumeButtonLabel(resume)}
+      </Button>
+
+      <Button
+        variant="outlined"
+        color="warning"
+        startIcon={<StopIcon />}
+        disabled={!isScanRunning || isStopRequested || isStopPending}
+        onClick={onScanStop}
+      >
+        {isStopRequested ? SCAN_STOP_BUTTON_PENDING_LABEL : SCAN_STOP_BUTTON_LABEL}
       </Button>
 
       <Button variant="outlined" startIcon={<SettingsIcon />} onClick={onOpenSettings}>

@@ -1,10 +1,16 @@
 import {
+  SCAN_PAGE_NUMBER_OFFSET,
+  SCAN_PAGE_PROGRESS_PREFIX,
+  SCAN_PAGE_PROGRESS_SEPARATOR,
   SCAN_PROGRESS_CREATED_LABEL,
   SCAN_PROGRESS_DUPLICATES_LABEL,
   SCAN_PROGRESS_FAILED_LABEL,
   SCAN_PROGRESS_PAGES_LABEL,
+  SCAN_PROGRESS_PERCENT_SCALE,
   SCAN_PROGRESS_REJECTED_LABEL,
   SCAN_PROGRESS_SEEN_LABEL,
+  SCAN_RESUME_BUTTON_LABEL,
+  SCAN_RESUME_BUTTON_PAGE_PREFIX,
   SCAN_STATUS,
   SCAN_STOPPED_REASON,
   SCAN_STOPPED_REASON_LABELS,
@@ -13,11 +19,21 @@ import {
 } from '../constants/vacancy-search.constants';
 import { NOTIFICATION_SEVERITY } from '../constants/notification.constants';
 import type { NotificationSeverity } from '../types/notification.type';
-import type { ScanProgress, ScanStatusResponse } from '../types/vacancy-search.interfaces';
+import type {
+  ScanPageProgress,
+  ScanProgress,
+  ScanResumeState,
+  ScanStatusResponse,
+} from '../types/vacancy-search.interfaces';
 
 /** Производные статуса прогона поиска (§7.9.2), чистые функции без литералов внутри. */
 
-/** «страниц 3 · просмотрено 40 · найдено 2 · дублей 5 · отклонено моделью 12 · ошибок 0». */
+/**
+ * «страниц 3 · просмотрено 40 · найдено 2 · дублей 5 · отклонено моделью 12 · ошибок 0».
+ * После смены порядка эшелонов дедупликации (§4.11.4, §4.11.5) «дублей» считает лидов,
+ * узнанных ещё ДО ИИ по названию (эшелон 2 по БД), а «отклонено моделью» — только тех,
+ * кто дедупликацию уже прошёл.
+ */
 export function formatScanProgressText(progress: ScanProgress): string {
   const rejectedByModel = progress.rejectedTitle + progress.rejectedDescription;
   const parts = [
@@ -62,4 +78,55 @@ export function selectScanAlertSeverity(status: ScanStatusResponse): Notificatio
   }
 
   return NOTIFICATION_SEVERITY.SUCCESS;
+}
+
+/**
+ * §7.9.2, §4.11.12: «страница 18 из 40». null, пока currentPage ещё не пришёл с бэкенда
+ * (прогон только запущен либо не идёт вовсе) — Alert тогда эту строку не показывает.
+ * currentPage — 0-based индекс страницы выдачи, человеку показываем 1-based номер.
+ */
+export function formatScanPageProgressText(pageProgress: ScanPageProgress): string | null {
+  if (pageProgress.currentPage === null) {
+    return null;
+  }
+
+  const pageNumber = pageProgress.currentPage + SCAN_PAGE_NUMBER_OFFSET;
+
+  return (
+    `${SCAN_PAGE_PROGRESS_PREFIX}${SCAN_SUMMARY_VALUE_SEPARATOR}${pageNumber}` +
+    `${SCAN_PAGE_PROGRESS_SEPARATOR}${pageProgress.totalPages}`
+  );
+}
+
+/**
+ * §7.9.2: доля пройденных страниц в процентах для LinearProgress'а. null, пока currentPage
+ * неизвестен — тогда индикатор остаётся indeterminate. min(…, 100) — currentPage может
+ * совпасть с последним индексом totalPages - 1, что и даёт ровно 100%, но подстраховка
+ * не помешает при рассинхронизации totalPages между двумя опросами.
+ */
+export function selectScanProgressPercent(pageProgress: ScanPageProgress): number | null {
+  if (pageProgress.currentPage === null) {
+    return null;
+  }
+
+  const percent =
+    ((pageProgress.currentPage + SCAN_PAGE_NUMBER_OFFSET) / pageProgress.totalPages) *
+    SCAN_PROGRESS_PERCENT_SCALE;
+
+  return Math.min(percent, SCAN_PROGRESS_PERCENT_SCALE);
+}
+
+/**
+ * §7.9.2, §4.11.12: подпись кнопки «Продолжить» — растёт номером страницы, когда позиция
+ * известна (человеку — 1-based). Доступность самой кнопки решает resume.available
+ * отдельно (VacancyLeadsFilterBar), здесь только текст.
+ */
+export function formatResumeButtonLabel(resume: ScanResumeState): string {
+  if (resume.nextPage === null) {
+    return SCAN_RESUME_BUTTON_LABEL;
+  }
+
+  const pageNumber = resume.nextPage + SCAN_PAGE_NUMBER_OFFSET;
+
+  return `${SCAN_RESUME_BUTTON_PAGE_PREFIX}${SCAN_SUMMARY_VALUE_SEPARATOR}${pageNumber}`;
 }

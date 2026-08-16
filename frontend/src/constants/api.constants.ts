@@ -34,6 +34,7 @@ export const SYNC_OPEN_PATH_SEGMENT = 'sync-open';
  * из пути `${VACANCY_LEADS_ENDPOINT}/scan`, тем же приёмом, что SYNC_PATH_SEGMENT.
  */
 export const VACANCY_LEADS_SCAN_PATH_SEGMENT = 'scan';
+export const VACANCY_LEADS_SCAN_STOP_PATH_SEGMENT = 'scan/stop';
 export const VACANCY_LEADS_SCAN_STATUS_PATH_SEGMENT = 'scan/status';
 
 /** §5.1: GET /api/applications/:id/logo — байты логотипа компании (§4.10). */
@@ -62,8 +63,8 @@ export const CREATE_REQUEST_TIMEOUT_MS = 45_000;
 /**
  * У прогона поиска (§4.11, §5.7) нет отдельного per-request таймаута, в отличие
  * от sync-open: тот держит соединение открытым на всю синхронную операцию, а
- * POST /vacancy-leads/scan отвечает 202 сразу, не дожидаясь конца прогона (§4.11.9),
- * и GET /vacancy-leads/scan/status читает только снимок состояния из памяти процесса —
- * оба запроса быстрые независимо от того, идёт ли сам прогон. Дефолтного API_TIMEOUT_MS
- * достаточно.
+ * POST /vacancy-leads/scan и POST /vacancy-leads/scan/stop (§4.11.12) отвечают 202
+ * сразу, не дожидаясь конца прогона, и GET /vacancy-leads/scan/status читает только
+ * снимок состояния из памяти процесса — все три запроса быстрые независимо от того,
+ * идёт ли сам прогон. Дефолтного API_TIMEOUT_MS достаточно.
  */

@@ -140,11 +140,12 @@ export const VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_DESCRIPTION_MESS
 /** Общий делитель для бюджета по возрасту (§4.11.6, VACANCY_SCAN_MAX_AGE_DAYS). */
 export const MS_IN_DAY = 86_400_000;
 
-/** §5.7: маршруты VacancyLeadsController. scan/scan-status/:id/logo ОБЯЗАНЫ идти выше ':id' (то же правило, что у sync-open). */
+/** §5.7: маршруты VacancyLeadsController. scan/scan-stop/scan-status/:id/logo ОБЯЗАНЫ идти выше ':id' (то же правило, что у sync-open). */
 export const VACANCY_LEADS_ROUTE = 'vacancy-leads';
 export const VACANCY_LEAD_ID_PARAM = 'id';
 export const VACANCY_LEAD_BY_ID_ROUTE = ':id';
 export const VACANCY_LEADS_SCAN_ROUTE = 'scan';
+export const VACANCY_LEADS_SCAN_STOP_ROUTE = 'scan/stop';
 export const VACANCY_LEADS_SCAN_STATUS_ROUTE = 'scan/status';
 
 /** §4.10, §4.11, §5.7: та же логика порядка маршрутов, что у APPLICATION_LOGO_ROUTE. */
@@ -199,7 +200,7 @@ export const SCAN_STATUS = {
   ERROR: 'ERROR',
 } as const;
 
-/** §4.11.11: причина остановки прогона. */
+/** §4.11.11: причина остановки прогона. STOPPED — кооперативная остановка по запросу пользователя (§4.11.12). */
 export const SCAN_STOPPED_REASON = {
   COMPLETED: 'COMPLETED',
   LAST_PAGE: 'LAST_PAGE',
@@ -207,8 +208,61 @@ export const SCAN_STOPPED_REASON = {
   MAX_DETAILS: 'MAX_DETAILS',
   DEADLINE: 'DEADLINE',
   AGE_LIMIT: 'AGE_LIMIT',
+  STOPPED: 'STOPPED',
   ERROR: 'ERROR',
 } as const;
+
+/**
+ * §4.11.12: причины, при которых выдача исчерпана целиком (или намеренно обрублена
+ * возрастной отсечкой) — позиция прогона в этих случаях очищается (следующий
+ * запуск начнётся с страницы 0), а не сохраняется. Остальные причины (STOPPED,
+ * DEADLINE, MAX_DETAILS, ERROR) сохраняют позицию — прогон оборвался, не дойдя
+ * до конца выдачи.
+ */
+export const SCAN_EXHAUSTED_STOPPED_REASONS = [
+  SCAN_STOPPED_REASON.COMPLETED,
+  SCAN_STOPPED_REASON.LAST_PAGE,
+  SCAN_STOPPED_REASON.MAX_PAGES,
+  SCAN_STOPPED_REASON.AGE_LIMIT,
+] as const;
+
+/** §4.11.12: режим старта прогона — с нуля либо с сохранённой позиции. */
+export const SCAN_MODES = ['FRESH', 'RESUME'] as const;
+export const DEFAULT_SCAN_MODE = SCAN_MODES[0];
+
+/**
+ * §3.7: singleton-таблица сохранённой позиции прогона — тот же приём, что у
+ * vacancy_search_settings (id smallint + CHECK (id = 1)), но своя таблица и свой
+ * сервис (VacancyScanPositionService), а не поле в vacancy_search_settings: это
+ * машинная позиция, а не пользовательская настройка (см. обоснование в blueprint
+ * §3, «Chosen approach»).
+ */
+export const VACANCY_SCAN_POSITION_TABLE = 'vacancy_scan_position';
+
+/** Свойство сущности VacancyScanPosition → имя колонки в БД. */
+export const VACANCY_SCAN_POSITION_COLUMN = {
+  ID: 'id',
+  NEXT_PAGE: 'next_page',
+  SEARCH_TEXT: 'search_text',
+  UPDATED_AT: 'updated_at',
+} as const;
+
+export const VACANCY_SCAN_POSITION_SINGLETON_ID = 1;
+
+export const VACANCY_SCAN_POSITION_ID_CHECK = 'CHK_vacancy_scan_position_id';
+
+/** По определению совпадает с шириной vacancy_search_settings.search_text — колонка хранит её копию. */
+export const VACANCY_SCAN_POSITION_SEARCH_TEXT_LENGTH = VACANCY_SEARCH_SETTINGS_SEARCH_TEXT_LENGTH;
+
+export const VACANCY_SCAN_INITIAL_PAGE = 0;
+
+/**
+ * §3.7: строку засевает миграция CreateVacancyScanPositionTable — сервис её не
+ * создаёт, тот же принцип, что у vacancy_search_settings.
+ */
+export const VACANCY_SCAN_POSITION_MISSING_MESSAGE =
+  'Позиция прогона поиска не найдена: миграция не выполнена или строка удалена вручную';
+export const VACANCY_SCAN_POSITION_SAVE_FAILED_MESSAGE = 'Не удалось сохранить позицию прогона поиска';
 
 /** §8: имена env-переменных бюджетов и режимов прогона (значения — в config/config.constants.ts). */
 export const VACANCY_SCAN_MAX_PAGES_ENV_KEY = 'VACANCY_SCAN_MAX_PAGES';
@@ -221,6 +275,10 @@ export const VACANCY_MATCH_MODE_ENV_KEY = 'VACANCY_MATCH_MODE';
 export const VACANCY_SCAN_ALREADY_RUNNING_MESSAGE = 'Прогон поиска вакансий уже выполняется';
 export const VACANCY_SCAN_FINISHED_MESSAGE = 'Прогон поиска вакансий завершён';
 export const VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE = 'Непредвиденная ошибка прогона поиска вакансий';
+export const VACANCY_SCAN_NOT_RUNNING_MESSAGE = 'Прогон поиска вакансий не выполняется';
+export const VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE =
+  'Сохранённой позиции прогона нет или она устарела: текст поиска изменился';
+export const VACANCY_SCAN_STOP_REQUESTED_MESSAGE = 'Запрошена остановка прогона поиска вакансий';
 
 /**
  * §4.12.4: предупреждение при старте, если ai_enabled = true, а модели нет

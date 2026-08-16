@@ -1,6 +1,7 @@
 import type { VacancySource } from './application.type';
 import type {
   MatchSource,
+  ScanMode,
   ScanStatusValue,
   ScanStoppedReason,
   VacancyLeadsHiddenFilter,
@@ -68,6 +69,17 @@ export interface ScanAcceptedResponse {
   startedAt: string;
 }
 
+/** Тело POST /api/vacancy-leads/scan (§5.7, §4.11.12) — режим старта прогона. */
+export interface StartScanRequest {
+  mode: ScanMode;
+}
+
+/** Ответ 202 POST /api/vacancy-leads/scan/stop (§5.7, §4.11.12) — остановка запрошена, статус ещё RUNNING. */
+export interface ScanStopAcceptedResponse {
+  status: 'RUNNING';
+  stopRequested: true;
+}
+
 /**
  * §4.11.11: живые счётчики прогресса прогона — те же поля, что и в итоговой сводке
  * (ScanStatusResponse.progress) что во время прогона, что после.
@@ -87,12 +99,27 @@ export interface ScanProgress {
   aiFallbacks: number;
 }
 
+/** §5.7, §4.11.12: индикатор «страница N из M». currentPage — 0-based индекс, totalPages — количество. */
+export interface ScanPageProgress {
+  currentPage: number | null;
+  totalPages: number;
+}
+
+/** §5.7, §4.11.12: можно ли продолжить прогон с сохранённой позиции. */
+export interface ScanResumeState {
+  available: boolean;
+  nextPage: number | null;
+}
+
 /** Ответ GET /api/vacancy-leads/scan/status (§5.7): прогресс во время прогона, итог после. */
 export interface ScanStatusResponse {
   status: ScanStatusValue;
   startedAt: string | null;
   finishedAt: string | null;
   progress: ScanProgress;
+  pageProgress: ScanPageProgress;
+  stopRequested: boolean;
+  resume: ScanResumeState;
   stoppedReason: ScanStoppedReason | null;
   message: string | null;
 }

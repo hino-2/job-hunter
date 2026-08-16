@@ -120,8 +120,13 @@ export const HH_SEARCH_URL_MISSING_PAGE_PLACEHOLDER_MESSAGE =
   'HH_SEARCH_URL_TEMPLATE обязан содержать плейсхолдер {page}, иначе прогон читал бы' +
   ' первую страницу бесконечно';
 
-/** §4.11.8: бюджеты одного прогона поиска. */
-export const DEFAULT_VACANCY_SCAN_MAX_PAGES = 10;
+/**
+ * §4.11.8: бюджеты одного прогона поиска. Дефолт 40 совпадает с собственным
+ * потолком hh.ru (paging.lastPage.page = 39, §4.11.1) — прогон по умолчанию
+ * вычерпывает всю доступную выдачу, MAX_PAGES и LAST_PAGE на полном прогоне
+ * теперь совпадают.
+ */
+export const DEFAULT_VACANCY_SCAN_MAX_PAGES = 40;
 export const VACANCY_SCAN_MAX_PAGES_MIN = 1;
 /** У hh.ru своя отсечка на 40-й странице (paging.lastPage.page = 39, §4.11.1). */
 export const VACANCY_SCAN_MAX_PAGES_MAX = 40;

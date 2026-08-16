@@ -3,11 +3,13 @@ import {
   VACANCY_LEADS_ENDPOINT,
   VACANCY_LEADS_SCAN_PATH_SEGMENT,
   VACANCY_LEADS_SCAN_STATUS_PATH_SEGMENT,
+  VACANCY_LEADS_SCAN_STOP_PATH_SEGMENT,
   VACANCY_SEARCH_SETTINGS_ENDPOINT,
 } from '../constants/api.constants';
 import type {
   ScanAcceptedResponse,
   ScanStatusResponse,
+  ScanStopAcceptedResponse,
   VacancyLead,
   VacancyLeadsFilters,
   VacancyLeadsQueryParams,
@@ -15,6 +17,7 @@ import type {
   VacancySearchSettings,
   VacancySearchSettingsUpdate,
 } from '../types/vacancy-search.interfaces';
+import type { ScanMode } from '../types/vacancy-search.type';
 import { apiClient } from './client';
 
 /**
@@ -67,14 +70,29 @@ export async function updateVacancyLead(
 }
 
 /**
- * POST /api/vacancy-leads/scan (§5.7, §4.11.9). Тела запроса нет. Ответ 202 приходит
- * сразу, не дожидаясь конца прогона — таймаут по умолчанию не трогаем (api.constants.ts).
- * 409 (прогон уже идёт где-то ещё) — штатный исход, а не сбой; различать его по коду
- * должен вызывающий хук (§7.9.2), здесь исключение просто пробрасывается.
+ * POST /api/vacancy-leads/scan (§5.7, §4.11.9, §4.11.12). Тело — режим старта (FRESH/RESUME).
+ * Ответ 202 приходит сразу, не дожидаясь конца прогона — таймаут по умолчанию не трогаем
+ * (api.constants.ts). 409 (прогон уже идёт где-то ещё, либо для RESUME — валидной
+ * сохранённой позиции нет) — штатный исход, а не сбой; различать его по коду должен
+ * вызывающий хук (§7.9.2), здесь исключение просто пробрасывается.
  */
-export async function startVacancyScan(): Promise<ScanAcceptedResponse> {
+export async function startVacancyScan(mode: ScanMode): Promise<ScanAcceptedResponse> {
   const response = await apiClient.post<ScanAcceptedResponse>(
     `${VACANCY_LEADS_ENDPOINT}${API_PATH_SEPARATOR}${VACANCY_LEADS_SCAN_PATH_SEGMENT}`,
+    { mode },
+  );
+
+  return response.data;
+}
+
+/**
+ * POST /api/vacancy-leads/scan/stop (§5.7, §4.11.12). Тела запроса нет. Ответ 202 приходит
+ * сразу — кооперативная отмена завершится позже. 409 (прогон уже не идёт) — штатный исход,
+ * различать его по коду должен вызывающий хук, здесь исключение просто пробрасывается.
+ */
+export async function stopVacancyScan(): Promise<ScanStopAcceptedResponse> {
+  const response = await apiClient.post<ScanStopAcceptedResponse>(
+    `${VACANCY_LEADS_ENDPOINT}${API_PATH_SEPARATOR}${VACANCY_LEADS_SCAN_STOP_PATH_SEGMENT}`,
   );
 
   return response.data;

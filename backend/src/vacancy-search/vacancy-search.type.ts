@@ -1,6 +1,7 @@
 import type { VACANCY_MATCH_MODES, VACANCY_PREFILTER_MODES } from '../config/config.constants';
 import type {
   MATCH_SOURCE,
+  SCAN_MODES,
   SCAN_STATUS,
   SCAN_STOPPED_REASON,
   VACANCY_LEADS_HIDDEN_FILTERS,
@@ -25,8 +26,11 @@ export type VacancyPrefilterMode = (typeof VACANCY_PREFILTER_MODES)[number];
 /** §4.11.9/§5.7: статус прогона поиска, живущий в памяти процесса (VacancyScanStateService). */
 export type ScanStatus = (typeof SCAN_STATUS)[keyof typeof SCAN_STATUS];
 
-/** §4.11.11: почему прогон остановился — бюджет, конец выдачи, отсечка по возрасту или сбой. */
+/** §4.11.11: почему прогон остановился — бюджет, конец выдачи, отсечка по возрасту, ручная остановка или сбой. */
 export type ScanStoppedReason = (typeof SCAN_STOPPED_REASON)[keyof typeof SCAN_STOPPED_REASON];
+
+/** §4.11.12: режим старта прогона — с нуля («Начать») либо с сохранённой позиции («Продолжить»). */
+export type ScanMode = (typeof SCAN_MODES)[number];
 
 /** §5.7: значения query-параметра hidden у GET /api/vacancy-leads. */
 export type VacancyLeadsHiddenFilter = (typeof VACANCY_LEADS_HIDDEN_FILTERS)[number];

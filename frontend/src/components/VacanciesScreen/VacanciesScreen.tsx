@@ -6,18 +6,21 @@ import { NOTIFICATION_SEVERITY } from '../../constants/notification.constants';
 import { SEARCH_DEBOUNCE_MS } from '../../constants/query.constants';
 import {
   DEFAULT_VACANCY_LEADS_FILTERS,
+  EMPTY_SCAN_RESUME_STATE,
   EMPTY_VACANCY_LEADS,
   HIDE_VACANCY_ERROR_FALLBACK_MESSAGE,
   RESTORE_VACANCY_ERROR_FALLBACK_MESSAGE,
-  SCAN_ALREADY_RUNNING_MESSAGE,
+  SCAN_MODE,
   SCAN_START_ERROR_FALLBACK_MESSAGE,
   SCAN_STATUS,
+  SCAN_STOP_ERROR_FALLBACK_MESSAGE,
   SETTINGS_SAVE_ERROR_FALLBACK_MESSAGE,
   SETTINGS_SAVE_SUCCESS_MESSAGE,
 } from '../../constants/vacancy-search.constants';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useExpandedIds } from '../../hooks/useExpandedIds';
 import { useStartVacancyScan } from '../../hooks/useStartVacancyScan';
+import { useStopVacancyScan } from '../../hooks/useStopVacancyScan';
 import { useUpdateVacancyLead } from '../../hooks/useUpdateVacancyLead';
 import { useVacancyLeads } from '../../hooks/useVacancyLeads';
 import { useVacancyScanStatus } from '../../hooks/useVacancyScanStatus';
@@ -82,13 +85,30 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
     [notification],
   );
 
-  const handleScanAlreadyRunning = useCallback(() => {
-    notification.notify(SCAN_ALREADY_RUNNING_MESSAGE, NOTIFICATION_SEVERITY.INFO);
-  }, [notification]);
+  const handleScanAlreadyRunning = useCallback(
+    (message: string) => {
+      notification.notify(message, NOTIFICATION_SEVERITY.INFO);
+    },
+    [notification],
+  );
 
   const handleScanFailed = useCallback(
     (error: Error) => {
       notification.notifyError(extractApiErrorMessage(error, SCAN_START_ERROR_FALLBACK_MESSAGE));
+    },
+    [notification],
+  );
+
+  const handleStopNotRunning = useCallback(
+    (message: string) => {
+      notification.notify(message, NOTIFICATION_SEVERITY.INFO);
+    },
+    [notification],
+  );
+
+  const handleStopFailed = useCallback(
+    (error: Error) => {
+      notification.notifyError(extractApiErrorMessage(error, SCAN_STOP_ERROR_FALLBACK_MESSAGE));
     },
     [notification],
   );
@@ -108,6 +128,10 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
     onAlreadyRunning: handleScanAlreadyRunning,
     onFailed: handleScanFailed,
   });
+  const stopScan = useStopVacancyScan({
+    onNotRunning: handleStopNotRunning,
+    onFailed: handleStopFailed,
+  });
   // Деструктурируем mutate, а не держим весь объект мутации в deps: useMutation (React
   // Query v5) возвращает новый объект на каждый рендер, а mutate стабилен на всё время
   // жизни компонента (тот же приём, что useSyncApplication). Иначе колбэк пробивал бы
@@ -117,8 +141,16 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
     onFailed: handleToggleFailed,
   });
 
-  const handleScan = () => {
-    startScan.mutate();
+  const handleScanFresh = () => {
+    startScan.mutate(SCAN_MODE.FRESH);
+  };
+
+  const handleScanResume = () => {
+    startScan.mutate(SCAN_MODE.RESUME);
+  };
+
+  const handleScanStop = () => {
+    stopScan.mutate();
   };
 
   // useCallback обязателен: колбэк уходит пропом в каждый memo-аккордеон списка (§9).
@@ -130,6 +162,8 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   );
 
   const isScanRunning = scanStatus.data?.status === SCAN_STATUS.RUNNING;
+  const isStopRequested = scanStatus.data?.stopRequested === true;
+  const resume = scanStatus.data?.resume ?? EMPTY_SCAN_RESUME_STATE;
   const showScanAlert = scanStatus.data !== undefined && scanStatus.data.status !== SCAN_STATUS.IDLE;
 
   return (
@@ -139,8 +173,14 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
           <VacancyLeadsFilterBar
             filters={filters}
             onFiltersChange={setFilters}
-            onScan={handleScan}
+            onScanFresh={handleScanFresh}
+            onScanResume={handleScanResume}
+            onScanStop={handleScanStop}
             isScanRunning={isScanRunning}
+            isStopRequested={isStopRequested}
+            isStartPending={startScan.isPending}
+            isStopPending={stopScan.isPending}
+            resume={resume}
             onOpenSettings={handleOpenSettings}
           />
 

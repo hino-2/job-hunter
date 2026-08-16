@@ -2,7 +2,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseMutationResult } from '@tanstack/react-query';
 
 import { updateVacancySearchSettings } from '../api/vacancy-search.api';
-import { VACANCY_SEARCH_SETTINGS_QUERY_KEY } from '../constants/query.constants';
+import {
+  VACANCY_SCAN_STATUS_QUERY_KEY,
+  VACANCY_SEARCH_SETTINGS_QUERY_KEY,
+} from '../constants/query.constants';
 import type {
   VacancySearchSettings,
   VacancySearchSettingsUpdate,
@@ -10,9 +13,11 @@ import type {
 import type { UpdateVacancySearchSettingsOptions } from './use-update-vacancy-search-settings.interfaces';
 
 /**
- * Сохранение настроек поиска (§7.9.4): PUT ресурса целиком. На идущий прогон
- * не влияет — vacancy-scan.service читает настройки заново при следующем запуске,
- * поэтому мутация не трогает ключ статуса прогона.
+ * Сохранение настроек поиска (§7.9.4): PUT ресурса целиком. Идущий прогон не затрагивает —
+ * vacancy-scan.service читает настройки заново только при следующем запуске (снимок берётся
+ * один раз при старте, §5.7). Ключ статуса прогона всё же инвалидируется (§4.11.12):
+ * resume.available зависит от searchText, и сохранённое изменение обязано мгновенно
+ * дизейблить устаревшую кнопку «Продолжить», не дожидаясь планового опроса.
  */
 export function useUpdateVacancySearchSettings(
   options: UpdateVacancySearchSettingsOptions,
@@ -24,6 +29,7 @@ export function useUpdateVacancySearchSettings(
     mutationFn: updateVacancySearchSettings,
     onSuccess: (settings) => {
       void client.invalidateQueries({ queryKey: VACANCY_SEARCH_SETTINGS_QUERY_KEY });
+      void client.invalidateQueries({ queryKey: VACANCY_SCAN_STATUS_QUERY_KEY });
       onSaved(settings);
     },
     onError: (error) => {

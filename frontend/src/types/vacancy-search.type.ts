@@ -1,5 +1,6 @@
 import type {
   MATCH_SOURCE,
+  SCAN_MODE,
   SCAN_STATUS,
   SCAN_STOPPED_REASON,
   VACANCY_LEADS_HIDDEN_FILTERS,
@@ -23,3 +24,6 @@ export type ScanStatusValue = (typeof SCAN_STATUS)[keyof typeof SCAN_STATUS];
 
 /** §4.11.11: причина остановки прогона. */
 export type ScanStoppedReason = (typeof SCAN_STOPPED_REASON)[keyof typeof SCAN_STOPPED_REASON];
+
+/** §4.11.12: режим старта прогона — с нуля («Начать поиск») либо с сохранённой позиции («Продолжить»). */
+export type ScanMode = (typeof SCAN_MODE)[keyof typeof SCAN_MODE];

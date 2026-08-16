@@ -61,7 +61,7 @@ services:
       # --- Поиск, отбор и отображение вакансий с hh.ru (§4.11, §4.12) ---
       HH_MAX_REQUESTS_PER_SECOND: ${HH_MAX_REQUESTS_PER_SECOND:-2}
       HH_SEARCH_URL_TEMPLATE: ${HH_SEARCH_URL_TEMPLATE:-https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}}
-      VACANCY_SCAN_MAX_PAGES: ${VACANCY_SCAN_MAX_PAGES:-10}
+      VACANCY_SCAN_MAX_PAGES: ${VACANCY_SCAN_MAX_PAGES:-40}
       VACANCY_SCAN_MAX_DETAILS: ${VACANCY_SCAN_MAX_DETAILS:-60}
       VACANCY_SCAN_MAX_AGE_DAYS: ${VACANCY_SCAN_MAX_AGE_DAYS:-30}
       VACANCY_SCAN_MAX_DURATION_MS: ${VACANCY_SCAN_MAX_DURATION_MS:-1800000}

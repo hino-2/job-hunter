@@ -1,4 +1,4 @@
-import type { VacancyLeadsFilters } from '../types/vacancy-search.interfaces';
+import type { ScanResumeState, VacancyLeadsFilters } from '../types/vacancy-search.interfaces';
 import type {
   MatchSource,
   ScanStoppedReason,
@@ -46,7 +46,7 @@ export const SCAN_STATUS = {
   ERROR: 'ERROR',
 } as const;
 
-/** §4.11.11: причина остановки прогона. */
+/** §4.11.11: причина остановки прогона. STOPPED — кооперативная остановка по запросу пользователя (§4.11.12). */
 export const SCAN_STOPPED_REASON = {
   COMPLETED: 'COMPLETED',
   LAST_PAGE: 'LAST_PAGE',
@@ -54,7 +54,14 @@ export const SCAN_STOPPED_REASON = {
   MAX_DETAILS: 'MAX_DETAILS',
   DEADLINE: 'DEADLINE',
   AGE_LIMIT: 'AGE_LIMIT',
+  STOPPED: 'STOPPED',
   ERROR: 'ERROR',
+} as const;
+
+/** §4.11.12: режим старта прогона — с нуля («Начать поиск») либо с сохранённой позиции («Продолжить»). */
+export const SCAN_MODE = {
+  FRESH: 'FRESH',
+  RESUME: 'RESUME',
 } as const;
 
 /** Подписи §4.12 — тот же приём, что MATCH_SOURCE_LABELS у остальных enum-ов. */
@@ -71,6 +78,7 @@ export const SCAN_STOPPED_REASON_LABELS: Record<ScanStoppedReason, string> = {
   MAX_DETAILS: 'Достигнут лимит детальных запросов',
   DEADLINE: 'Истекло отведённое время прогона',
   AGE_LIMIT: 'Вакансии дальше по выдаче старше порога',
+  STOPPED: 'Прогон остановлен вручную',
   ERROR: 'Прогон прерван ошибкой',
 };
 
@@ -125,7 +133,7 @@ export const VACANCY_LEADS_LIST_ERROR_MESSAGE = 'Не удалось загру�
 export const VACANCY_LEADS_RETRY_LABEL = 'Повторить';
 
 export const VACANCY_LEADS_EMPTY_TITLE = 'Пока ничего не найдено';
-export const VACANCY_LEADS_EMPTY_DESCRIPTION = 'Нажмите «Найти вакансии», чтобы запустить поиск';
+export const VACANCY_LEADS_EMPTY_DESCRIPTION = 'Нажмите «Начать поиск», чтобы запустить поиск';
 export const VACANCY_LEADS_EMPTY_FILTERED_TITLE = 'Ничего не найдено';
 export const VACANCY_LEADS_EMPTY_FILTERED_DESCRIPTION = 'Измените фильтры или поисковый запрос';
 export const VACANCY_LEADS_EMPTY_HIDDEN_TITLE = 'Скрытых вакансий нет';
@@ -162,11 +170,26 @@ export const SALARY_FROM_LABEL = 'от';
 export const SALARY_TO_LABEL = 'до';
 export const SALARY_VALUE_SEPARATOR = ' ';
 
-/** §7.9.2: кнопка запуска прогона и её тексты по состояниям. */
-export const SCAN_BUTTON_LABEL = 'Найти вакансии';
+/** §7.9.2: три кнопки прогона и их тексты по состояниям (§4.11.12). */
+export const SCAN_BUTTON_LABEL = 'Начать поиск';
 export const SCAN_BUTTON_PENDING_LABEL = 'Ищем…';
 export const SCAN_ALREADY_RUNNING_MESSAGE = 'Поиск уже выполняется';
 export const SCAN_START_ERROR_FALLBACK_MESSAGE = 'Не удалось запустить поиск';
+
+export const SCAN_RESUME_BUTTON_LABEL = 'Продолжить';
+export const SCAN_RESUME_BUTTON_PAGE_PREFIX = 'Продолжить со страницы';
+
+export const SCAN_STOP_BUTTON_LABEL = 'Остановить';
+export const SCAN_STOP_BUTTON_PENDING_LABEL = 'Останавливаем…';
+export const SCAN_STOP_NOT_RUNNING_MESSAGE = 'Прогон уже завершён';
+export const SCAN_STOP_ERROR_FALLBACK_MESSAGE = 'Не удалось остановить поиск';
+
+/** §7.9.2: индикатор «страница N из M» (pageProgress, §4.11.12). */
+export const SCAN_PAGE_PROGRESS_PREFIX = 'страница';
+export const SCAN_PAGE_PROGRESS_SEPARATOR = ' из ';
+/** currentPage приходит 0-based (совпадает с {page} в HH_SEARCH_URL_TEMPLATE) — смещение к человеческому номеру. */
+export const SCAN_PAGE_NUMBER_OFFSET = 1;
+export const SCAN_PROGRESS_PERCENT_SCALE = 100;
 
 export const SCAN_PROGRESS_PAGES_LABEL = 'страниц';
 export const SCAN_PROGRESS_SEEN_LABEL = 'просмотрено';
@@ -177,6 +200,13 @@ export const SCAN_PROGRESS_REJECTED_LABEL = 'отклонено моделью';
 export const SCAN_PROGRESS_FAILED_LABEL = 'ошибок';
 export const SCAN_SUMMARY_SEPARATOR = ' · ';
 export const SCAN_SUMMARY_VALUE_SEPARATOR = ' ';
+
+/**
+ * §10: стабильная ссылка на «позиции для продолжения нет» — литерал на месте
+ * использования (`scanStatus.data?.resume ?? { … }`) создавал бы новый объект
+ * каждый рендер и пробивал memo VacancyLeadsFilterBar.
+ */
+export const EMPTY_SCAN_RESUME_STATE: ScanResumeState = { available: false, nextPage: null };
 
 /** §7.9.4: кнопка настроек и заголовок диалога. */
 export const SETTINGS_BUTTON_LABEL = 'Настройки поиска';
