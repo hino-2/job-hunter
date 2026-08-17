@@ -79,11 +79,6 @@ export async function createApplication(payload: ApplicationCreate): Promise<App
   return response.data;
 }
 
-/** DELETE /api/applications/:id (§5.1, §7.5) — 204 без тела, response.data не читаем. */
-export async function deleteApplication(id: string): Promise<void> {
-  await apiClient.delete(`${APPLICATIONS_ENDPOINT}${API_PATH_SEPARATOR}${id}`);
-}
-
 /**
  * POST /api/applications/:id/sync (§5.2). Любой исход приходит с кодом 200 — это результат
  * операции, а не ошибка. Таймаут поднят: один запрос к источнику — до 10 с, плюс два ретрая.

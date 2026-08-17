@@ -6,6 +6,19 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**37. «Отказ компании» button replaces 🗑 in the applications summary row.** _(frontend)_
+The eighth cell of `AccordionSummary` (§7.2.1) is now a `Button variant="contained" size="medium"`
+without an icon — the same shape as «Скрыть» on the leads screen — and one click writes
+`result = REJECTED_BY_COMPANY` through `InlineEditHandlers.commit`, i.e. the very path the
+«Результат» `Select` uses: optimistic cache patch, saved-highlight, per-field rollback plus error
+snackbar on failure (§7.3). `status` is deliberately left alone — the accordion already mutes a
+record whose result is `REJECTED_BY_COMPANY`. No wrapper `span` with `stopPropagation` is needed
+here because the button is never disabled; a repeated click sends nothing at all, `commit` drops it
+via `isNoopPatch`. Deletion disappears from the UI entirely: the 🗑 `IconButton`,
+`ConfirmDeleteDialog`, `useDeleteApplication`, `deleteApplication` and the two `DELETE_*` messages
+are gone, and `ApplicationsScreen` no longer keeps a `deleteTargetId`. `DELETE /api/applications/:id`
+stays in the API (§5.1) with no client caller — the backend is untouched by this step.
+
 **36. The search query lives in the results link.** _(backend + frontend)_
 `search_text` is dropped from `vacancy_search_settings` and re-based to `search_url_template`
 on `vacancy_scan_position` (migration `RemoveVacancySearchText`, which folds the old search text

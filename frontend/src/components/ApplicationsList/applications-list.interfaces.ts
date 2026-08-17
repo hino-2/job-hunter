@@ -21,5 +21,6 @@ export interface ApplicationsListProps {
   /** id записей с летящим /sync (§7.6) — в аккордеон уходит срез-boolean по id. */
   syncingIds: ReadonlySet<string>;
   onSync: (id: string) => void;
-  onDelete?: (id: string) => void;
+  /** Кнопка «Отказ компании» шапки (§7.2.1) — пишет result сразу, без диалога. */
+  onRejectByCompany: (id: string) => void;
 }

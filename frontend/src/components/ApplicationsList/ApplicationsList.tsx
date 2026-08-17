@@ -29,7 +29,7 @@ export function ApplicationsList({
   onAdd,
   syncingIds,
   onSync,
-  onDelete,
+  onRejectByCompany,
 }: ApplicationsListProps) {
   if (isPending) {
     // Высота скелетона равна высоте свёрнутой шапки — иначе список «прыгал» бы,
@@ -89,7 +89,7 @@ export function ApplicationsList({
           onToggle={onToggle}
           isSyncing={syncingIds.has(application.id)}
           onSync={onSync}
-          onDelete={onDelete}
+          onRejectByCompany={onRejectByCompany}
         />
       ))}
     </Stack>

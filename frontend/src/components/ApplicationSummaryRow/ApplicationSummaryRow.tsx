@@ -1,9 +1,9 @@
-import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EventIcon from '@mui/icons-material/Event';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Avatar,
   Box,
+  Button,
   Chip,
   CircularProgress,
   IconButton,
@@ -15,6 +15,7 @@ import type { MouseEvent } from 'react';
 
 import { APPLICATIONS_ENDPOINT } from '../../constants/api.constants';
 import {
+  APPLICATION_RESULT,
   APPLICATION_RESULT_CHIP_COLORS,
   APPLICATION_RESULT_LABELS,
   APPLICATION_STATUS,
@@ -51,7 +52,7 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
   application,
   isSyncing,
   onSync,
-  onDelete,
+  onRejectByCompany,
 }: ApplicationSummaryRowProps) {
   const isClosed = application.status === APPLICATION_STATUS.CLOSED;
   const upcoming = selectUpcomingInterview(application);
@@ -73,9 +74,9 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
     event.stopPropagation();
   };
 
-  const handleDelete = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleRejectByCompany = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    onDelete?.(application.id);
+    onRejectByCompany(application.id);
   };
 
   return (
@@ -196,11 +197,19 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
         </Box>
       </Tooltip>
 
-      <Tooltip title="Удалить">
-        <IconButton aria-label="Удалить" onClick={handleDelete} sx={{ flex: SUMMARY_FLEX.auto }}>
-          <DeleteOutlinedIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      {/*
+       * Кнопка с подписью, как «Скрыть» у лидов (§7.9.1): действие частое, подпись читается
+       * без наведения — поэтому Tooltip'а здесь нет. Обёртка со stopPropagation не нужна:
+       * кнопка никогда не disabled, повторное нажатие гасит isNoopPatch в commit (§7.3).
+       */}
+      <Button
+        variant="contained"
+        size="medium"
+        onClick={handleRejectByCompany}
+        sx={{ flex: SUMMARY_FLEX.auto }}
+      >
+        {APPLICATION_RESULT_LABELS[APPLICATION_RESULT.REJECTED_BY_COMPANY]}
+      </Button>
     </Box>
   );
 });

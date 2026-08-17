@@ -36,7 +36,7 @@ export const ApplicationAccordion = memo(function ApplicationAccordion({
   onToggle,
   isSyncing,
   onSync,
-  onDelete,
+  onRejectByCompany,
 }: ApplicationAccordionProps) {
   // Шапка и поля получают одну и ту же смерженную запись — отсюда §13.10.8 «правка
   // компании/должности сразу видна в свёрнутой шапке» без единой дополнительной строки.
@@ -87,7 +87,7 @@ export const ApplicationAccordion = memo(function ApplicationAccordion({
           application={merged}
           isSyncing={isSyncing}
           onSync={onSync}
-          onDelete={onDelete}
+          onRejectByCompany={onRejectByCompany}
         />
       </AccordionSummary>
 

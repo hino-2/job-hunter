@@ -1283,7 +1283,7 @@ One line (~48px), **read-only** content plus action buttons, no inputs — a cli
 | 5   | Next interview | `flex: 0 0 auto`                                     | `Event` icon + `DD.MM HH:mm` of the nearest future of `hrInterviewAt`/`techInterviewAt`; hidden if both empty or past                                                                                                   |
 | 6   | Sync           | `flex: 0 0 auto`                                     | Status icon (✓ / ⚠ / ✕) + `Tooltip` with «Обновлено 06.08.2026 14:32» or the `SyncOutcome` label and `lastSyncError`, third line — source («Источник: hh.ru» / «Источник: getmatch.ru» / «Источник не определён», §4.8) |
 | 7   | 🔄 Sync        | `flex: 0 0 auto`                                     | `IconButton` size=small, **`event.stopPropagation()` mandatory** — must not toggle the accordion                                                                                                                        |
-| 8   | 🗑 Delete       | `flex: 0 0 auto`                                     | `IconButton` size=small, also with `stopPropagation()`                                                                                                                                                                  |
+| 8   | Отказ компании | `flex: 0 0 auto`                                     | `Button` variant=contained size=medium, no icon (looks like «Скрыть» of §7.9.1); one click writes `result = REJECTED_BY_COMPANY` through the §7.3 autosave path, also with `stopPropagation()`                            |
 
 #### 7.2.2 `AccordionDetails` — expanded state
 
@@ -1353,7 +1353,8 @@ expanded record (§7.2.2). On `onBlur` of the vacancy-link field — `POST /api/
 
 ### 7.5 Deletion
 
-🗑 `IconButton` → confirmation `Dialog` naming the company and position → `DELETE`. No undo.
+**Not exposed in the UI.** The summary row has no 🗑 button and there is no confirmation dialog — the eighth cell holds
+«Отказ компании» instead (§7.2.1). `DELETE /api/applications/:id` stays in the API (§5.1) but has no client caller.
 
 ### 7.6 Sync — single record
 
@@ -1705,14 +1706,14 @@ job-hunter/
       ├─ hooks/                   ✅ useApplications.ts, useExpandedIds.ts
       │                           ✅ (+ use-expanded-ids.interfaces.ts), useDebouncedValue.ts,
       │                           ✅ useUpdateApplication.ts, useCreateApplication.ts,
-      │                           ✅ useDeleteApplication.ts, useSyncApplication.ts,
+      │                           ✅ useSyncApplication.ts,
       │                           ✅ useSyncAllOpen.ts, useHhPreview.ts,
       │                           ✅ useInlineEdits.ts, useNotification.ts
       └─ components/              ✅ AppHeader.tsx, FilterBar.tsx, ApplicationsList.tsx,
                                   ✅ ApplicationAccordion.tsx, ApplicationSummaryRow.tsx,
                                   ✅ SyncStatusIcon.tsx, EmptyState.tsx (+ paired *.interfaces.ts),
                                   ✅ ApplicationFields.tsx, CreateApplicationDialog.tsx,
-                                  ✅ ConfirmDeleteDialog.tsx, UrlField.tsx, FieldCell.tsx,
+                                  ✅ UrlField.tsx, FieldCell.tsx,
                                   ✅ SyncSummaryAlert.tsx, NotificationSnackbar.tsx
 ```
 
@@ -1796,7 +1797,7 @@ of the list **expanded**. 6. Any field edit saves without a «Сохранить
 **List layout (§7.2)**
 10.1. Each vacancy is its own full-width `Accordion`; no `Table`/`DataGrid` in the code.
 10.2. All collapsed on load; a summary-row click toggles only its own; several may be expanded.
-10.3. Clicking 🔄 or 🗑 in the summary row **must not** change expanded state.
+10.3. Clicking 🔄 or «Отказ компании» in the summary row **must not** change expanded state.
 10.4. At 1920×1080 at least **12** collapsed vacancies fit at once.
 10.5. At ≥1600px expanded rows 1 (company, position, vacancy URL, résumé URL, status, result, HR
 interview, tech interview) and 2 (§7.2.2) each take one line; narrowing wraps fields, no horizontal

@@ -2,16 +2,14 @@ import { Container, Stack } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 
 import { ApplicationsList } from '../ApplicationsList/ApplicationsList';
-import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog/ConfirmDeleteDialog';
 import { CreateApplicationDialog } from '../CreateApplicationDialog/CreateApplicationDialog';
 import { FilterBar } from '../FilterBar/FilterBar';
 import { SyncSummaryAlert } from '../SyncSummaryAlert/SyncSummaryAlert';
 import {
+  APPLICATION_RESULT,
   CREATE_ERROR_FALLBACK_MESSAGE,
   CREATE_SUCCESS_MESSAGE,
   DEFAULT_APPLICATION_FILTERS,
-  DELETE_ERROR_FALLBACK_MESSAGE,
-  DELETE_SUCCESS_MESSAGE,
   EMPTY_APPLICATIONS,
   PREVIEW_ERROR_FALLBACK_MESSAGE,
   SYNC_OUTCOME_LABELS,
@@ -27,7 +25,6 @@ import {
 import { useApplications } from '../../hooks/useApplications';
 import { useCreateApplication } from '../../hooks/useCreateApplication';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useDeleteApplication } from '../../hooks/useDeleteApplication';
 import { useExpandedIds } from '../../hooks/useExpandedIds';
 import { useInlineEdits } from '../../hooks/useInlineEdits';
 import { useSyncApplication } from '../../hooks/useSyncApplication';
@@ -70,17 +67,12 @@ export function ApplicationsScreen({
   const expanded = useExpandedIds();
   const edits = useInlineEdits({ onError: notification.notifyError });
   const [isCreateOpen, setCreateOpen] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const items = applications.data ?? EMPTY_APPLICATIONS;
   const ids = useMemo(() => items.map((item) => item.id), [items]);
   const isAllExpanded = useMemo(
     () => areAllExpanded(expanded.expandedIds, ids),
     [expanded.expandedIds, ids],
-  );
-  const deleteTarget = useMemo(
-    () => items.find((item) => item.id === deleteTargetId) ?? null,
-    [items, deleteTargetId],
   );
 
   // §13.10.7: несохранённая правка сначала отправляется и только потом сворачивается.
@@ -119,17 +111,18 @@ export function ApplicationsScreen({
     setCreateOpen(true);
   }, []);
 
+  // Кнопка «Отказ компании» шапки (§7.2.1): тот же путь, что у Select'а «Результат», —
+  // commit сам гасит повторное нажатие (isNoopPatch), патчит кэш и показывает подсветку.
   // useCallback обязателен: колбэк уходит пропом в каждый memo-аккордеон списка (§9).
-  const handleDeleteRequest = useCallback((id: string) => {
-    setDeleteTargetId(id);
-  }, []);
+  const handleRejectByCompany = useCallback(
+    (id: string) => {
+      edits.handlers.commit(id, { result: APPLICATION_RESULT.REJECTED_BY_COMPANY });
+    },
+    [edits.handlers],
+  );
 
   const handleCreateCancel = useCallback(() => {
     setCreateOpen(false);
-  }, []);
-
-  const handleDeleteCancel = useCallback(() => {
-    setDeleteTargetId(null);
   }, []);
 
   const handleCreated = useCallback(
@@ -144,18 +137,6 @@ export function ApplicationsScreen({
   const handleCreateFailed = useCallback(
     (error: Error) => {
       notification.notifyError(extractApiErrorMessage(error, CREATE_ERROR_FALLBACK_MESSAGE));
-    },
-    [notification],
-  );
-
-  const handleDeleted = useCallback(() => {
-    setDeleteTargetId(null);
-    notification.notify(DELETE_SUCCESS_MESSAGE, NOTIFICATION_SEVERITY.SUCCESS);
-  }, [notification]);
-
-  const handleDeleteFailed = useCallback(
-    (error: Error) => {
-      notification.notifyError(extractApiErrorMessage(error, DELETE_ERROR_FALLBACK_MESSAGE));
     },
     [notification],
   );
@@ -194,15 +175,10 @@ export function ApplicationsScreen({
   );
 
   const create = useCreateApplication({ onCreated: handleCreated, onFailed: handleCreateFailed });
-  const remove = useDeleteApplication({ onDeleted: handleDeleted, onFailed: handleDeleteFailed });
   const rowSync = useSyncApplication({ onSynced: handleSynced, onFailed: handleSyncFailed });
 
   const handleCreateSubmit = (payload: ApplicationCreate) => {
     create.mutate(payload);
-  };
-
-  const handleDeleteConfirm = (id: string) => {
-    remove.mutate(id);
   };
 
   return (
@@ -236,7 +212,7 @@ export function ApplicationsScreen({
             onAdd={handleAdd}
             syncingIds={rowSync.syncingIds}
             onSync={rowSync.sync}
-            onDelete={handleDeleteRequest}
+            onRejectByCompany={handleRejectByCompany}
           />
         </Stack>
       </Container>
@@ -249,15 +225,6 @@ export function ApplicationsScreen({
           onSubmit={handleCreateSubmit}
           onCancel={handleCreateCancel}
           onPreviewFailed={handlePreviewFailed}
-        />
-      ) : null}
-
-      {deleteTarget !== null ? (
-        <ConfirmDeleteDialog
-          application={deleteTarget}
-          isDeleting={remove.isPending}
-          onConfirm={handleDeleteConfirm}
-          onCancel={handleDeleteCancel}
         />
       ) : null}
     </>

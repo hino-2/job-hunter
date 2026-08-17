@@ -13,5 +13,6 @@ export interface ApplicationAccordionProps {
   /** §7.6: у этой записи /sync в полёте — спиннер вместо иконки в шапке. */
   isSyncing: boolean;
   onSync: (id: string) => void;
-  onDelete?: (id: string) => void;
+  /** Кнопка «Отказ компании» шапки (§7.2.1) — пишет result сразу, без диалога. */
+  onRejectByCompany: (id: string) => void;
 }

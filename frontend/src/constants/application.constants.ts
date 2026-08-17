@@ -335,6 +335,4 @@ export const CREATE_APPLICATION_INITIAL_VALUES: CreateApplicationFormValues = {
 
 export const CREATE_SUCCESS_MESSAGE = 'Вакансия добавлена';
 export const CREATE_ERROR_FALLBACK_MESSAGE = 'Не удалось добавить запись';
-export const DELETE_SUCCESS_MESSAGE = 'Запись удалена';
-export const DELETE_ERROR_FALLBACK_MESSAGE = 'Не удалось удалить запись';
 export const PREVIEW_ERROR_FALLBACK_MESSAGE = 'Не удалось получить данные о вакансии';
