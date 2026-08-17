@@ -67,6 +67,18 @@ export const VACANCY_SOURCE = {
   GETMATCH: 'GETMATCH',
 } as const;
 
+/**
+ * §3.3: терминальные результаты — ручная копия backend/src/applications/applications.constants.ts
+ * (§3.4, как и сами enum'ы). Запись любого из них закрывает отклик: бэкенд гасит status
+ * в CLOSED сам, а фронт дописывает то же значение в патч, чтобы оптимистичный кэш и счётчик
+ * «Открытых: N / M» не расходились с БД до следующего refetch'а.
+ */
+export const TERMINAL_APPLICATION_RESULTS = [
+  APPLICATION_RESULT.REJECTED_BY_COMPANY,
+  APPLICATION_RESULT.DECLINED_BY_ME,
+  APPLICATION_RESULT.VACANCY_WITHDRAWN,
+] as const;
+
 /** Порядок пунктов Select'а «Статус» (§7.2.2, ряд 1). */
 export const APPLICATION_STATUS_ORDER = [
   APPLICATION_STATUS.OPEN,

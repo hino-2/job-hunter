@@ -102,6 +102,20 @@ export const VACANCY_SOURCE = {
   GETMATCH: 'GETMATCH',
 } as const;
 
+/**
+ * §3.3: терминальные результаты — те, после которых по отклику больше нечего ждать.
+ * Их запись любым путём (POST или PATCH) закрывает отклик, то есть гасит status
+ * в CLOSED: держать «Открыта» рядом с отказом бессмысленно — такая запись попадала бы
+ * и в фильтр «Открытые», и в массовый прогон §4.6.
+ *
+ * NO_RESPONSE в список не входит: «нет ответа» — состояние ожидания, а не финал.
+ */
+export const TERMINAL_APPLICATION_RESULTS = [
+  APPLICATION_RESULT.REJECTED_BY_COMPANY,
+  APPLICATION_RESULT.DECLINED_BY_ME,
+  APPLICATION_RESULT.VACANCY_WITHDRAWN,
+] as const;
+
 export const DEFAULT_APPLICATION_STATUS = APPLICATION_STATUS.OPEN;
 
 export const DEFAULT_APPLICATION_RESULT = APPLICATION_RESULT.IN_PROGRESS;

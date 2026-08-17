@@ -8,6 +8,7 @@ import { VacancyLogoService } from '../vacancies/vacancy-logo.service';
 import { VacancyProviderRegistry } from '../vacancies/vacancy-provider.registry';
 import type { VacancyRef } from '../vacancies/vacancies.interfaces';
 import { Application } from './application.entity';
+import { isTerminalApplicationResult } from './application-result.helpers';
 import {
   APPLICATION_NOT_FOUND_MESSAGE,
   APPLICATION_ORDER_DIRECTIONS,
@@ -101,7 +102,10 @@ export class ApplicationsService {
 
   /** §5.7: пара (vacancy_source, vacancy_external_id) → уже созданный отклик или null, не бросает. */
   findOneByVacancyRef(ref: VacancyRef): Promise<Application | null> {
-    return this.applications.findOneBy({ vacancySource: ref.source, vacancyExternalId: ref.externalId });
+    return this.applications.findOneBy({
+      vacancySource: ref.source,
+      vacancyExternalId: ref.externalId,
+    });
   }
 
   /**
@@ -229,6 +233,13 @@ export class ApplicationsService {
    * на DEFAULT в БД: иначе после save() свойства остались бы undefined.
    */
   private buildCreatePayload(dto: CreateApplicationDto): ApplicationCreatePayload {
+    const result = dto.result ?? DEFAULT_APPLICATION_RESULT;
+    // §3.3: терминальный результат закрывает отклик сразу на создании — даже если
+    // в теле пришёл status: OPEN. Правило одно на оба пути записи (см. buildUpdatePatch).
+    const status = isTerminalApplicationResult(result)
+      ? APPLICATION_STATUS.CLOSED
+      : (dto.status ?? DEFAULT_APPLICATION_STATUS);
+
     return {
       company: dto.company,
       position: dto.position ?? null,
@@ -236,8 +247,8 @@ export class ApplicationsService {
       ...this.resolveVacancyRef(dto.vacancyUrl),
       resumeUrl: dto.resumeUrl ?? null,
       interviewUrl: dto.interviewUrl ?? null,
-      status: dto.status ?? DEFAULT_APPLICATION_STATUS,
-      result: dto.result ?? DEFAULT_APPLICATION_RESULT,
+      status,
+      result,
       employerContact: dto.employerContact ?? null,
       hrInterviewAt: toDateOrNull(dto.hrInterviewAt),
       techInterviewAt: toDateOrNull(dto.techInterviewAt),
@@ -280,8 +291,15 @@ export class ApplicationsService {
       patch.status = dto.status;
     }
 
+    // §3.3: блок обязан стоять НИЖЕ status — терминальный результат закрывает отклик
+    // и перебивает status из тела запроса, а не наоборот. Обратный порядок дал бы
+    // «Отказ компании» со статусом «Открыта», если клиент прислал оба поля разом.
     if (dto.result !== undefined) {
       patch.result = dto.result;
+
+      if (isTerminalApplicationResult(dto.result)) {
+        patch.status = APPLICATION_STATUS.CLOSED;
+      }
     }
 
     if (dto.employerContact !== undefined) {

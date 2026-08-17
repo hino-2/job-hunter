@@ -6,6 +6,23 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**38. A terminal result closes the application.** _(backend + frontend)_
+`REJECTED_BY_COMPANY`, `DECLINED_BY_ME` and `VACANCY_WITHDRAWN` are terminal results (§3.3):
+writing one — by `POST`, by `PATCH`, from the «Результат» `Select` or from the step-37 button — sets
+`status = CLOSED` in the same write, so an application with a rejection can no longer sit in the
+«Открытые» filter, in the «Открытых: N / M» counter or in the §4.6 bulk run. `NO_RESPONSE` stays
+non-terminal. The rule has one owner, `isTerminalApplicationResult`
+(`applications/application-result.helpers.ts`), applied in `buildCreatePayload` and — deliberately
+**below** the `status` block — in `buildUpdatePatch`: a body carrying both `result: DECLINED_BY_ME` and
+`status: OPEN` must end up closed, not open. Re-opening later with `status: OPEN` alone is still
+allowed; the invariant is enforced on the write of `result`, not as a stored constraint, so no
+migration and no backfill — rows written earlier keep their `status` until their `result` is written
+again. The frontend duplicates the rule in `withTerminalResultStatus`, used by
+`InlineEditHandlers.commit` (the only path a `result` reaches the API through) **before** the no-op
+check: the optimistic cache would otherwise show «Открыта» until the next refetch, the
+invalidation-on-`status` in `useUpdateApplication` would not fire, and a legacy row with a terminal
+result but `status: OPEN` would never get repaired by a repeat save.
+
 **37. «Отказ компании» button replaces 🗑 in the applications summary row.** _(frontend)_
 The eighth cell of `AccordionSummary` (§7.2.1) is now a `Button variant="contained" size="medium"`
 without an icon — the same shape as «Скрыть» on the leads screen — and one click writes

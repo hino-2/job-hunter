@@ -8,6 +8,7 @@ import {
   EMPTY_TEXT_FIELD_VALUE,
   STATUS_FILTER,
   SYNC_OUTCOME,
+  TERMINAL_APPLICATION_RESULTS,
   URL_TEXT_FIELDS,
 } from '../constants/application.constants';
 import { UPCOMING_INTERVIEW_HIGHLIGHT_HOURS } from '../constants/layout.constants';
@@ -193,6 +194,29 @@ export function pickApplicationPatch(
 /** Какие поля подсветить как «сохранено» (§7.3). */
 export function listPatchedFields(patch: ApplicationUpdate): EditableField[] {
   return EDITABLE_FIELDS.filter((field) => patch[field] !== undefined);
+}
+
+/**
+ * §3.3: патч с терминальным результатом (отказ компании / отказался сам / вакансия снята)
+ * дополняется закрытием отклика — то же правило, что применяет бэкенд на PATCH и POST.
+ * Дублирование нужно ровно для оптимистичного кэша: без status в патче шапка показывала бы
+ * «Открыта» до следующей загрузки списка, а инвалидация (она привязана к смене status)
+ * не сработала бы и счётчик «Открытых: N / M» остался бы старым.
+ *
+ * Ссылка сохраняется, когда дописывать нечего: лишнее выделение объекта на каждый
+ * вызов ни к чему, а вызывающий передаёт результат дальше как обычный патч.
+ */
+export function withTerminalResultStatus(patch: ApplicationUpdate): ApplicationUpdate {
+  const { result } = patch;
+
+  if (
+    result === undefined ||
+    !TERMINAL_APPLICATION_RESULTS.some((terminal) => terminal === result)
+  ) {
+    return patch;
+  }
+
+  return { ...patch, status: APPLICATION_STATUS.CLOSED };
 }
 
 /** Патч ничего не меняет — такой PATCH не отправляем (§7.3: «только если изменилось»). */

@@ -23,6 +23,7 @@ import {
   readTextFieldValue,
   withDraft,
   withoutDraft,
+  withTerminalResultStatus,
 } from '../utils/application.utils';
 import { readApplicationFromCaches } from '../utils/applications-cache.utils';
 import { extractApiErrorMessage } from '../utils/error.utils';
@@ -261,15 +262,21 @@ export function useInlineEdits(options: InlineEditsOptions): InlineEditsControll
     [sendText],
   );
 
+  // Единственная точка, через которую в PATCH попадает result (Select «Результат» §7.2.2
+  // и кнопка «Отказ компании» §7.2.1), — здесь и живёт §3.3-дописка закрытия отклика.
+  // Патч дополняется ДО проверки на no-op: у записи с терминальным результатом, но
+  // статусом «Открыта» (данные, созданные до правила) повторное сохранение обязано уйти
+  // на сервер и дочинить статус.
   const commit = useCallback(
     (id: string, patch: ApplicationUpdate) => {
+      const effectivePatch = withTerminalResultStatus(patch);
       const cached = readApplicationFromCaches(client, id);
 
-      if (cached !== undefined && isNoopPatch(cached, patch)) {
+      if (cached !== undefined && isNoopPatch(cached, effectivePatch)) {
         return;
       }
 
-      save(id, patch);
+      save(id, effectivePatch);
     },
     [client, save],
   );

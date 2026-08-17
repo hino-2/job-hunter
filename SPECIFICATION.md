@@ -174,6 +174,17 @@ Already made and verified — must not be revisited without cause.
 
 `IN_PROGRESS` is the initial value on record creation.
 
+**Terminal results close the application.** `REJECTED_BY_COMPANY`, `DECLINED_BY_ME` and
+`VACANCY_WITHDRAWN` are terminal: whichever path writes one (`POST` or `PATCH`, the «Результат»
+`Select` or the «Отказ компании» button of §7.2.1), `status` becomes `CLOSED` in the same write — even
+if the same body carries `status: OPEN`. The rule is enforced on the backend
+(`applications/application-result.helpers.ts`, applied in both `buildCreatePayload` and
+`buildUpdatePatch`) and mirrored on the frontend only so that the optimistic cache and the
+«Открытых: N / M» counter do not lag behind the DB. `NO_RESPONSE` is **not** terminal — it is a
+waiting state. Re-opening a record afterwards (`status: OPEN` alone, with no `result` in the body) is
+allowed and leaves the terminal result as it is. Rows written before this rule keep their old
+`status` until the next write of their `result`.
+
 ### 3.4 Code placement requirements (mandatory)
 
 Per the project code conventions (§10):
@@ -264,16 +275,16 @@ The table holds **exactly one row**: `id smallint PK` with `CHECK (id = 1)`. Not
 table: the field set is known, the types differ, and "a second search configuration" is out of scope
 (§12).
 
-| Column (DB)          | DB type        | Req. | Default   | Description                                                                         |
-| -------------------- | -------------- | ---- | --------- | ----------------------------------------------------------------------------------- |
-| `id`                 | `smallint` PK  | yes  | `1`       | Always `1` (`CHECK (id = 1)`)                                                       |
-| `keywords`           | `text`         | yes  | see below | Comma-separated keywords: used both for deterministic screening and for the prompts |
-| `exclude_keywords`   | `text`         | no   | `null`    | Comma-separated exclude keywords (§4.11.4)                                          |
-| `title_prompt`       | `text`         | yes  | see §4.12 | Stage 1 prompt — vacancy title evaluation                                           |
-| `description_prompt` | `text`         | yes  | see §4.12 | Stage 2 prompt — vacancy description evaluation                                     |
-| `ai_enabled`         | `boolean`      | yes  | `false`   | Whether AI screening (§4.12) is on. Off — keyword screening only                    |
-| `search_url_template` | `varchar(2048)` | yes | see §4.11.1 | hh.ru results URL template; the query itself lives in the URL's own `text=` parameter, only `{page}` is a mandatory placeholder, https + hh.ru host (§5.7) |
-| `updated_at`         | `timestamptz`  | yes  | `now()`   |                                                                                     |
+| Column (DB)           | DB type         | Req. | Default     | Description                                                                                                                                                |
+| --------------------- | --------------- | ---- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                  | `smallint` PK   | yes  | `1`         | Always `1` (`CHECK (id = 1)`)                                                                                                                              |
+| `keywords`            | `text`          | yes  | see below   | Comma-separated keywords: used both for deterministic screening and for the prompts                                                                        |
+| `exclude_keywords`    | `text`          | no   | `null`      | Comma-separated exclude keywords (§4.11.4)                                                                                                                 |
+| `title_prompt`        | `text`          | yes  | see §4.12   | Stage 1 prompt — vacancy title evaluation                                                                                                                  |
+| `description_prompt`  | `text`          | yes  | see §4.12   | Stage 2 prompt — vacancy description evaluation                                                                                                            |
+| `ai_enabled`          | `boolean`       | yes  | `false`     | Whether AI screening (§4.12) is on. Off — keyword screening only                                                                                           |
+| `search_url_template` | `varchar(2048)` | yes  | see §4.11.1 | hh.ru results URL template; the query itself lives in the URL's own `text=` parameter, only `{page}` is a mandatory placeholder, https + hh.ru host (§5.7) |
+| `updated_at`          | `timestamptz`   | yes  | `now()`     |                                                                                                                                                            |
 
 The row is created **by the migration itself** (`INSERT … ON CONFLICT DO NOTHING`) with default
 values, not by code on first access: the service reading the settings must not be able to create
@@ -298,12 +309,12 @@ table keeps both lifecycles and both contracts clean.
 The table holds **exactly one row**: `id smallint PK` with `CHECK (id = 1)`, the same pattern as
 §3.6, seeded by the migration itself — the service must never create the row.
 
-| Column (DB)            | DB type          | Req. | Default | Description                                                                 |
-| ---------------------- | ---------------- | ---- | ------- | ---------------------------------------------------------------------------- |
-| `id`                   | `smallint` PK    | yes  | `1`     | Always `1` (`CHECK (id = 1)`)                                                |
-| `next_page`            | `integer`        | yes  | `0`     | 0-based page to resume from on the next `RESUME` start                       |
-| `search_url_template`  | `varchar(2048)`  | no   | `null`  | `search_url_template` (§3.6) the position was saved under — a resume is only offered when it still matches the current settings |
-| `updated_at`           | `timestamptz`    | yes  | `now()` | Auto-updated on every save (once per processed page during a run)           |
+| Column (DB)           | DB type         | Req. | Default | Description                                                                                                                     |
+| --------------------- | --------------- | ---- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                  | `smallint` PK   | yes  | `1`     | Always `1` (`CHECK (id = 1)`)                                                                                                   |
+| `next_page`           | `integer`       | yes  | `0`     | 0-based page to resume from on the next `RESUME` start                                                                          |
+| `search_url_template` | `varchar(2048)` | no   | `null`  | `search_url_template` (§3.6) the position was saved under — a resume is only offered when it still matches the current settings |
+| `updated_at`          | `timestamptz`   | yes  | `now()` | Auto-updated on every save (once per processed page during a run)                                                               |
 
 `next_page = 0` together with `search_url_template = null` (the seeded/cleared state) is never
 resumable (§4.11.12): `isResumablePosition` also requires `next_page > 0` and
@@ -760,12 +771,12 @@ From the vacancy page's `<script type="application/ld+json">` (`schema.org/JobPo
 
 #### 4.11.8 Run budgets
 
-| Limiter                        | Default   | Purpose                                                          |
-| ------------------------------ | --------- | ---------------------------------------------------------------- |
-| `VACANCY_SCAN_MAX_PAGES`       | `40`      | 2000 positions per run; equal to hh.ru's own ceiling (§4.11.1)   |
-| `VACANCY_SCAN_MAX_DETAILS`     | `600`      | Vacancy pages opened per run — costs both requests and AI       |
-| `VACANCY_SCAN_MAX_AGE_DAYS`    | `30`       | Freshness cutoff (§4.11.6)                                      |
-| `VACANCY_SCAN_MAX_DURATION_MS` | `14400000` | Hard run deadline — 4 hours                                     |
+| Limiter                        | Default    | Purpose                                                        |
+| ------------------------------ | ---------- | -------------------------------------------------------------- |
+| `VACANCY_SCAN_MAX_PAGES`       | `40`       | 2000 positions per run; equal to hh.ru's own ceiling (§4.11.1) |
+| `VACANCY_SCAN_MAX_DETAILS`     | `600`      | Vacancy pages opened per run — costs both requests and AI      |
+| `VACANCY_SCAN_MAX_AGE_DAYS`    | `30`       | Freshness cutoff (§4.11.6)                                     |
+| `VACANCY_SCAN_MAX_DURATION_MS` | `14400000` | Hard run deadline — 4 hours                                    |
 
 Hitting a budget is not an error: the run reports `stoppedReason` and the next picks up the rest. One
 vacancy's error does not abort a run (§4.6): a description failure is `descriptionsFailed`, an insert
@@ -803,22 +814,22 @@ unchanged. A run loads the CPU with the local model (§4.12), so the user must p
 
 #### 4.11.11 Run summary
 
-| Field                 | Meaning                                                                                            |
-| --------------------- | -------------------------------------------------------------------------------------------------- |
-| `pagesFetched`        | Results pages read                                                                                 |
-| `itemsSeen`           | Results items parsed                                                                               |
-| `skippedInvalid`      | Items missing required fields                                                                      |
-| `skippedOld`          | Cut off by `VACANCY_SCAN_MAX_AGE_DAYS`                                                             |
-| `skippedExcluded`     | Cut off by exclude keywords (stage 0)                                                              |
-| `rejectedTitle`       | Model rejected by title (stage 1)                                                                  |
-| `duplicates`          | Already in the DB or in this same run                                                              |
-| `descriptionsFailed`  | Description unavailable — vacancy not stored (§4.11.7)                                             |
-| `rejectedDescription` | Model rejected by description (stage 4)                                                            |
-| `created`             | Rows actually inserted                                                                             |
-| `failed`              | Insert errors                                                                                      |
-| `aiFallbacks`         | Times AI was unavailable and keywords decided (§4.12)                                              |
+| Field                 | Meaning                                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `pagesFetched`        | Results pages read                                                                                              |
+| `itemsSeen`           | Results items parsed                                                                                            |
+| `skippedInvalid`      | Items missing required fields                                                                                   |
+| `skippedOld`          | Cut off by `VACANCY_SCAN_MAX_AGE_DAYS`                                                                          |
+| `skippedExcluded`     | Cut off by exclude keywords (stage 0)                                                                           |
+| `rejectedTitle`       | Model rejected by title (stage 1)                                                                               |
+| `duplicates`          | Already in the DB or in this same run                                                                           |
+| `descriptionsFailed`  | Description unavailable — vacancy not stored (§4.11.7)                                                          |
+| `rejectedDescription` | Model rejected by description (stage 4)                                                                         |
+| `created`             | Rows actually inserted                                                                                          |
+| `failed`              | Insert errors                                                                                                   |
+| `aiFallbacks`         | Times AI was unavailable and keywords decided (§4.12)                                                           |
 | `stoppedReason`       | `COMPLETED` \| `LAST_PAGE` \| `MAX_PAGES` \| `MAX_DETAILS` \| `DEADLINE` \| `AGE_LIMIT` \| `STOPPED` \| `ERROR` |
-| `message`             | Explanation on `ERROR`, otherwise `null`                                                           |
+| `message`             | Explanation on `ERROR`, otherwise `null`                                                                        |
 
 `GET …/scan/status` returns the same counters during a run — that is the progress display, alongside the
 `pageProgress` indicator (§4.11.12): «page N of M». `STOPPED` (§4.11.12) is a user-requested stop, not a
@@ -1010,7 +1021,8 @@ Body — `CreateApplicationDto`: `company` (required, 1..255, trim, non-empty); 
 (default `IN_PROGRESS`); `employerContact` (≤2000); `hrInterviewAt`, `techInterviewAt`
 (ISO 8601 | `null`); `notes` (≤10000). Every field except `company` is optional. Computes
 `vacancySource` and `vacancyExternalId` from `vacancyUrl` (§4.2, §4.8 — providers tried in turn via
-`VacancyProviderRegistry`). Response `201`: `ApplicationDto`. `interviewUrl` is accepted by `POST`
+`VacancyProviderRegistry`). A terminal `result` (§3.3) forces `status = CLOSED` on the INSERT itself.
+Response `201`: `ApplicationDto`. `interviewUrl` is accepted by `POST`
 and `PATCH`, but the create form (§7.4) does not show it. The response may already carry
 `hasCompanyLogo: true` — the backend downloads the company logo (§4.10) before answering, which makes
 the endpoint slow (one source request plus one logo request, worst case ≈ 32 s); the client raises its
@@ -1025,7 +1037,8 @@ timeout for this call accordingly (`CREATE_REQUEST_TIMEOUT_MS`).
 Body — `UpdateApplicationDto` = every `CreateApplicationDto` field, all optional. Sent fields are
 updated, absent fields untouched, explicit `null` clears a nullable field. If `vacancyUrl` arrives,
 `vacancySource` and `vacancyExternalId` are recomputed — including when it is cleared to `null`
-(§4.2). Response `200`: `ApplicationDto`. `404` if absent.
+(§4.2). A terminal `result` (§3.3) additionally forces `status = CLOSED`, overriding a `status` sent in
+the same body. Response `200`: `ApplicationDto`. `404` if absent.
 
 #### `DELETE /api/applications/:id`
 
@@ -1283,7 +1296,7 @@ One line (~48px), **read-only** content plus action buttons, no inputs — a cli
 | 5   | Next interview | `flex: 0 0 auto`                                     | `Event` icon + `DD.MM HH:mm` of the nearest future of `hrInterviewAt`/`techInterviewAt`; hidden if both empty or past                                                                                                   |
 | 6   | Sync           | `flex: 0 0 auto`                                     | Status icon (✓ / ⚠ / ✕) + `Tooltip` with «Обновлено 06.08.2026 14:32» or the `SyncOutcome` label and `lastSyncError`, third line — source («Источник: hh.ru» / «Источник: getmatch.ru» / «Источник не определён», §4.8) |
 | 7   | 🔄 Sync        | `flex: 0 0 auto`                                     | `IconButton` size=small, **`event.stopPropagation()` mandatory** — must not toggle the accordion                                                                                                                        |
-| 8   | Отказ компании | `flex: 0 0 auto`                                     | `Button` variant=contained size=medium, no icon (looks like «Скрыть» of §7.9.1); one click writes `result = REJECTED_BY_COMPANY` through the §7.3 autosave path, also with `stopPropagation()`                            |
+| 8   | Отказ компании | `flex: 0 0 auto`                                     | `Button` variant=contained size=medium, no icon (looks like «Скрыть» of §7.9.1); one click writes `result = REJECTED_BY_COMPANY` through the §7.3 autosave path, also with `stopPropagation()`                          |
 
 #### 7.2.2 `AccordionDetails` — expanded state
 
@@ -1341,11 +1354,15 @@ All §7.2 sizes (`FIELD_GAP`, `ACCORDION_GAP`, `SUMMARY_COMPANY_WIDTH_PX`, every
   «Сохранить» button.
 - Collapsing with unsaved input must not lose the edit: send the pending change (equivalent to `blur`) first, then collapse.
 - Edits to «Компания», «Должность», «Статус», «Результат» and interview dates appear in the collapsed summary row immediately.
+- Picking a terminal «Результат» (§3.3) sends `status: CLOSED` in the same patch — `InlineEditHandlers.commit` is the only path a
+  `result` can reach the API through, so the rule lives there; the augmented patch also makes the list invalidate, which the counter
+  needs.
 
 ### 7.4 Adding a record
 
 «+ Добавить» opens a `Dialog`: Ссылка на вакансию (first field), Компания*, Должность, Ссылка на резюме, Контакт, HR-собес, Тех-собес,
-Результат, Заметки. Status is not in the form (always `OPEN`); «Где собес» (`interviewUrl`) is not either — it is filled later in the
+Результат, Заметки. Status is not in the form — `OPEN` unless the chosen «Результат» is terminal, which
+makes the backend create the record `CLOSED` (§3.3); «Где собес» (`interviewUrl`) is not either — it is filled later in the
 expanded record (§7.2.2). On `onBlur` of the vacancy-link field — `POST /api/vacancies/preview` and autofill (§4.4). Buttons «Отмена» and
 «Добавить» (disabled while `Компания` is empty); on success the dialog closes, the list is invalidated, `Snackbar` «Вакансия добавлена».
 «Добавить» may take a few seconds when a recognized vacancy link is present — the backend downloads the company logo before answering
@@ -1466,50 +1483,50 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 
 `.env` in the repo root (not committed), plus `.env.example` with the same keys and safe placeholders.
 
-| Variable                           | Req. | Example / default                          | Description                                                                                                  |
-| ---------------------------------- | ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `POSTGRES_USER`                    | yes  | `jobhunter`                                |                                                                                                              |
-| `POSTGRES_PASSWORD`                | yes  | `change-me`                                |                                                                                                              |
-| `POSTGRES_DB`                      | yes  | `jobhunter`                                |                                                                                                              |
-| `DATABASE_HOST`                    | yes  | `db`                                       | Compose service name                                                                                         |
-| `DATABASE_PORT`                    | no   | `5432`                                     |                                                                                                              |
-| `AUTH_USER`                        | yes  | `admin`                                    | Basic Auth login                                                                                             |
-| `AUTH_PASSWORD`                    | yes  | `admin`                                    | Basic Auth password; startup fails without it                                                                |
-| `HH_SITE_BASE_URL`                 | no   | `https://hh.ru`                            | Base of the hh.ru site serving the vacancy page                                                              |
-| `HH_USER_AGENT`                    | yes  | `job-hunter/1.0 (igor.ushakov@fastdev.se)` | hh.ru requires a meaningful User-Agent, else `400`                                                           |
-| `HH_REQUEST_TIMEOUT_MS`            | no   | `10000`                                    |                                                                                                              |
-| `HH_MAX_RETRIES`                   | no   | `2`                                        |                                                                                                              |
-| `GETMATCH_SITE_BASE_URL`           | no   | `https://getmatch.ru`                      | Base of the getmatch.ru site (§4.9)                                                                          |
-| `GETMATCH_USER_AGENT`              | no   | `job-hunter/1.0`                           | Optional unlike `HH_USER_AGENT`: getmatch.ru does not `403` a plain User-Agent (§4.9)                        |
-| `GETMATCH_REQUEST_TIMEOUT_MS`      | no   | `10000`                                    |                                                                                                              |
-| `GETMATCH_MAX_RETRIES`             | no   | `2`                                        |                                                                                                              |
-| `SYNC_CONCURRENCY`                 | no   | `3`                                        | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_CONCURRENCY`                                     |
-| `SYNC_MIN_DELAY_MS`                | no   | `200`                                      | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_MIN_DELAY_MS`                                    |
-| `SCHEDULED_SYNC_ENABLED`           | no   | `true`                                     | Scheduled sync of open records (§4.7). Only `true`/`false` allowed                                           |
-| `SCHEDULED_SYNC_INTERVAL_MS`       | no   | `1800000`                                  | Scheduled run interval, ms (30 min). Range 60000…86400000 (§4.7)                                             |
-| `COMPANY_LOGO_DIR`                 | no   | `os.tmpdir()/job-hunter-logos`             | Company-logo directory on disk (§4.10). In Docker — `/var/lib/job-hunter/logos` on named volume `logos`      |
-| `COMPANY_LOGO_REQUEST_TIMEOUT_MS`  | no   | `5000`                                     | Logo download timeout from the source CDN (§4.10), no retries                                                |
-| `HH_MAX_REQUESTS_PER_SECOND`       | no   | `2`                                        | Rate ceiling for **all** hh.ru requests: shared throttle (§4.11.2). Range 0.1…50                             |
-| `VACANCY_SCAN_MAX_PAGES`           | no   | `40`                                       | Max search-results pages per run (§4.11.8). Range 1…40 — hh.ru itself cuts off at page 40                    |
-| `VACANCY_SCAN_MAX_DETAILS`         | no   | `600`                                      | Max opened vacancy pages (and model description scorings) per run — sized for a full 40-page sweep           |
-| `VACANCY_SCAN_MAX_AGE_DAYS`        | no   | `30`                                       | Vacancies older than N days are skipped (§4.11.6)                                                            |
-| `VACANCY_SCAN_MAX_DURATION_MS`     | no   | `14400000`                                 | Hard run deadline — 4 hours (§4.11.8)                                                                        |
-| `VACANCY_PREFILTER_MODE`           | no   | `exclude_only`                             | `exclude_only` / `full` / `off` — what is checked deterministically before AI (§4.11.4)                      |
-| `VACANCY_MATCH_MODE`               | no   | `any`                                      | `any` / `all` — keyword screening mode when AI is off or unavailable                                         |
-| `VACANCY_LEADS_LIST_LIMIT`         | no   | `500`                                      | Max records in the GET /api/vacancy-leads response (§5.7)                                                    |
-| `VACANCY_AI_PROVIDER`              | no   | `ollama`                                   | `ollama` / `openai` — model request protocol (§4.12.1)                                                       |
-| `VACANCY_AI_BASE_URL`              | no   | `http://ollama:11434`                      | Model address. For the openai provider — base URL of the compatible API                                      |
-| `VACANCY_AI_MODEL`                 | no   | `qwen3:4b-instruct`                        | Model name (§4.12.6). Changing model = this variable + ollama pull                                           |
-| `VACANCY_AI_API_KEY`               | no   | `—`                                        | Provider key; needed only with VACANCY_AI_PROVIDER=openai. Never logged                                      |
-| `VACANCY_AI_BATCH_SIZE`            | no   | `10`                                       | Titles per stage-1 request (§4.12). Descriptions go one at a time                                            |
-| `VACANCY_AI_TIMEOUT_MS`            | no   | `120000`                                   | Model request timeout; on failure keywords decide (§4.12.3)                                                  |
-| `VACANCY_AI_DESCRIPTION_MAX_CHARS` | no   | `6000`                                     | Description is truncated to this before being sent to the model (§4.11.7)                                    |
-| `API_PORT`                         | no   | `3000`                                     | Internal Nest port                                                                                           |
-| `WEB_PORT`                         | no   | `8080`                                     | Port published to the host                                                                                   |
-| `LOG_LEVEL`                        | no   | `log`                                      |                                                                                                              |
-| `DATABASE_PORT_HOST`               | no   | `5432`                                     | Port on which `db` is published on `127.0.0.1` (for e2e and the TypeORM CLI from the host)                   |
-| `TEST_DATABASE_HOST`               | no   | `127.0.0.1`                                | DB host for e2e tests run from the host                                                                      |
-| `TEST_DATABASE_NAME`               | no   | `jobhunter_test`                           | Separate e2e DB, recreated each run. Must differ from `POSTGRES_DB` and end with `_test`                     |
+| Variable                           | Req. | Example / default                          | Description                                                                                             |
+| ---------------------------------- | ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`                    | yes  | `jobhunter`                                |                                                                                                         |
+| `POSTGRES_PASSWORD`                | yes  | `change-me`                                |                                                                                                         |
+| `POSTGRES_DB`                      | yes  | `jobhunter`                                |                                                                                                         |
+| `DATABASE_HOST`                    | yes  | `db`                                       | Compose service name                                                                                    |
+| `DATABASE_PORT`                    | no   | `5432`                                     |                                                                                                         |
+| `AUTH_USER`                        | yes  | `admin`                                    | Basic Auth login                                                                                        |
+| `AUTH_PASSWORD`                    | yes  | `admin`                                    | Basic Auth password; startup fails without it                                                           |
+| `HH_SITE_BASE_URL`                 | no   | `https://hh.ru`                            | Base of the hh.ru site serving the vacancy page                                                         |
+| `HH_USER_AGENT`                    | yes  | `job-hunter/1.0 (igor.ushakov@fastdev.se)` | hh.ru requires a meaningful User-Agent, else `400`                                                      |
+| `HH_REQUEST_TIMEOUT_MS`            | no   | `10000`                                    |                                                                                                         |
+| `HH_MAX_RETRIES`                   | no   | `2`                                        |                                                                                                         |
+| `GETMATCH_SITE_BASE_URL`           | no   | `https://getmatch.ru`                      | Base of the getmatch.ru site (§4.9)                                                                     |
+| `GETMATCH_USER_AGENT`              | no   | `job-hunter/1.0`                           | Optional unlike `HH_USER_AGENT`: getmatch.ru does not `403` a plain User-Agent (§4.9)                   |
+| `GETMATCH_REQUEST_TIMEOUT_MS`      | no   | `10000`                                    |                                                                                                         |
+| `GETMATCH_MAX_RETRIES`             | no   | `2`                                        |                                                                                                         |
+| `SYNC_CONCURRENCY`                 | no   | `3`                                        | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_CONCURRENCY`                                |
+| `SYNC_MIN_DELAY_MS`                | no   | `200`                                      | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_MIN_DELAY_MS`                               |
+| `SCHEDULED_SYNC_ENABLED`           | no   | `true`                                     | Scheduled sync of open records (§4.7). Only `true`/`false` allowed                                      |
+| `SCHEDULED_SYNC_INTERVAL_MS`       | no   | `1800000`                                  | Scheduled run interval, ms (30 min). Range 60000…86400000 (§4.7)                                        |
+| `COMPANY_LOGO_DIR`                 | no   | `os.tmpdir()/job-hunter-logos`             | Company-logo directory on disk (§4.10). In Docker — `/var/lib/job-hunter/logos` on named volume `logos` |
+| `COMPANY_LOGO_REQUEST_TIMEOUT_MS`  | no   | `5000`                                     | Logo download timeout from the source CDN (§4.10), no retries                                           |
+| `HH_MAX_REQUESTS_PER_SECOND`       | no   | `2`                                        | Rate ceiling for **all** hh.ru requests: shared throttle (§4.11.2). Range 0.1…50                        |
+| `VACANCY_SCAN_MAX_PAGES`           | no   | `40`                                       | Max search-results pages per run (§4.11.8). Range 1…40 — hh.ru itself cuts off at page 40               |
+| `VACANCY_SCAN_MAX_DETAILS`         | no   | `600`                                      | Max opened vacancy pages (and model description scorings) per run — sized for a full 40-page sweep      |
+| `VACANCY_SCAN_MAX_AGE_DAYS`        | no   | `30`                                       | Vacancies older than N days are skipped (§4.11.6)                                                       |
+| `VACANCY_SCAN_MAX_DURATION_MS`     | no   | `14400000`                                 | Hard run deadline — 4 hours (§4.11.8)                                                                   |
+| `VACANCY_PREFILTER_MODE`           | no   | `exclude_only`                             | `exclude_only` / `full` / `off` — what is checked deterministically before AI (§4.11.4)                 |
+| `VACANCY_MATCH_MODE`               | no   | `any`                                      | `any` / `all` — keyword screening mode when AI is off or unavailable                                    |
+| `VACANCY_LEADS_LIST_LIMIT`         | no   | `500`                                      | Max records in the GET /api/vacancy-leads response (§5.7)                                               |
+| `VACANCY_AI_PROVIDER`              | no   | `ollama`                                   | `ollama` / `openai` — model request protocol (§4.12.1)                                                  |
+| `VACANCY_AI_BASE_URL`              | no   | `http://ollama:11434`                      | Model address. For the openai provider — base URL of the compatible API                                 |
+| `VACANCY_AI_MODEL`                 | no   | `qwen3:4b-instruct`                        | Model name (§4.12.6). Changing model = this variable + ollama pull                                      |
+| `VACANCY_AI_API_KEY`               | no   | `—`                                        | Provider key; needed only with VACANCY_AI_PROVIDER=openai. Never logged                                 |
+| `VACANCY_AI_BATCH_SIZE`            | no   | `10`                                       | Titles per stage-1 request (§4.12). Descriptions go one at a time                                       |
+| `VACANCY_AI_TIMEOUT_MS`            | no   | `120000`                                   | Model request timeout; on failure keywords decide (§4.12.3)                                             |
+| `VACANCY_AI_DESCRIPTION_MAX_CHARS` | no   | `6000`                                     | Description is truncated to this before being sent to the model (§4.11.7)                               |
+| `API_PORT`                         | no   | `3000`                                     | Internal Nest port                                                                                      |
+| `WEB_PORT`                         | no   | `8080`                                     | Port published to the host                                                                              |
+| `LOG_LEVEL`                        | no   | `log`                                      |                                                                                                         |
+| `DATABASE_PORT_HOST`               | no   | `5432`                                     | Port on which `db` is published on `127.0.0.1` (for e2e and the TypeORM CLI from the host)              |
+| `TEST_DATABASE_HOST`               | no   | `127.0.0.1`                                | DB host for e2e tests run from the host                                                                 |
+| `TEST_DATABASE_NAME`               | no   | `jobhunter_test`                           | Separate e2e DB, recreated each run. Must differ from `POSTGRES_DB` and end with `_test`                |
 
 Env is validated at startup via `@nestjs/config` + a schema (`class-validator` or `joi`). A missing
 required variable **must** crash the process with a clear message.
