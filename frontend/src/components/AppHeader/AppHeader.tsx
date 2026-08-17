@@ -12,6 +12,7 @@ import {
   SYNC_ALL_PENDING_LABEL,
   SYNC_ALL_PROGRESS_LABEL,
 } from '../../constants/sync.constants';
+import { ACCENT_COLOR } from '../../constants/theme.constants';
 import type { AppHeaderProps } from './app-header.interfaces';
 
 /** Шапка приложения (§7.1): заголовок, массовая синхронизация и счётчик «Открытых: N / M». */
@@ -28,7 +29,11 @@ export function AppHeader({
   return (
     <AppBar position="sticky" color="default" elevation={APP_BAR_ELEVATION}>
       <Toolbar variant="dense" sx={{ gap: FIELD_GAP }}>
-        <Typography variant="h6" component="h1" sx={{ flexGrow: APP_BAR_TITLE_FLEX_GROW }}>
+        <Typography
+          variant="h6"
+          component="h1"
+          sx={{ flexGrow: APP_BAR_TITLE_FLEX_GROW, color: ACCENT_COLOR }}
+        >
           Job Hunter
         </Typography>
 

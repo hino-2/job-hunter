@@ -6,6 +6,14 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**39. Turquoise accent on the header title and the active tab.** _(frontend)_
+`ACCENT_COLOR = '#86E4E1'` (`constants/theme.constants.ts`) colours the «Job Hunter» title and the
+selected `Tab` together with its indicator, via `MuiTabs.indicator` / `MuiTab.root['&.Mui-selected']`
+overrides plus an `sx` on the title `Typography`. Deliberately a constant of its own rather than
+`palette.primary.main`: that token also drives field outlines, icon buttons and the toggle group, so
+repainting it would turn the whole interface turquoise. The dead `// main: '#86E4E1'` line in
+`palette.primary` is gone now that the value has a name.
+
 **38. A terminal result closes the application.** _(backend + frontend)_
 `REJECTED_BY_COMPANY`, `DECLINED_BY_ME` and `VACANCY_WITHDRAWN` are terminal results (§3.3):
 writing one — by `POST`, by `PATCH`, from the «Результат» `Select` or from the step-37 button — sets

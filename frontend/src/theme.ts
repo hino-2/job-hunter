@@ -1,6 +1,7 @@
 import { createTheme } from '@mui/material/styles';
 
 import {
+  ACCENT_COLOR,
   BASE_FONT_SIZE_PX,
   BORDER_RADIUS_PX,
   FONT_FAMILY,
@@ -21,7 +22,6 @@ export const theme = createTheme({
     },
 
     primary: {
-      // main: '#86E4E1',
       main: '#50565C',
     },
 
@@ -166,6 +166,22 @@ export const theme = createTheme({
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.primary.main,
         }),
+      },
+    },
+    MuiTabs: {
+      styleOverrides: {
+        indicator: {
+          backgroundColor: ACCENT_COLOR,
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          '&.Mui-selected': {
+            color: ACCENT_COLOR,
+          },
+        },
       },
     },
   },
