@@ -122,7 +122,8 @@ function SearchSettingsForm({
   ]);
   const trimmedSearchUrlTemplate = values.searchUrlTemplate.trim();
   const isSearchUrlTemplateEmpty = trimmedSearchUrlTemplate.length === 0;
-  const isSearchUrlTemplateTooLong = values.searchUrlTemplate.length > SEARCH_URL_TEMPLATE_MAX_LENGTH;
+  const isSearchUrlTemplateTooLong =
+    values.searchUrlTemplate.length > SEARCH_URL_TEMPLATE_MAX_LENGTH;
   const isSearchUrlTemplateMissingPagePlaceholder = !hasAllPlaceholders(values.searchUrlTemplate, [
     SEARCH_URL_TEMPLATE_PAGE_PLACEHOLDER_PATTERN,
   ]);
@@ -215,7 +216,9 @@ function SearchSettingsForm({
     patchValues({ aiEnabled: event.target.checked });
   };
 
-  const handleSearchUrlTemplateChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleSearchUrlTemplateChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     patchValues({ searchUrlTemplate: event.target.value });
     onFieldEdited('searchUrlTemplate');
   };
@@ -266,7 +269,9 @@ function SearchSettingsForm({
             label={KEYWORDS_LABEL}
             value={values.keywordsText}
             error={isKeywordsTouched && isKeywordsEmpty}
-            helperText={isKeywordsTouched && isKeywordsEmpty ? KEYWORDS_REQUIRED_MESSAGE : KEYWORDS_HINT}
+            helperText={
+              isKeywordsTouched && isKeywordsEmpty ? KEYWORDS_REQUIRED_MESSAGE : KEYWORDS_HINT
+            }
             onChange={handleKeywordsChange}
             onBlur={() => setKeywordsTouched(true)}
           />
@@ -355,7 +360,11 @@ function SearchSettingsForm({
  * тем же способом, что и CreateApplicationDialog, только источник начальных значений
  * здесь асинхронный.
  */
-export function SearchSettingsDialog({ onClose, onSaved, onSaveFailed }: SearchSettingsDialogProps) {
+export function SearchSettingsDialog({
+  onClose,
+  onSaved,
+  onSaveFailed,
+}: SearchSettingsDialogProps) {
   const settingsQuery = useVacancySearchSettings();
   const [serverFieldErrors, setServerFieldErrors] = useState<Partial<Record<string, string>>>({});
 
@@ -364,7 +373,10 @@ export function SearchSettingsDialog({ onClose, onSaved, onSaveFailed }: SearchS
   };
 
   const handleFailed = (error: Error) => {
-    const fieldErrors = extractFieldValidationErrors(error, SEARCH_SETTINGS_SERVER_VALIDATED_FIELDS);
+    const fieldErrors = extractFieldValidationErrors(
+      error,
+      SEARCH_SETTINGS_SERVER_VALIDATED_FIELDS,
+    );
 
     if (Object.keys(fieldErrors).length > 0) {
       setServerFieldErrors(fieldErrors);

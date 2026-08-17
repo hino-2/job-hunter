@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { SCAN_STATUS, SCAN_STOPPED_REASON, VACANCY_SCAN_MAX_PAGES_ENV_KEY } from './vacancy-search.constants';
+import {
+  SCAN_STATUS,
+  SCAN_STOPPED_REASON,
+  VACANCY_SCAN_MAX_PAGES_ENV_KEY,
+} from './vacancy-search.constants';
 import type {
   ScanRunHandle,
   VacancyScanPageProgress,

@@ -85,7 +85,9 @@ export class GetmatchApiService implements VacancySourceProvider {
     );
   }
 
-  private async requestVacancy(vacancyId: string): Promise<VacancyRequestAttempt<VacancyFetchResult>> {
+  private async requestVacancy(
+    vacancyId: string,
+  ): Promise<VacancyRequestAttempt<VacancyFetchResult>> {
     const path = `${GETMATCH_VACANCY_PAGE_PATH}/${encodeURIComponent(vacancyId)}`;
 
     try {

@@ -24,6 +24,8 @@ export function renderPrompt(template: string, values: Readonly<Record<string, s
  */
 export function formatTitlesBlock(items: readonly AiTitleBatchItem[]): string {
   return items
-    .map((item, index) => `${index + 1}. ${item.title}${VACANCY_AI_TITLE_LINE_DIVIDER}${item.company}`)
+    .map(
+      (item, index) => `${index + 1}. ${item.title}${VACANCY_AI_TITLE_LINE_DIVIDER}${item.company}`,
+    )
     .join(VACANCY_AI_TITLES_LINE_SEPARATOR);
 }

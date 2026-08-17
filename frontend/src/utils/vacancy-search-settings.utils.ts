@@ -62,7 +62,9 @@ export function buildSettingsFormValues(settings: VacancySearchSettings): Search
 }
 
 /** Значения формы → тело PUT (§5.7). searchUrlTemplate триммится, как и на бэкенде (@TrimText). */
-export function buildSettingsUpdatePayload(values: SearchSettingsFormValues): VacancySearchSettingsUpdate {
+export function buildSettingsUpdatePayload(
+  values: SearchSettingsFormValues,
+): VacancySearchSettingsUpdate {
   return {
     keywords: parseKeywordsInput(values.keywordsText),
     excludeKeywords: parseKeywordsInput(values.excludeKeywordsText),

@@ -2,7 +2,10 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { hasHhSearchPagePlaceholder, isAllowedHhSearchUrlOrigin } from '../hh/hh-search-url.helpers';
+import {
+  hasHhSearchPagePlaceholder,
+  isAllowedHhSearchUrlOrigin,
+} from '../hh/hh-search-url.helpers';
 import type { UpdateVacancySearchSettingsDto } from './dto/update-vacancy-search-settings.dto';
 import { parseKeywordList } from './vacancy-keywords.helpers';
 import { VacancySearchSettings } from './vacancy-search-settings.entity';

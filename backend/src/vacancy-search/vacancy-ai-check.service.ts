@@ -2,7 +2,10 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 
 import { VacancyAiService } from '../vacancy-ai/vacancy-ai.service';
 import { VacancySearchSettingsService } from './vacancy-search-settings.service';
-import { VACANCY_AI_CHECK_FAILED_MESSAGE, VACANCY_AI_MODEL_UNAVAILABLE_MESSAGE } from './vacancy-search.constants';
+import {
+  VACANCY_AI_CHECK_FAILED_MESSAGE,
+  VACANCY_AI_MODEL_UNAVAILABLE_MESSAGE,
+} from './vacancy-search.constants';
 
 /**
  * §4.12.4: разовая проверка доступности модели при старте процесса — только

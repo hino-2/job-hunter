@@ -136,9 +136,14 @@ export class HhSearchService {
         // Тело не логируем — только длину, чтобы не заносить в лог всю страницу выдачи.
         const length = typeof payload === 'string' ? payload.length : 0;
 
-        this.logger.warn(`${HH_SEARCH_PAGE_UNPARSABLE_MESSAGE} (page=${page}, длина ответа: ${length})`);
+        this.logger.warn(
+          `${HH_SEARCH_PAGE_UNPARSABLE_MESSAGE} (page=${page}, длина ответа: ${length})`,
+        );
 
-        return { result: { ok: false, message: HH_SEARCH_PAGE_UNPARSABLE_MESSAGE }, retryable: false };
+        return {
+          result: { ok: false, message: HH_SEARCH_PAGE_UNPARSABLE_MESSAGE },
+          retryable: false,
+        };
       }
 
       return { result: { ok: true, page: parsed }, retryable: false };
@@ -198,7 +203,11 @@ export class HhSearchService {
       // §4.10 (шаг №26 §14): та же страница вакансии уже загружена ради описания —
       // логотип компании лида разбирается из неё же, без отдельного HTTP-запроса.
       const logoSrc = typeof payload === 'string' ? readHhCompanyLogoSrc(payload) : null;
-      const logoUrl = resolveVacancyLogoUrl(logoSrc, this.siteBaseUrl, HH_LOGO_ALLOWED_HOST_PATTERN);
+      const logoUrl = resolveVacancyLogoUrl(
+        logoSrc,
+        this.siteBaseUrl,
+        HH_LOGO_ALLOWED_HOST_PATTERN,
+      );
       const logoAllowedHostPattern = logoUrl === null ? null : HH_LOGO_ALLOWED_HOST_PATTERN;
 
       return {

@@ -42,7 +42,9 @@ export function isAllowedHhSearchUrlOrigin(template: string): boolean {
   try {
     const url = new URL(template);
 
-    return url.protocol === HH_SEARCH_URL_ALLOWED_PROTOCOL && HH_ALLOWED_HOST_PATTERN.test(url.hostname);
+    return (
+      url.protocol === HH_SEARCH_URL_ALLOWED_PROTOCOL && HH_ALLOWED_HOST_PATTERN.test(url.hostname)
+    );
   } catch {
     return false;
   }

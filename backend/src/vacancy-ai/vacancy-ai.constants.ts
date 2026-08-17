@@ -133,4 +133,5 @@ export const VACANCY_AI_INVALID_RESPONSE_MESSAGE = 'Модель вернула 
 export const VACANCY_AI_UNEXPECTED_STATUS_MESSAGE = 'Провайдер ИИ ответил статусом';
 export const VACANCY_AI_TRANSPORT_ERROR_MESSAGE = 'Запрос к провайдеру ИИ не выполнен';
 export const VACANCY_AI_MISSING_CONTENT_MESSAGE = 'В ответе провайдера ИИ нет текста сообщения';
-export const VACANCY_AI_MODELS_LIST_FAILED_MESSAGE = 'Не удалось получить список моделей у провайдера ИИ';
+export const VACANCY_AI_MODELS_LIST_FAILED_MESSAGE =
+  'Не удалось получить список моделей у провайдера ИИ';

@@ -93,7 +93,9 @@ export class HhApiService implements VacancySourceProvider {
     );
   }
 
-  private async requestVacancy(vacancyId: string): Promise<VacancyRequestAttempt<VacancyFetchResult>> {
+  private async requestVacancy(
+    vacancyId: string,
+  ): Promise<VacancyRequestAttempt<VacancyFetchResult>> {
     // §4.11.2: троттл на КАЖДОЙ попытке ретрая, а не только на первой — fetchWithRetries
     // зовёт requestVacancy заново на каждый повтор.
     await this.throttle.acquire();

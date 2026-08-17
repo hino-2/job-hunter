@@ -274,7 +274,8 @@ export const DESCRIPTION_PROMPT_MISSING_PLACEHOLDERS_MESSAGE =
 
 export const SEARCH_URL_TEMPLATE_REQUIRED_MESSAGE = 'Введите ссылку на выдачу';
 export const SEARCH_URL_TEMPLATE_TOO_LONG_MESSAGE = `Не длиннее ${SEARCH_URL_TEMPLATE_MAX_LENGTH} символов`;
-export const SEARCH_URL_TEMPLATE_MISSING_PAGE_PLACEHOLDER_MESSAGE = 'Ссылка обязана содержать {page}';
+export const SEARCH_URL_TEMPLATE_MISSING_PAGE_PLACEHOLDER_MESSAGE =
+  'Ссылка обязана содержать {page}';
 export const SEARCH_URL_TEMPLATE_INVALID_MESSAGE = 'Нужна полная ссылка, начинающаяся с https://';
 
 /**

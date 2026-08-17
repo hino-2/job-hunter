@@ -29,7 +29,9 @@ export function useVacancyScanStatus(): UseQueryResult<ScanStatusResponse> {
     queryKey: VACANCY_SCAN_STATUS_QUERY_KEY,
     queryFn: fetchScanStatus,
     refetchInterval: (currentQuery) =>
-      currentQuery.state.data?.status === SCAN_STATUS.RUNNING ? SCAN_STATUS_POLL_INTERVAL_MS : false,
+      currentQuery.state.data?.status === SCAN_STATUS.RUNNING
+        ? SCAN_STATUS_POLL_INTERVAL_MS
+        : false,
   });
 
   const status = query.data?.status;

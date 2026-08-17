@@ -7,7 +7,11 @@ import {
   VACANCY_LEADS_SEARCH_MAX_LENGTH,
   VACANCY_LEADS_SORT_FIELDS,
 } from '../vacancy-search.constants';
-import type { VacancyLeadsHiddenFilter, VacancyLeadsOrder, VacancyLeadsSortField } from '../vacancy-search.type';
+import type {
+  VacancyLeadsHiddenFilter,
+  VacancyLeadsOrder,
+  VacancyLeadsSortField,
+} from '../vacancy-search.type';
 
 /**
  * Query-параметры GET /api/vacancy-leads (§5.7) — все опциональные, дефолты

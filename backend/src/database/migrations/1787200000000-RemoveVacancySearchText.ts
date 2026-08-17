@@ -85,7 +85,9 @@ export class RemoveVacancySearchText1787200000000 implements MigrationInterface 
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "vacancy_search_settings" ADD "search_text" character varying(512)`);
+    await queryRunner.query(
+      `ALTER TABLE "vacancy_search_settings" ADD "search_text" character varying(512)`,
+    );
     await queryRunner.query(
       `UPDATE "vacancy_search_settings" SET "search_text" = $1 WHERE "search_text" IS NULL`,
       [this.seedSearchText],
@@ -94,7 +96,11 @@ export class RemoveVacancySearchText1787200000000 implements MigrationInterface 
       `ALTER TABLE "vacancy_search_settings" ALTER COLUMN "search_text" SET NOT NULL`,
     );
 
-    await queryRunner.query(`ALTER TABLE "vacancy_scan_position" ADD "search_text" character varying(512)`);
-    await queryRunner.query(`ALTER TABLE "vacancy_scan_position" DROP COLUMN "search_url_template"`);
+    await queryRunner.query(
+      `ALTER TABLE "vacancy_scan_position" ADD "search_text" character varying(512)`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "vacancy_scan_position" DROP COLUMN "search_url_template"`,
+    );
   }
 }

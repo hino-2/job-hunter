@@ -15,7 +15,11 @@ import {
   SYNC_OUTCOME_LABELS,
 } from '../../constants/application.constants';
 import { HTTP_STATUS_NOT_FOUND } from '../../constants/api.constants';
-import { CONTAINER_PADDING_X, CONTAINER_PADDING_Y, FIELD_GAP } from '../../constants/layout.constants';
+import {
+  CONTAINER_PADDING_X,
+  CONTAINER_PADDING_Y,
+  FIELD_GAP,
+} from '../../constants/layout.constants';
 import { NOTIFICATION_SEVERITY } from '../../constants/notification.constants';
 import { SEARCH_DEBOUNCE_MS } from '../../constants/query.constants';
 import {

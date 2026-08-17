@@ -59,7 +59,9 @@ export class VacancyAiService {
   ) {
     this.model = configService.getOrThrow<string>(VACANCY_AI_MODEL_ENV_KEY);
     this.timeoutMs = configService.getOrThrow<number>(VACANCY_AI_TIMEOUT_MS_ENV_KEY);
-    this.descriptionMaxChars = configService.getOrThrow<number>(VACANCY_AI_DESCRIPTION_MAX_CHARS_ENV_KEY);
+    this.descriptionMaxChars = configService.getOrThrow<number>(
+      VACANCY_AI_DESCRIPTION_MAX_CHARS_ENV_KEY,
+    );
   }
 
   async judgeTitles(request: AiTitleBatchRequest): Promise<AiTitleBatchResult> {

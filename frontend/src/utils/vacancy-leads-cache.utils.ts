@@ -19,7 +19,10 @@ import type { VacancyLeadsHiddenFilter } from '../types/vacancy-search.type';
  * как у откликов.
  */
 
-export function readVacancyLeadFromCaches(client: QueryClient, id: string): VacancyLead | undefined {
+export function readVacancyLeadFromCaches(
+  client: QueryClient,
+  id: string,
+): VacancyLead | undefined {
   const caches = client.getQueriesData<VacancyLead[]>({ queryKey: VACANCY_LEADS_QUERY_KEY });
 
   for (const [, items] of caches) {

@@ -27,7 +27,10 @@ export class ScanStatusDto {
   stoppedReason!: ScanStoppedReason | null;
   message!: string | null;
 
-  static fromState(snapshot: VacancyScanStateSnapshot, resume: VacancyScanResumeState): ScanStatusDto {
+  static fromState(
+    snapshot: VacancyScanStateSnapshot,
+    resume: VacancyScanResumeState,
+  ): ScanStatusDto {
     const dto = new ScanStatusDto();
 
     dto.status = snapshot.status;

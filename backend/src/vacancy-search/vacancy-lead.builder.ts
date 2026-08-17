@@ -53,7 +53,9 @@ export function buildVacancyLeadRow(input: VacancyLeadRowInput): VacancyLeadInse
     employmentForm: clampOrNull(item.employmentForm, VACANCY_LEAD_EMPLOYMENT_FORM_LENGTH),
     workFormats: clampOrNull(item.workFormats, VACANCY_LEAD_WORK_FORMATS_LENGTH),
     matchedKeywords:
-      input.matchedKeywords.length > 0 ? input.matchedKeywords.join(KEYWORD_LIST_JOIN_SEPARATOR) : null,
+      input.matchedKeywords.length > 0
+        ? input.matchedKeywords.join(KEYWORD_LIST_JOIN_SEPARATOR)
+        : null,
     matchSource: input.matchSource,
     aiModel: clampOrNull(input.aiModel, VACANCY_LEAD_AI_MODEL_LENGTH),
     aiTitleReason: clampOrNull(input.aiTitleReason, VACANCY_LEAD_AI_REASON_LENGTH),

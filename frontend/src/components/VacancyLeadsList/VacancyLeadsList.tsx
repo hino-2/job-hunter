@@ -1,6 +1,10 @@
 import { Alert, Button, Skeleton, Stack } from '@mui/material';
 
-import { ACCORDION_GAP, LIST_SKELETON_COUNT, SUMMARY_MIN_HEIGHT_PX } from '../../constants/layout.constants';
+import {
+  ACCORDION_GAP,
+  LIST_SKELETON_COUNT,
+  SUMMARY_MIN_HEIGHT_PX,
+} from '../../constants/layout.constants';
 import {
   VACANCY_LEADS_EMPTY_DESCRIPTION,
   VACANCY_LEADS_EMPTY_FILTERED_DESCRIPTION,

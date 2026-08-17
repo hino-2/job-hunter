@@ -119,7 +119,10 @@ export class OpenAiAiProvider implements AiProvider {
 
       return this.interpretChatResponse(response.status, response.data);
     } catch (error) {
-      return { ok: false, reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error) };
+      return {
+        ok: false,
+        reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error),
+      };
     }
   }
 
@@ -131,7 +134,10 @@ export class OpenAiAiProvider implements AiProvider {
 
       return this.interpretModelsResponse(response.status, response.data);
     } catch (error) {
-      return { ok: false, reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error) };
+      return {
+        ok: false,
+        reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error),
+      };
     }
   }
 

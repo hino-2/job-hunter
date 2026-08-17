@@ -28,9 +28,7 @@ import type {
  * Известный размен: пока список лидов закэширован (staleTime 30 с), удаление отклика
  * в другой вкладке не снимет здесь hasApplication — само поправится на следующем рефетче.
  */
-export function useApplyVacancyLead(
-  options: ApplyVacancyLeadOptions,
-): ApplyVacancyLeadController {
+export function useApplyVacancyLead(options: ApplyVacancyLeadOptions): ApplyVacancyLeadController {
   const { onApplied, onAlreadyApplied, onFailed } = options;
   const client = useQueryClient();
   const [applyingIds, setApplyingIds] = useState<ReadonlySet<string>>(new Set());

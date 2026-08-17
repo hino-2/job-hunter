@@ -63,7 +63,8 @@ export function matchKeywords(text: string, keywords: readonly string[]): string
     const normalizedKeyword = normalizeText(keyword);
 
     return (
-      normalizedKeyword.length > 0 && buildKeywordBoundaryPattern(normalizedKeyword).test(normalizedText)
+      normalizedKeyword.length > 0 &&
+      buildKeywordBoundaryPattern(normalizedKeyword).test(normalizedText)
     );
   });
 }

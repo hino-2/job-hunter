@@ -100,7 +100,9 @@ export class UpdateVacancySearchSettingsDto {
   @Matches(HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN, {
     message: VACANCY_SEARCH_SETTINGS_SEARCH_URL_MISSING_PAGE_MESSAGE,
   })
-  @Validate(SearchUrlTemplateConstraint, { message: VACANCY_SEARCH_SETTINGS_SEARCH_URL_ORIGIN_MESSAGE })
+  @Validate(SearchUrlTemplateConstraint, {
+    message: VACANCY_SEARCH_SETTINGS_SEARCH_URL_ORIGIN_MESSAGE,
+  })
   @TrimText()
   searchUrlTemplate!: string;
 }

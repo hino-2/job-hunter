@@ -29,9 +29,12 @@ export function formatSalaryShort(lead: VacancyLead): string | null {
   }
 
   const currency = salaryCurrency ?? '';
-  const from = salaryFrom !== null ? `${SALARY_FROM_LABEL}${SALARY_VALUE_SEPARATOR}${salaryFrom}` : null;
+  const from =
+    salaryFrom !== null ? `${SALARY_FROM_LABEL}${SALARY_VALUE_SEPARATOR}${salaryFrom}` : null;
   const to = salaryTo !== null ? `${SALARY_TO_LABEL}${SALARY_VALUE_SEPARATOR}${salaryTo}` : null;
-  const range = [from, to].filter((part): part is string => part !== null).join(SALARY_VALUE_SEPARATOR);
+  const range = [from, to]
+    .filter((part): part is string => part !== null)
+    .join(SALARY_VALUE_SEPARATOR);
 
   return `${range}${SALARY_VALUE_SEPARATOR}${currency}`.trim();
 }
@@ -69,7 +72,10 @@ export function formatFirstSeenAt(firstSeenAt: string): string {
 }
 
 /** Значение из партиального словаря с фолбэком на сырое значение hh.ru (§7.9.1). */
-export function lookupLabelOrRaw(dictionary: Partial<Record<string, string>>, value: string): string {
+export function lookupLabelOrRaw(
+  dictionary: Partial<Record<string, string>>,
+  value: string,
+): string {
   return dictionary[value] ?? value;
 }
 
@@ -86,7 +92,9 @@ export function formatWorkFormats(workFormats: string[] | null): string | null {
     return null;
   }
 
-  return workFormats.map((format) => lookupLabelOrRaw(WORK_FORMAT_LABELS, format)).join(KEYWORD_LIST_JOIN_SEPARATOR);
+  return workFormats
+    .map((format) => lookupLabelOrRaw(WORK_FORMAT_LABELS, format))
+    .join(KEYWORD_LIST_JOIN_SEPARATOR);
 }
 
 export function formatMatchedKeywords(matchedKeywords: string[] | null): string | null {

@@ -42,7 +42,12 @@ import type {
   VacancySearchSettingsSnapshot,
   VacancyTitleDecision,
 } from './vacancy-search.interfaces';
-import type { ScanMode, ScanStoppedReason, VacancyMatchMode, VacancyPrefilterMode } from './vacancy-search.type';
+import type {
+  ScanMode,
+  ScanStoppedReason,
+  VacancyMatchMode,
+  VacancyPrefilterMode,
+} from './vacancy-search.type';
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -54,7 +59,9 @@ function describeError(error: unknown): string {
  * поля результата заполняются вместе (HhSearchService), поэтому null здесь означает
  * «источник логотип не дал», а не «данные неполные».
  */
-function resolveLeadLogoSource(descriptionResult: HhDescriptionResult): VacancyLeadLogoSource | null {
+function resolveLeadLogoSource(
+  descriptionResult: HhDescriptionResult,
+): VacancyLeadLogoSource | null {
   if (!descriptionResult.ok) {
     return null;
   }
@@ -134,7 +141,9 @@ export class VacancyScanService {
     this.maxDetails = configService.getOrThrow<number>(VACANCY_SCAN_MAX_DETAILS_ENV_KEY);
     this.maxAgeDays = configService.getOrThrow<number>(VACANCY_SCAN_MAX_AGE_DAYS_ENV_KEY);
     this.maxDurationMs = configService.getOrThrow<number>(VACANCY_SCAN_MAX_DURATION_MS_ENV_KEY);
-    this.prefilterMode = configService.getOrThrow<VacancyPrefilterMode>(VACANCY_PREFILTER_MODE_ENV_KEY);
+    this.prefilterMode = configService.getOrThrow<VacancyPrefilterMode>(
+      VACANCY_PREFILTER_MODE_ENV_KEY,
+    );
     this.matchMode = configService.getOrThrow<VacancyMatchMode>(VACANCY_MATCH_MODE_ENV_KEY);
     this.aiBatchSize = configService.getOrThrow<number>(VACANCY_AI_BATCH_SIZE_ENV_KEY);
   }
@@ -325,7 +334,11 @@ export class VacancyScanService {
         continue;
       }
 
-      const dedupKey = buildDedupKey(item.company, item.position, derivePublishedOn(item.publishedAtIso));
+      const dedupKey = buildDedupKey(
+        item.company,
+        item.position,
+        derivePublishedOn(item.publishedAtIso),
+      );
       const serialized = serializeDedupKey(dedupKey);
 
       if (seenInRun.has(serialized)) {
@@ -596,7 +609,9 @@ export class VacancyScanService {
       }
     } catch (error) {
       handle.increment('failed');
-      this.logger.warn(`Не удалось сохранить вакансию ${decision.item.externalId}: ${describeError(error)}`);
+      this.logger.warn(
+        `Не удалось сохранить вакансию ${decision.item.externalId}: ${describeError(error)}`,
+      );
     }
   }
 

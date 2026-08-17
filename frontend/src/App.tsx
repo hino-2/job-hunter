@@ -6,7 +6,12 @@ import { AppHeader } from './components/AppHeader/AppHeader';
 import { ApplicationsScreen } from './components/ApplicationsScreen/ApplicationsScreen';
 import { NotificationSnackbar } from './components/NotificationSnackbar/NotificationSnackbar';
 import { VacanciesScreen } from './components/VacanciesScreen/VacanciesScreen';
-import { APP_TAB, APP_TAB_LABELS, APP_TABS_ARIA_LABEL, DEFAULT_APP_TAB } from './constants/app.constants';
+import {
+  APP_TAB,
+  APP_TAB_LABELS,
+  APP_TABS_ARIA_LABEL,
+  DEFAULT_APP_TAB,
+} from './constants/app.constants';
 import { SYNC_ALL_ERROR_FALLBACK_MESSAGE } from './constants/sync.constants';
 import { useApplicationsCounts } from './hooks/useApplications';
 import { useNotification } from './hooks/useNotification';

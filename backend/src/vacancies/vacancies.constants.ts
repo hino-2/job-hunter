@@ -79,5 +79,4 @@ export const SYNC_UNEXPECTED_ERROR_MESSAGE = 'Не удалось примени
 /** §4.4/§4.10: докачка логотипа сразу после создания записи — только debug/warn в лог. */
 export const CREATE_LOGO_DOWNLOADED_MESSAGE = 'Логотип компании скачан при создании записи';
 
-export const CREATE_LOGO_FAILED_MESSAGE =
-  'Не удалось скачать логотип компании при создании записи';
+export const CREATE_LOGO_FAILED_MESSAGE = 'Не удалось скачать логотип компании при создании записи';

@@ -218,7 +218,8 @@ export const VACANCY_LEADS_SORT_PROPERTIES = {
 export const VACANCY_LEADS_TIEBREAK_PROPERTY = 'id';
 
 export const VACANCY_LEADS_SEARCH_CONDITION =
-  `(${VACANCY_LEADS_ALIAS}.position ILIKE :search` + ` OR ${VACANCY_LEADS_ALIAS}.company ILIKE :search)`;
+  `(${VACANCY_LEADS_ALIAS}.position ILIKE :search` +
+  ` OR ${VACANCY_LEADS_ALIAS}.company ILIKE :search)`;
 
 export const VACANCY_LEADS_HIDDEN_EXCLUDE_CONDITION = `${VACANCY_LEADS_ALIAS}.hiddenAt IS NULL`;
 export const VACANCY_LEADS_HIDDEN_ONLY_CONDITION = `${VACANCY_LEADS_ALIAS}.hiddenAt IS NOT NULL`;
@@ -288,7 +289,8 @@ export const VACANCY_SCAN_POSITION_SINGLETON_ID = 1;
 export const VACANCY_SCAN_POSITION_ID_CHECK = 'CHK_vacancy_scan_position_id';
 
 /** По определению совпадает с шириной vacancy_search_settings.search_url_template — колонка хранит её копию. */
-export const VACANCY_SCAN_POSITION_SEARCH_URL_TEMPLATE_LENGTH = VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH;
+export const VACANCY_SCAN_POSITION_SEARCH_URL_TEMPLATE_LENGTH =
+  VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH;
 
 export const VACANCY_SCAN_INITIAL_PAGE = 0;
 
@@ -298,7 +300,8 @@ export const VACANCY_SCAN_INITIAL_PAGE = 0;
  */
 export const VACANCY_SCAN_POSITION_MISSING_MESSAGE =
   'Позиция прогона поиска не найдена: миграция не выполнена или строка удалена вручную';
-export const VACANCY_SCAN_POSITION_SAVE_FAILED_MESSAGE = 'Не удалось сохранить позицию прогона поиска';
+export const VACANCY_SCAN_POSITION_SAVE_FAILED_MESSAGE =
+  'Не удалось сохранить позицию прогона поиска';
 
 /** §8: имена env-переменных бюджетов и режимов прогона (значения — в config/config.constants.ts). */
 export const VACANCY_SCAN_MAX_PAGES_ENV_KEY = 'VACANCY_SCAN_MAX_PAGES';
@@ -310,7 +313,8 @@ export const VACANCY_MATCH_MODE_ENV_KEY = 'VACANCY_MATCH_MODE';
 
 export const VACANCY_SCAN_ALREADY_RUNNING_MESSAGE = 'Прогон поиска вакансий уже выполняется';
 export const VACANCY_SCAN_FINISHED_MESSAGE = 'Прогон поиска вакансий завершён';
-export const VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE = 'Непредвиденная ошибка прогона поиска вакансий';
+export const VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE =
+  'Непредвиденная ошибка прогона поиска вакансий';
 export const VACANCY_SCAN_NOT_RUNNING_MESSAGE = 'Прогон поиска вакансий не выполняется';
 export const VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE =
   'Сохранённой позиции прогона нет или она устарела: ссылка на выдачу изменилась';

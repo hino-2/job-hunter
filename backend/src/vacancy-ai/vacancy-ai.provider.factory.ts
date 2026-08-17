@@ -12,7 +12,10 @@ import type { AiProvider } from './vacancy-ai.interfaces';
  * HttpService (VacancyAiModule.HttpModule.registerAsync, общий baseURL/таймаут):
  * OpenAiAiProvider лишь добавляет заголовок Authorization на каждый свой запрос.
  */
-export function buildVacancyAiProvider(http: HttpService, configService: ConfigService): AiProvider {
+export function buildVacancyAiProvider(
+  http: HttpService,
+  configService: ConfigService,
+): AiProvider {
   const provider = configService.getOrThrow<string>(VACANCY_AI_PROVIDER_ENV_KEY);
 
   if (provider === VACANCY_AI_PROVIDER.OPENAI) {

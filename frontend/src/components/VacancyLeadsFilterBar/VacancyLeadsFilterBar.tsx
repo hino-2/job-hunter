@@ -3,14 +3,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SearchIcon from '@mui/icons-material/Search';
 import SettingsIcon from '@mui/icons-material/Settings';
 import StopIcon from '@mui/icons-material/Stop';
-import {
-  Box,
-  Button,
-  IconButton,
-  InputAdornment,
-  TextField,
-  ToggleButton,
-} from '@mui/material';
+import { Box, Button, IconButton, InputAdornment, TextField, ToggleButton } from '@mui/material';
 import type { ChangeEvent } from 'react';
 
 import { FIELD_GAP, SEARCH_FIELD_WIDTH_PX } from '../../constants/layout.constants';

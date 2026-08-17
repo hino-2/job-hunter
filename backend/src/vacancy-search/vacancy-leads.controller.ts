@@ -87,7 +87,9 @@ export class VacancyLeadsController {
     return entities.map((entity) =>
       VacancyLeadDto.fromEntity(
         entity,
-        appliedKeys.has(serializeVacancyRefKey({ source: entity.source, externalId: entity.externalId })),
+        appliedKeys.has(
+          serializeVacancyRefKey({ source: entity.source, externalId: entity.externalId }),
+        ),
       ),
     );
   }

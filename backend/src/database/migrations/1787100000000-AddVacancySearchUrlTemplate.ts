@@ -44,6 +44,8 @@ export class AddVacancySearchUrlTemplate1787100000000 implements MigrationInterf
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "vacancy_search_settings" DROP COLUMN "search_url_template"`);
+    await queryRunner.query(
+      `ALTER TABLE "vacancy_search_settings" DROP COLUMN "search_url_template"`,
+    );
   }
 }

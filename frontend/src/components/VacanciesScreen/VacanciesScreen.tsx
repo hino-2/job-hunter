@@ -1,7 +1,11 @@
 import { Container, Stack } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 
-import { CONTAINER_PADDING_X, CONTAINER_PADDING_Y, FIELD_GAP } from '../../constants/layout.constants';
+import {
+  CONTAINER_PADDING_X,
+  CONTAINER_PADDING_Y,
+  FIELD_GAP,
+} from '../../constants/layout.constants';
 import { NOTIFICATION_SEVERITY } from '../../constants/notification.constants';
 import { SEARCH_DEBOUNCE_MS } from '../../constants/query.constants';
 import {
@@ -190,7 +194,8 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   const isScanRunning = scanStatus.data?.status === SCAN_STATUS.RUNNING;
   const isStopRequested = scanStatus.data?.stopRequested === true;
   const resume = scanStatus.data?.resume ?? EMPTY_SCAN_RESUME_STATE;
-  const showScanAlert = scanStatus.data !== undefined && scanStatus.data.status !== SCAN_STATUS.IDLE;
+  const showScanAlert =
+    scanStatus.data !== undefined && scanStatus.data.status !== SCAN_STATUS.IDLE;
 
   return (
     <>

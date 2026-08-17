@@ -67,7 +67,8 @@ export class VacancyLeadDto {
     dto.experience = entity.experience;
     dto.employmentForm = entity.employmentForm;
     dto.workFormats = entity.workFormats !== null ? parseKeywordList(entity.workFormats) : null;
-    dto.matchedKeywords = entity.matchedKeywords !== null ? parseKeywordList(entity.matchedKeywords) : null;
+    dto.matchedKeywords =
+      entity.matchedKeywords !== null ? parseKeywordList(entity.matchedKeywords) : null;
     dto.matchSource = entity.matchSource;
     dto.aiModel = entity.aiModel;
     dto.aiTitleReason = entity.aiTitleReason;

@@ -79,7 +79,10 @@ function parseTitleVerdictEntry(entry: unknown): AiTitleVerdict | null {
  * полю index: промпт требует «в том же порядке», и это единственная гарантия,
  * на которую вызывающий (vacancy-scan.service.ts) может положиться.
  */
-export function parseTitleVerdicts(content: string, expectedLength: number): AiTitleVerdict[] | null {
+export function parseTitleVerdicts(
+  content: string,
+  expectedLength: number,
+): AiTitleVerdict[] | null {
   const parsed = parseJson(content);
 
   if (parsed === null) {
@@ -108,7 +111,9 @@ export function parseTitleVerdicts(content: string, expectedLength: number): AiT
 }
 
 /** §4.12.3: схема этапа 4 — один объект { matches, reason }, без обёртки. */
-export function parseDescriptionVerdict(content: string): { matches: boolean; reason: string } | null {
+export function parseDescriptionVerdict(
+  content: string,
+): { matches: boolean; reason: string } | null {
   const parsed = parseJson(content);
 
   if (!isRecord(parsed)) {
