@@ -55,10 +55,10 @@ export interface HhSearchItem {
  * данные снимка настроек прогона (VacancyScanService, vacancy-search/), а не через
  * DI VacancySearchSettingsService — модульная зависимость зафиксирована в одну
  * сторону (vacancy-search → hh), hh/ не имеет права знать о vacancy-search/.
+ * Поисковый запрос уже часть searchUrlTemplate — отдельного поля searchText нет.
  */
 export interface HhSearchPageRequest {
   searchUrlTemplate: string;
-  searchText: string;
   page: number;
 }
 

@@ -43,7 +43,7 @@ export class VacancyScanPositionService {
       throw new InternalServerErrorException(VACANCY_SCAN_POSITION_MISSING_MESSAGE);
     }
 
-    return { nextPage: entity.nextPage, searchText: entity.searchText };
+    return { nextPage: entity.nextPage, searchUrlTemplate: entity.searchUrlTemplate };
   }
 
   /**
@@ -51,11 +51,11 @@ export class VacancyScanPositionService {
    * Узкий UPDATE, а не save(entity) — строка пишется по разу на страницу,
    * read-modify-write здесь не нужен.
    */
-  async save(nextPage: number, searchText: string): Promise<void> {
+  async save(nextPage: number, searchUrlTemplate: string): Promise<void> {
     try {
       await this.position.update(
         { id: VACANCY_SCAN_POSITION_SINGLETON_ID },
-        { nextPage, searchText },
+        { nextPage, searchUrlTemplate },
       );
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
@@ -69,7 +69,7 @@ export class VacancyScanPositionService {
     try {
       await this.position.update(
         { id: VACANCY_SCAN_POSITION_SINGLETON_ID },
-        { nextPage: VACANCY_SCAN_INITIAL_PAGE, searchText: null },
+        { nextPage: VACANCY_SCAN_INITIAL_PAGE, searchUrlTemplate: null },
       );
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);

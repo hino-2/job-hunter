@@ -76,7 +76,6 @@ export const DEFAULT_MATCH_SOURCE = MATCH_SOURCE.KEYWORDS;
 /** Свойство сущности VacancySearchSettings → имя колонки в БД. */
 export const VACANCY_SEARCH_SETTINGS_COLUMN = {
   ID: 'id',
-  SEARCH_TEXT: 'search_text',
   KEYWORDS: 'keywords',
   EXCLUDE_KEYWORDS: 'exclude_keywords',
   TITLE_PROMPT: 'title_prompt',
@@ -90,8 +89,6 @@ export const VACANCY_SEARCH_SETTINGS_COLUMN = {
 export const VACANCY_SEARCH_SETTINGS_SINGLETON_ID = 1;
 
 export const VACANCY_SEARCH_SETTINGS_ID_CHECK = 'CHK_vacancy_search_settings_id';
-
-export const VACANCY_SEARCH_SETTINGS_SEARCH_TEXT_LENGTH = 512;
 
 /** §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу hh.ru теперь колонка, а не env. */
 export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH = 2048;
@@ -145,13 +142,12 @@ export const VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_DESCRIPTION_MESS
   '$property: обязан содержать плейсхолдер {description}';
 
 /**
- * §5.7: сообщения валидации searchUrlTemplate при PUT. Плейсхолдеры проверяются
- * теми же паттернами, что и buildHhSearchUrl (перенесены в hh/hh.constants.ts,
- * потому что подстановка — их код); происхождение (https + hh.ru) проверяет
- * SearchUrlTemplateConstraint.
+ * §5.7: сообщения валидации searchUrlTemplate при PUT. Плейсхолдер проверяется
+ * тем же паттерном, что и buildHhSearchUrl (перенесён в hh/hh.constants.ts,
+ * потому что подстановка — его код); происхождение (https + hh.ru) проверяет
+ * SearchUrlTemplateConstraint. Поисковый запрос — часть самой ссылки (свой
+ * text=… у пользователя), отдельного плейсхолдера {text} больше нет.
  */
-export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_MISSING_TEXT_MESSAGE =
-  '$property: обязан содержать плейсхолдер {text}';
 export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_MISSING_PAGE_MESSAGE =
   '$property: обязан содержать плейсхолдер {page}, иначе прогон читал бы первую страницу бесконечно';
 export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_ORIGIN_MESSAGE =
@@ -164,7 +160,7 @@ export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_ORIGIN_MESSAGE =
  * отдавать его как есть — иначе пользователь не смог бы открыть диалог и починить.
  */
 export const VACANCY_SEARCH_SETTINGS_INVALID_URL_TEMPLATE_MESSAGE =
-  'Шаблон ссылки на выдачу в настройках повреждён: нет плейсхолдеров {text}/{page} либо хост не hh.ru';
+  'Шаблон ссылки на выдачу в настройках повреждён: нет плейсхолдера {page} либо хост не hh.ru';
 
 /** Общий делитель для бюджета по возрасту (§4.11.6, VACANCY_SCAN_MAX_AGE_DAYS). */
 export const MS_IN_DAY = 86_400_000;
@@ -283,7 +279,7 @@ export const VACANCY_SCAN_POSITION_TABLE = 'vacancy_scan_position';
 export const VACANCY_SCAN_POSITION_COLUMN = {
   ID: 'id',
   NEXT_PAGE: 'next_page',
-  SEARCH_TEXT: 'search_text',
+  SEARCH_URL_TEMPLATE: 'search_url_template',
   UPDATED_AT: 'updated_at',
 } as const;
 
@@ -291,8 +287,8 @@ export const VACANCY_SCAN_POSITION_SINGLETON_ID = 1;
 
 export const VACANCY_SCAN_POSITION_ID_CHECK = 'CHK_vacancy_scan_position_id';
 
-/** По определению совпадает с шириной vacancy_search_settings.search_text — колонка хранит её копию. */
-export const VACANCY_SCAN_POSITION_SEARCH_TEXT_LENGTH = VACANCY_SEARCH_SETTINGS_SEARCH_TEXT_LENGTH;
+/** По определению совпадает с шириной vacancy_search_settings.search_url_template — колонка хранит её копию. */
+export const VACANCY_SCAN_POSITION_SEARCH_URL_TEMPLATE_LENGTH = VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH;
 
 export const VACANCY_SCAN_INITIAL_PAGE = 0;
 
@@ -317,7 +313,7 @@ export const VACANCY_SCAN_FINISHED_MESSAGE = 'Прогон поиска вака
 export const VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE = 'Непредвиденная ошибка прогона поиска вакансий';
 export const VACANCY_SCAN_NOT_RUNNING_MESSAGE = 'Прогон поиска вакансий не выполняется';
 export const VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE =
-  'Сохранённой позиции прогона нет или она устарела: текст поиска изменился';
+  'Сохранённой позиции прогона нет или она устарела: ссылка на выдачу изменилась';
 export const VACANCY_SCAN_STOP_REQUESTED_MESSAGE = 'Запрошена остановка прогона поиска вакансий';
 
 /**

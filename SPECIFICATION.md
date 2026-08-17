@@ -267,22 +267,20 @@ table: the field set is known, the types differ, and "a second search configurat
 | Column (DB)          | DB type        | Req. | Default   | Description                                                                         |
 | -------------------- | -------------- | ---- | --------- | ----------------------------------------------------------------------------------- |
 | `id`                 | `smallint` PK  | yes  | `1`       | Always `1` (`CHECK (id = 1)`)                                                       |
-| `search_text`        | `varchar(512)` | yes  | see below | Substituted into `{text}` of the link template (§4.11.1), URL-encoded on assembly   |
 | `keywords`           | `text`         | yes  | see below | Comma-separated keywords: used both for deterministic screening and for the prompts |
 | `exclude_keywords`   | `text`         | no   | `null`    | Comma-separated exclude keywords (§4.11.4)                                          |
 | `title_prompt`       | `text`         | yes  | see §4.12 | Stage 1 prompt — vacancy title evaluation                                           |
 | `description_prompt` | `text`         | yes  | see §4.12 | Stage 2 prompt — vacancy description evaluation                                     |
 | `ai_enabled`         | `boolean`      | yes  | `false`   | Whether AI screening (§4.12) is on. Off — keyword screening only                    |
-| `search_url_template` | `varchar(2048)` | yes | see §4.11.1 | hh.ru results URL template; `{text}` and `{page}` mandatory, https + hh.ru host (§5.7) |
+| `search_url_template` | `varchar(2048)` | yes | see §4.11.1 | hh.ru results URL template; the query itself lives in the URL's own `text=` parameter, only `{page}` is a mandatory placeholder, https + hh.ru host (§5.7) |
 | `updated_at`         | `timestamptz`  | yes  | `now()`   |                                                                                     |
 
 The row is created **by the migration itself** (`INSERT … ON CONFLICT DO NOTHING`) with default
 values, not by code on first access: the service reading the settings must not be able to create
 them, otherwise there is a second data-creation path and a race at startup.
 
-Default `search_text` is `fullstack`; keyword and prompt defaults are in §4.11.4 and §4.12; the
-`search_url_template` default is the §4.11.1 literal, seeded by the `AddVacancySearchUrlTemplate`
-migration.
+Keyword and prompt defaults are in §4.11.4 and §4.12; the `search_url_template` default is the
+§4.11.1 literal, seeded by the `AddVacancySearchUrlTemplate` migration.
 
 ### 3.7 Table `vacancy_scan_position`
 
@@ -300,18 +298,19 @@ table keeps both lifecycles and both contracts clean.
 The table holds **exactly one row**: `id smallint PK` with `CHECK (id = 1)`, the same pattern as
 §3.6, seeded by the migration itself — the service must never create the row.
 
-| Column (DB)   | DB type        | Req. | Default | Description                                                                 |
-| ------------- | -------------- | ---- | ------- | ---------------------------------------------------------------------------- |
-| `id`          | `smallint` PK  | yes  | `1`     | Always `1` (`CHECK (id = 1)`)                                                |
-| `next_page`   | `integer`      | yes  | `0`     | 0-based page to resume from on the next `RESUME` start                       |
-| `search_text` | `varchar(512)` | no   | `null`  | `search_text` (§3.6) the position was saved under — a resume is only offered when it still matches the current settings |
-| `updated_at`  | `timestamptz`  | yes  | `now()` | Auto-updated on every save (once per processed page during a run)           |
+| Column (DB)            | DB type          | Req. | Default | Description                                                                 |
+| ---------------------- | ---------------- | ---- | ------- | ---------------------------------------------------------------------------- |
+| `id`                   | `smallint` PK    | yes  | `1`     | Always `1` (`CHECK (id = 1)`)                                                |
+| `next_page`            | `integer`        | yes  | `0`     | 0-based page to resume from on the next `RESUME` start                       |
+| `search_url_template`  | `varchar(2048)`  | no   | `null`  | `search_url_template` (§3.6) the position was saved under — a resume is only offered when it still matches the current settings |
+| `updated_at`           | `timestamptz`    | yes  | `now()` | Auto-updated on every save (once per processed page during a run)           |
 
-`next_page = 0` together with `search_text = null` (the seeded/cleared state) is never resumable
-(§4.11.12): `isResumablePosition` also requires `next_page > 0` and `next_page < VACANCY_SCAN_MAX_PAGES`.
-`search_text` travels with the position rather than being re-read from `vacancy_search_settings` at
-resume time, so a settings change between saving the position and clicking «Продолжить» reliably
-disables the button instead of silently resuming a different search.
+`next_page = 0` together with `search_url_template = null` (the seeded/cleared state) is never
+resumable (§4.11.12): `isResumablePosition` also requires `next_page > 0` and
+`next_page < VACANCY_SCAN_MAX_PAGES`. `search_url_template` travels with the position rather than
+being re-read from `vacancy_search_settings` at resume time, so a settings change between saving
+the position and clicking «Продолжить» (region, filters, sort, the query itself) reliably disables
+the button instead of silently resuming a different search.
 
 ---
 
@@ -580,18 +579,20 @@ into `vacancy_leads` (§3.5) for a separate tab (§7.9). Module `vacancy-search/
 
 The public HTML search page, requested with the same `User-Agent` and `Accept` headers as the vacancy page
 (§4.1), `responseType: text`, redirects followed. Template (§3.6, `search_url_template`, edited in §7.9.4;
-default seeded by the migration):
+default seeded by the migrations):
 
 ```
-https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}
+https://ekaterinburg.hh.ru/search/vacancy?text=fullstack&salary=&ored_clusters=true&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}
 ```
 
-- `{text}` — the search string from settings (§3.6, `search_text`), edited on the frontend (§7.9) and
-  substituted via `encodeURIComponent`. `{page}` — `0, 1, 2, …`, substituted automatically. Both
-  placeholders are mandatory, together with an `https://` scheme and a host from the hh.ru allow-list
-  (§4.2) — validated on `PUT` (§5.7); a hand-corrupted row is caught fail-loud with a `500` when a run
-  reads it. The run reads the template in the same start-of-run snapshot as `search_text`, so a change
-  applies from the next run, and the saved resume position (§3.7) stays keyed on `search_text` only.
+- The query string (`text=…` and any other hh.ru search filter) is part of the URL the user pastes into
+  the dialog (§7.9.4) — it is not substituted by the backend. `{page}` — `0, 1, 2, …`, substituted
+  automatically, and is the only mandatory placeholder, together with an `https://` scheme and a host
+  from the hh.ru allow-list (§4.2) — validated on `PUT` (§5.7); a hand-corrupted row is caught fail-loud
+  with a `500` when a run reads it. A leftover `{text}`-looking substring is passed through to hh.ru
+  verbatim — no detection, no warning. The run reads the template in the same start-of-run snapshot, so
+  a change applies from the next run, and the saved resume position (§3.7) stays keyed on the template
+  itself.
 - **`order_by=publication_time` is mandatory in substance:** it gives "newest first", on which the early
   stop by age (§4.11.6) depends; with relevance sorting the rule never fires and a run always reaches
   `VACANCY_SCAN_MAX_PAGES`.
@@ -851,14 +852,15 @@ one: this is safe and cheap precisely because dedup (§4.11.5) now runs before t
 inserted from that page on the previous attempt is filtered out by the DB lookup before a single AI token is
 spent on it again.
 
-**A resume is only offered when it still matches.** `isResumablePosition` requires the saved `search_text`
-to equal the current settings' `search_text`, and `0 < next_page < VACANCY_SCAN_MAX_PAGES`. `search_text` is
-stored **with** the position (not re-read from `vacancy_search_settings` at resume time) so that editing the
-search string between saving a position and clicking «Продолжить» reliably disables the button instead of
-silently resuming a different search; `PUT /api/vacancy-search-settings` therefore also invalidates the
-frontend's scan-status cache (§7.9.4). Lowering `VACANCY_SCAN_MAX_PAGES` below a saved `next_page` after the
-fact self-heals on the next `FRESH` run: the loop body never executes, `stoppedReason` falls through to
-`MAX_PAGES`, and the position is cleared like any other exhaustion.
+**A resume is only offered when it still matches.** `isResumablePosition` requires the saved
+`search_url_template` to equal the current settings' `search_url_template`, and
+`0 < next_page < VACANCY_SCAN_MAX_PAGES`. `search_url_template` is stored **with** the position (not
+re-read from `vacancy_search_settings` at resume time) so that editing the results link between saving a
+position and clicking «Продолжить» reliably disables the button instead of silently resuming a different
+search; `PUT /api/vacancy-search-settings` therefore also invalidates the frontend's scan-status cache
+(§7.9.4). Lowering `VACANCY_SCAN_MAX_PAGES` below a saved `next_page` after the fact self-heals on the next
+`FRESH` run: the loop body never executes, `stoppedReason` falls through to `MAX_PAGES`, and the position
+is cleared like any other exhaustion.
 
 **Two start modes** travel in the `POST /scan` body (§5.7): `FRESH` (default, starts at page 0) and `RESUME`
 (starts at the saved `next_page`). Both still go through the same synchronous `tryStart()` check-and-set, so
@@ -1204,25 +1206,26 @@ pageProgress, stopRequested, resume, stoppedReason, message }`, where `progress`
 
 #### `GET /api/vacancy-search-settings`
 
-`200` — the single settings row (§3.6): `searchText`, `keywords[]`, `excludeKeywords[]`,
-`titlePrompt`, `descriptionPrompt`, `aiEnabled`, `searchUrlTemplate`
-(`"https://ekaterinburg.hh.ru/search/vacancy?text={text}&…&page={page}"`), `updatedAt`.
-`searchUrlTemplate` is an ordinary field of the row (§3.6), edited like the rest — served so the
-frontend can also preview the resulting URL as the search string is typed (§7.9.4).
+`200` — the single settings row (§3.6): `keywords[]`, `excludeKeywords[]`, `titlePrompt`,
+`descriptionPrompt`, `aiEnabled`, `searchUrlTemplate`
+(`"https://ekaterinburg.hh.ru/search/vacancy?text=fullstack&…&page={page}"`), `updatedAt`.
+`searchUrlTemplate` is an ordinary field of the row (§3.6), edited like the rest — the search
+query is part of this URL, not a separate field.
 
 #### `PUT /api/vacancy-search-settings`
 
 Body — every field except `updatedAt`. `PUT`, not `PATCH`: single-row resource, always sent whole.
-Validation (`400` on violation):
+A body containing `searchText` now `400`s — the field is gone, and the global
+`forbidNonWhitelisted` rejects unknown fields (§5.2 note above). Validation (`400` on violation):
 
-- `searchText` — 1…512, non-empty after `trim`;
 - `keywords` — non-empty array of non-empty strings;
 - `excludeKeywords` — array of strings, may be empty;
 - `titlePrompt` — **must** contain `{keywords}` and `{titles}` (§4.12.2);
 - `descriptionPrompt` — **must** contain `{keywords}` and `{description}`;
 - both prompts — no longer than 8000 characters;
-- `searchUrlTemplate` — 1…2048 characters, must contain `{text}` and `{page}`, and must parse as an
-  absolute `https://` URL whose host matches the hh.ru allow-list (§4.2).
+- `searchUrlTemplate` — 1…2048 characters, must contain `{page}` (not `{text}` — the search query
+  is already part of the pasted link), and must parse as an absolute `https://` URL whose host
+  matches the hh.ru allow-list (§4.2).
 
 Violations return `400` with a message prefixed by the field name (§5.5).
 
@@ -1419,8 +1422,8 @@ toggle; below it the `Alert` with run progress / last summary; below that the li
   from the saved position — label grows a page number, «Продолжить со страницы N», when known), «Остановить»
   (`POST /scan/stop`). Each sends its request and **does not wait** (§4.11.9): `202` returns at once. While
   a run is `RUNNING`, «Начать» and «Продолжить» are disabled; «Продолжить» is additionally disabled whenever
-  `resume.available` is `false` (no saved position, or one that no longer matches the current `searchText`,
-  §4.11.12); «Остановить» is enabled only while `RUNNING` and not yet `stopRequested`, and shows a pending
+  `resume.available` is `false` (no saved position, or one that no longer matches the current
+  `searchUrlTemplate`, §4.11.12); «Остановить» is enabled only while `RUNNING` and not yet `stopRequested`, and shows a pending
   label once clicked. `GET …/scan/status` is polled every 2 s (`refetchInterval`, dropped once status is not
   `RUNNING`); polling replaces WebSocket/SSE, which the project does not have (§12).
 - The same `Alert` shows progress and the final summary: during the run a page line «страница 18 из 40»
@@ -1447,16 +1450,15 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 
 «⚙ Настройки поиска» opens a `Dialog`:
 
-- **Строка поиска** (`searchText`) — substituted into `{text}` of the link (§4.11.1).
-  **Ключевые слова** and **стоп-слова** — comma-separated inputs (no `Chip` editor).
+- **Ключевые слова** and **стоп-слова** — comma-separated inputs (no `Chip` editor).
 - **Ссылка на выдачу hh.ru** (`searchUrlTemplate`) — an editable multiline `TextField` with a hint
-  about the mandatory placeholders `{text}`/`{page}` and a «Вернуть ссылку по умолчанию» button;
-  below it a read-only preview of the resulting first-page URL (`{text}` URL-encoded, `{page}` → `0`).
+  about the mandatory placeholder `{page}` and a «Вернуть ссылку по умолчанию» button; the search
+  query is part of this pasted link, so there is no separate query field and no first-page preview.
 - **Промпт для названия** and **промпт для описания** — multiline fields with a hint about the available placeholders (§4.12.2) and a
   «Вернуть промпт по умолчанию» button. **«Использовать ИИ-отбор»** (`aiEnabled`): off means keyword screening and no description fetch.
 - Saving — `PUT /api/vacancy-search-settings` in full; validation errors (`400`, in particular a missing placeholder) are shown under the
   corresponding field, not as a general notification. After saving — invalidate the settings key **and** the scan-status key
-  (§4.11.12): `resume.available` depends on `searchText`, so a saved change must immediately disable a now-stale «Продолжить». A
+  (§4.11.12): `resume.available` depends on `searchUrlTemplate`, so a saved change must immediately disable a now-stale «Продолжить». A
   running run is unaffected — it works off the settings snapshot taken at its own start (§5.7).
 
 ## 8. Configuration (env)
@@ -1830,8 +1832,8 @@ non-existent vacancy (`"initialVacancy":null`, HTTP `200`): `outcome = NOT_FOUND
 
 **Vacancy search (§4.11, §4.12, §5.7, §7.9)** 23. The «Вакансии» tab sits next to «Отклики»; tab
 switching breaks no §13.10.x item, and an unsaved field edit is saved on leaving. 24. «Настройки
-поиска» edits the query string, keywords, exclude keywords and both prompts; the URL preview shows the
-substituted `{text}`; a prompt missing its required placeholder is rejected `400` with a message under
+поиска» edits the results link (`searchUrlTemplate`), keywords, exclude keywords and both prompts;
+a prompt missing its required placeholder is rejected `400` with a message under
 that field. 25. «🔎 Найти вакансии» answers instantly (`202`), the button disables, progress refreshes
 every 2 s, the list grows on completion without a reload. 26. A second start during a run answers
 `409` plus an info notification. 27. A repeat run right after the first creates `0`: `created = 0`,

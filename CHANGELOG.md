@@ -6,6 +6,21 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**36. The search query lives in the results link.** _(backend + frontend)_
+`search_text` is dropped from `vacancy_search_settings` and re-based to `search_url_template`
+on `vacancy_scan_position` (migration `RemoveVacancySearchText`, which folds the old search text
+into the stored URL — the first `{text}` occurrence is replaced by the URL-encoded value — so an
+upgraded install queries hh.ru exactly as before and keeps a still-valid resume point). `{text}`
+is no longer a placeholder anywhere: `buildHhSearchUrl` substitutes `{page}` only, and a leftover
+`{text}`-looking substring passes through to hh.ru verbatim rather than being touched.
+`PUT /api/vacancy-search-settings` no longer accepts `searchText` (`400` via the global
+`forbidNonWhitelisted`) and validates `{page}` only. Resume (§4.11.12) is now invalidated by a
+change of the results link (`isResumablePosition` compares `search_url_template`) rather than of
+a separate search string. The «Настройки поиска» dialog loses the «Текст поиска» field and the
+first-page URL preview; focus moves to «Ссылка на выдачу hh.ru», whose hint now mentions only
+`{page}`. The application also opens on the «Вакансии» tab now (`DEFAULT_APP_TAB`) — that screen
+is where a session starts in practice.
+
 **35. Applying to a lead creates an application.** _(backend + frontend)_
 `POST /api/vacancy-leads/:id/apply` (§5.7) reuses `ApplicationsService.create()` verbatim — same
 §4.2 `vacancy_source`/`vacancy_external_id` resolution, same §4.4/§4.10 post-insert logo download —

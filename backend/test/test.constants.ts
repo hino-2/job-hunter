@@ -121,12 +121,13 @@ export const TEST_HH_MAX_REQUESTS_PER_SECOND = '50';
 /**
  * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу теперь колонка
  * vacancy_search_settings.search_url_template, а не env — через
- * applyTestEnvironment() её больше не подставить. API отклоняет loopback-хост
- * намеренно (allow-list hh.ru, §4.2), поэтому будущий e2e прогона поиска обязан
- * установить это значение прямой SQL-командой (dataSource.query(UPDATE …)) на
- * строку настроек, а не через PUT.
+ * applyTestEnvironment() её больше не подставить. Поисковый запрос — часть самой
+ * ссылки (text=fullstack), единственный плейсхолдер — {page}. API отклоняет
+ * loopback-хост намеренно (allow-list hh.ru, §4.2), поэтому будущий e2e прогона
+ * поиска обязан установить это значение прямой SQL-командой
+ * (dataSource.query(UPDATE …)) на строку настроек, а не через PUT.
  */
-export const TEST_HH_SEARCH_URL_TEMPLATE = `${HH_STUB_BASE_URL}/search/vacancy?text={text}&page={page}`;
+export const TEST_HH_SEARCH_URL_TEMPLATE = `${HH_STUB_BASE_URL}/search/vacancy?text=fullstack&page={page}`;
 
 /** Node отдаёт имена входящих заголовков в нижнем регистре. */
 export const USER_AGENT_HEADER_NAME = 'user-agent';

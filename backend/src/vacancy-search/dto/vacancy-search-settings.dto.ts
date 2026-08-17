@@ -3,7 +3,6 @@ import type { VacancySearchSettings } from '../vacancy-search-settings.entity';
 
 /** Ответ GET/PUT /api/vacancy-search-settings (§5.7). */
 export class VacancySearchSettingsDto {
-  searchText!: string;
   keywords!: string[];
   excludeKeywords!: string[];
   titlePrompt!: string;
@@ -16,7 +15,6 @@ export class VacancySearchSettingsDto {
   static fromEntity(entity: VacancySearchSettings): VacancySearchSettingsDto {
     const dto = new VacancySearchSettingsDto();
 
-    dto.searchText = entity.searchText;
     dto.keywords = parseKeywordList(entity.keywords);
     dto.excludeKeywords = parseKeywordList(entity.excludeKeywords);
     dto.titlePrompt = entity.titlePrompt;

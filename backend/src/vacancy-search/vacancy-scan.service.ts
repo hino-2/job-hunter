@@ -155,7 +155,7 @@ export class VacancyScanService {
     if (mode === 'RESUME') {
       const position = await this.position.load();
 
-      if (!isResumablePosition(position, settings.searchText, this.maxPages)) {
+      if (!isResumablePosition(position, settings.searchUrlTemplate, this.maxPages)) {
         throw new ConflictException(VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE);
       }
 
@@ -203,7 +203,7 @@ export class VacancyScanService {
     try {
       // startPage === 0 заодно стирает позицию прошлого прогона: свежий прогон,
       // умерший на нулевой странице, не должен оставлять после себя нечего продолжать.
-      await this.position.save(startPage, settings.searchText);
+      await this.position.save(startPage, settings.searchUrlTemplate);
 
       const deadlineAt = Date.now() + this.maxDurationMs;
       const ageCutoffMs = Date.now() - this.maxAgeDays * MS_IN_DAY;
@@ -233,7 +233,6 @@ export class VacancyScanService {
 
         const pageResult = await this.hhSearch.fetchSearchPage({
           searchUrlTemplate: settings.searchUrlTemplate,
-          searchText: settings.searchText,
           page,
         });
 
@@ -277,7 +276,7 @@ export class VacancyScanService {
         // Страница обработана целиком — сохраняем позицию ДО следующей: SIGKILL
         // между страницами не должен стоить больше одной страницы (§4.11.12).
         resumePage = page + 1;
-        await this.position.save(resumePage, settings.searchText);
+        await this.position.save(resumePage, settings.searchUrlTemplate);
       }
 
       stoppedReason = outcome ?? SCAN_STOPPED_REASON.MAX_PAGES;
@@ -291,7 +290,7 @@ export class VacancyScanService {
       if (isExhaustedStop(stoppedReason)) {
         await this.position.clear();
       } else {
-        await this.position.save(resumePage, settings.searchText);
+        await this.position.save(resumePage, settings.searchUrlTemplate);
       }
 
       this.state.finish(stoppedReason, message);

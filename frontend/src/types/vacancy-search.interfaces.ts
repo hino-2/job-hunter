@@ -127,11 +127,10 @@ export interface ScanStatusResponse {
 
 /**
  * Ответ GET/PUT /api/vacancy-search-settings (§3.6, §5.7). searchUrlTemplate — обычное
- * поле настроек, редактируемое в диалоге (§7.9.4), а не значение env; используется
- * и для предпросмотра итогового URL при наборе строки поиска.
+ * поле настроек, редактируемое в диалоге (§7.9.4), а не значение env; уже содержит
+ * собственный текст поиска (query-параметр text= выдачи hh.ru), а не значение env.
  */
 export interface VacancySearchSettings {
-  searchText: string;
   keywords: string[];
   excludeKeywords: string[];
   titlePrompt: string;
@@ -146,7 +145,6 @@ export interface VacancySearchSettings {
  * форма всегда отправляет его целиком (ресурс один).
  */
 export interface VacancySearchSettingsUpdate {
-  searchText: string;
   keywords: string[];
   excludeKeywords: string[];
   titlePrompt: string;

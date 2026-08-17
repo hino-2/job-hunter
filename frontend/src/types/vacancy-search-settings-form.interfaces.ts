@@ -4,7 +4,6 @@
  * форма хранит их иначе, чем VacancySearchSettings хранит массивы.
  */
 export interface SearchSettingsFormValues {
-  searchText: string;
   keywordsText: string;
   excludeKeywordsText: string;
   titlePrompt: string;

@@ -4,7 +4,7 @@ import { COLUMN_TYPE } from '../database/database.constants';
 import {
   VACANCY_SCAN_POSITION_COLUMN,
   VACANCY_SCAN_POSITION_ID_CHECK,
-  VACANCY_SCAN_POSITION_SEARCH_TEXT_LENGTH,
+  VACANCY_SCAN_POSITION_SEARCH_URL_TEMPLATE_LENGTH,
   VACANCY_SCAN_POSITION_SINGLETON_ID,
   VACANCY_SCAN_POSITION_TABLE,
 } from './vacancy-search.constants';
@@ -42,18 +42,15 @@ export class VacancyScanPosition {
   })
   nextPage!: number;
 
-  /**
-   * §4.11.12: текст поиска, при котором позиция была сохранена — «Продолжить»
-   * доступно, только пока он совпадает с текущими настройками (isResumablePosition,
-   * vacancy-scan-position.helpers.ts). null, пока ни одного прогона ещё не было.
-   */
+  /** §4.11.12: ссылка на выдачу, при которой позиция была сохранена — «Продолжить»
+   *  доступно, только пока она совпадает с текущими настройками. null — прогонов ещё не было. */
   @Column({
     type: COLUMN_TYPE.VARCHAR,
-    name: VACANCY_SCAN_POSITION_COLUMN.SEARCH_TEXT,
-    length: VACANCY_SCAN_POSITION_SEARCH_TEXT_LENGTH,
+    name: VACANCY_SCAN_POSITION_COLUMN.SEARCH_URL_TEMPLATE,
+    length: VACANCY_SCAN_POSITION_SEARCH_URL_TEMPLATE_LENGTH,
     nullable: true,
   })
-  searchText!: string | null;
+  searchUrlTemplate!: string | null;
 
   @UpdateDateColumn({
     type: COLUMN_TYPE.TIMESTAMPTZ,

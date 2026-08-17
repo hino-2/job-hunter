@@ -70,8 +70,8 @@ export class HhSearchService {
   readonly acquireRequestSlot = (): Promise<void> => this.throttle.acquire();
 
   fetchSearchPage(request: HhSearchPageRequest): Promise<HhSearchPageResult> {
-    const { searchUrlTemplate, searchText, page } = request;
-    const url = buildHhSearchUrl(searchUrlTemplate, searchText, page);
+    const { searchUrlTemplate, page } = request;
+    const url = buildHhSearchUrl(searchUrlTemplate, page);
 
     return fetchWithRetries<HhSearchPageResult>(
       {

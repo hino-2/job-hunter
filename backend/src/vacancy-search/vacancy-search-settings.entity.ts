@@ -4,7 +4,6 @@ import { COLUMN_TYPE } from '../database/database.constants';
 import {
   VACANCY_SEARCH_SETTINGS_COLUMN,
   VACANCY_SEARCH_SETTINGS_ID_CHECK,
-  VACANCY_SEARCH_SETTINGS_SEARCH_TEXT_LENGTH,
   VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH,
   VACANCY_SEARCH_SETTINGS_SINGLETON_ID,
   VACANCY_SEARCH_SETTINGS_TABLE,
@@ -31,18 +30,11 @@ export class VacancySearchSettings {
   })
   id!: number;
 
-  /** §4.11.1: подставляется в {text} шаблона ссылки, URL-энкодится при сборке. */
-  @Column({
-    type: COLUMN_TYPE.VARCHAR,
-    name: VACANCY_SEARCH_SETTINGS_COLUMN.SEARCH_TEXT,
-    length: VACANCY_SEARCH_SETTINGS_SEARCH_TEXT_LENGTH,
-  })
-  searchText!: string;
-
   /**
    * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу hh.ru — обычная колонка, а не env.
-   * Обязаны быть плейсхолдеры {text}/{page}, хост — из allow-list hh.ru
-   * (проверяется при PUT и, ещё раз fail-loud, при чтении снимка на старте прогона).
+   * Поисковый запрос — часть самой ссылки (свой text=… у пользователя), плейсхолдер
+   * обязателен только один — {page}; хост — из allow-list hh.ru (проверяется при
+   * PUT и, ещё раз fail-loud, при чтении снимка на старте прогона).
    */
   @Column({
     type: COLUMN_TYPE.VARCHAR,

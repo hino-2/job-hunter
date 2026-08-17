@@ -126,18 +126,18 @@ export const HH_FORBIDDEN_MESSAGE =
 
 export const HH_TRANSPORT_ERROR_MESSAGE = 'Запрос к hh.ru не выполнен';
 
-/** §4.11.1: плейсхолдеры шаблона ссылки на выдачу — подставляются buildHhSearchUrl. */
-export const HH_SEARCH_TEXT_PLACEHOLDER = '{text}';
+/** §4.11.1: единственный плейсхолдер шаблона ссылки на выдачу — подставляется buildHhSearchUrl. */
 export const HH_SEARCH_PAGE_PLACEHOLDER = '{page}';
 
 /**
- * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу — теперь колонка
- * vacancy_search_settings.search_url_template, а не env. Оба плейсхолдера
- * обязательны (без {page} прогон читал бы первую страницу бесконечно) —
- * проверяются при PUT (vacancy-search/) и здесь же переиспользуются
- * hasHhSearchUrlPlaceholders для fail-loud проверки на старте прогона.
+ * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу — колонка
+ * vacancy_search_settings.search_url_template, а не env. Поисковый запрос теперь
+ * часть самой ссылки (пользователь вставляет уже готовый URL выдачи hh.ru со своим
+ * query-параметром text=…) — плейсхолдером остаётся только {page}, и он обязателен
+ * (без него прогон читал бы первую страницу бесконечно). Проверяется при PUT
+ * (vacancy-search/) и здесь же переиспользуется hasHhSearchPagePlaceholder для
+ * fail-loud проверки на старте прогона.
  */
-export const HH_SEARCH_URL_TEXT_PLACEHOLDER_PATTERN = /\{text\}/;
 export const HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN = /\{page\}/;
 
 /** §5.7: шаблон обязан быть абсолютным https:// URL — иначе SSRF через PUT настроек. */

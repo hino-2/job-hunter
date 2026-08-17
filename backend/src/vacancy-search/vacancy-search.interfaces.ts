@@ -10,7 +10,6 @@ import type { MatchSource, ScanStatus, ScanStoppedReason } from './vacancy-searc
  * половина другим.
  */
 export interface VacancySearchSettingsSnapshot {
-  searchText: string;
   keywords: string[];
   excludeKeywords: string[];
   titlePrompt: string;
@@ -64,10 +63,10 @@ export interface VacancyScanPageProgress {
   totalPages: number;
 }
 
-/** §3.7: сохранённая позиция прогона и текст поиска, при котором она была взята. */
+/** §3.7: сохранённая позиция прогона и ссылка на выдачу, при которой она была взята. */
 export interface VacancyScanPositionSnapshot {
   nextPage: number;
-  searchText: string | null;
+  searchUrlTemplate: string | null;
 }
 
 /** §5.7, §4.11.12: можно ли продолжить прогон с сохранённой позиции. */

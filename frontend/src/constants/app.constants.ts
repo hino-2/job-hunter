@@ -15,6 +15,6 @@ export const APP_TAB_LABELS: Record<AppTab, string> = {
   vacancies: 'Вакансии',
 };
 
-export const DEFAULT_APP_TAB: AppTab = APP_TAB.APPLICATIONS;
+export const DEFAULT_APP_TAB: AppTab = APP_TAB.VACANCIES;
 
 export const APP_TABS_ARIA_LABEL = 'Разделы приложения';

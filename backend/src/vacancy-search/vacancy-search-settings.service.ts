@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { hasHhSearchUrlPlaceholders, isAllowedHhSearchUrlOrigin } from '../hh/hh-search-url.helpers';
+import { hasHhSearchPagePlaceholder, isAllowedHhSearchUrlOrigin } from '../hh/hh-search-url.helpers';
 import type { UpdateVacancySearchSettingsDto } from './dto/update-vacancy-search-settings.dto';
 import { parseKeywordList } from './vacancy-keywords.helpers';
 import { VacancySearchSettings } from './vacancy-search-settings.entity';
@@ -49,7 +49,7 @@ export class VacancySearchSettingsService {
    * §5.7: снимок с уже разобранными списками ключевых/стоп-слов — читает конвейор
    * поиска (§4.11.4, шаг B6) ровно один раз при старте прогона.
    *
-   * searchUrlTemplate проверяется здесь же fail-loud (плейсхолдеры + https-хост
+   * searchUrlTemplate проверяется здесь же fail-loud (плейсхолдер {page} + https-хост
    * hh.ru): PUT уже не пускает в БД ничего другого, но строку можно испортить
    * прямой правкой SQL — тогда лучше явная 500 при старте прогона, чем 40 запросов
    * подряд по странице 0 или тихий уход куда-то не туда. Значение НЕ логируется —
@@ -59,19 +59,18 @@ export class VacancySearchSettingsService {
     const entity = await this.find();
 
     if (
-      !hasHhSearchUrlPlaceholders(entity.searchUrlTemplate) ||
+      !hasHhSearchPagePlaceholder(entity.searchUrlTemplate) ||
       !isAllowedHhSearchUrlOrigin(entity.searchUrlTemplate)
     ) {
       this.logger.error(
-        'Шаблон ссылки на выдачу hh.ru в настройках повреждён: нет плейсхолдеров' +
-          ' {text}/{page} либо хост не входит в allow-list hh.ru',
+        'Шаблон ссылки на выдачу hh.ru в настройках повреждён: нет плейсхолдера' +
+          ' {page} либо хост не входит в allow-list hh.ru',
       );
 
       throw new InternalServerErrorException(VACANCY_SEARCH_SETTINGS_INVALID_URL_TEMPLATE_MESSAGE);
     }
 
     return {
-      searchText: entity.searchText,
       keywords: parseKeywordList(entity.keywords),
       excludeKeywords: parseKeywordList(entity.excludeKeywords),
       titlePrompt: entity.titlePrompt,
@@ -85,7 +84,6 @@ export class VacancySearchSettingsService {
   async update(dto: UpdateVacancySearchSettingsDto): Promise<VacancySearchSettings> {
     const entity = await this.find();
 
-    entity.searchText = dto.searchText;
     entity.keywords = dto.keywords.join(KEYWORD_LIST_JOIN_SEPARATOR);
     entity.excludeKeywords =
       dto.excludeKeywords.length > 0 ? dto.excludeKeywords.join(KEYWORD_LIST_JOIN_SEPARATOR) : null;

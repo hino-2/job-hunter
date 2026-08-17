@@ -8,19 +8,20 @@ import type { ScanStoppedReason } from './vacancy-search.type';
  * зависимостей у неё нет, провайдер заставил бы обоих потребителей импортировать
  * лишний модуль.
  *
- * §4.11.12: «Продолжить» доступно только если позиция сохранена при ТОМ ЖЕ тексте
- * поиска, что действует сейчас (иначе смена searchText молча продолжила бы старую
- * выдачу), и указывает на страницу внутри текущего бюджета VACANCY_SCAN_MAX_PAGES
- * (бюджет мог быть уменьшен после сохранения позиции).
+ * §4.11.12: «Продолжить» доступно только если позиция сохранена при ТОЙ ЖЕ ссылке
+ * на выдачу, что действует сейчас (иначе смена searchUrlTemplate — региона,
+ * фильтров, сортировки, самого запроса — молча продолжила бы старую выдачу), и
+ * указывает на страницу внутри текущего бюджета VACANCY_SCAN_MAX_PAGES (бюджет мог
+ * быть уменьшен после сохранения позиции).
  */
 export function isResumablePosition(
   position: VacancyScanPositionSnapshot,
-  currentSearchText: string,
+  currentSearchUrlTemplate: string,
   maxPages: number,
 ): boolean {
   return (
-    position.searchText !== null &&
-    position.searchText === currentSearchText &&
+    position.searchUrlTemplate !== null &&
+    position.searchUrlTemplate === currentSearchUrlTemplate &&
     position.nextPage > 0 &&
     position.nextPage < maxPages
   );

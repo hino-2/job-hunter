@@ -194,7 +194,7 @@ export const SCAN_STOP_ERROR_FALLBACK_MESSAGE = 'Не удалось остан�
 /** §7.9.2: индикатор «страница N из M» (pageProgress, §4.11.12). */
 export const SCAN_PAGE_PROGRESS_PREFIX = 'страница';
 export const SCAN_PAGE_PROGRESS_SEPARATOR = ' из ';
-/** currentPage приходит 0-based (совпадает с {page} в HH_SEARCH_URL_TEMPLATE) — смещение к человеческому номеру. */
+/** currentPage приходит 0-based (совпадает с {page} шаблона ссылки на выдачу) — смещение к человеческому номеру. */
 export const SCAN_PAGE_NUMBER_OFFSET = 1;
 export const SCAN_PROGRESS_PERCENT_SCALE = 100;
 
@@ -223,7 +223,6 @@ export const SETTINGS_SAVE_ERROR_FALLBACK_MESSAGE = 'Не удалось сох�
 export const SETTINGS_LOAD_ERROR_MESSAGE = 'Не удалось загрузить настройки поиска';
 export const RESET_PROMPT_LABEL = 'Вернуть промпт по умолчанию';
 
-export const SEARCH_TEXT_LABEL = 'Текст поиска';
 export const KEYWORDS_LABEL = 'Ключевые слова';
 export const EXCLUDE_KEYWORDS_LABEL = 'Слова-исключения';
 export const TITLE_PROMPT_LABEL = 'Промпт для оценки названия';
@@ -231,10 +230,9 @@ export const DESCRIPTION_PROMPT_LABEL = 'Промпт для оценки опи
 export const AI_ENABLED_LABEL = 'Использовать ИИ-отбор';
 export const AI_ENABLED_DESCRIPTION =
   'При выключении работает отбор по ключевым словам, а описания вакансий не загружаются';
-export const URL_PREVIEW_LABEL = 'Первая страница поиска на hh.ru';
 export const SEARCH_URL_TEMPLATE_LABEL = 'Ссылка на выдачу hh.ru';
 export const SEARCH_URL_TEMPLATE_HINT =
-  'Обязательные плейсхолдеры: {text}, {page}. Только https и домены hh.ru';
+  'Обязательный плейсхолдер: {page}. Только https и домены hh.ru';
 export const RESET_SEARCH_URL_TEMPLATE_LABEL = 'Вернуть ссылку по умолчанию';
 
 export const TITLE_PROMPT_HINT = 'Обязательные плейсхолдеры: {keywords}, {titles}';
@@ -247,7 +245,6 @@ export const KEYWORDS_HINT = 'Через запятую';
  * (§3.6, §5.7): заведомо невалидные значения на сервер не отправляются вовсе (§10),
  * поле показывает error/helperText вместо гарантированного 400.
  */
-export const SEARCH_TEXT_MAX_LENGTH = 512;
 export const PROMPT_MAX_LENGTH = 8000;
 
 /** Ручная копия VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH бэкенда (ширина колонки). */
@@ -257,15 +254,9 @@ export const PLACEHOLDER_KEYWORDS_PATTERN = /\{keywords\}/;
 export const PLACEHOLDER_TITLES_PATTERN = /\{titles\}/;
 export const PLACEHOLDER_DESCRIPTION_PATTERN = /\{description\}/;
 
-/** §5.7: ручная копия HH_SEARCH_URL_*_PLACEHOLDER_PATTERN бэкенда (hh/hh.constants.ts). */
-export const SEARCH_URL_TEMPLATE_TEXT_PLACEHOLDER_PATTERN = /\{text\}/;
+/** §5.7: ручная копия HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN бэкенда (hh/hh.constants.ts). */
 export const SEARCH_URL_TEMPLATE_PAGE_PLACEHOLDER_PATTERN = /\{page\}/;
 
-/** §4.11.1: подставляется в searchUrlTemplate вместо буквального `{text}`. */
-export const SEARCH_URL_TEMPLATE_PLACEHOLDER = '{text}';
-export const SEARCH_URL_PAGE_PLACEHOLDER = '{page}';
-/** §7.9.4: блок подписан «Первая страница поиска» — предпросмотр всегда собирает страницу 0. */
-export const SEARCH_URL_PREVIEW_PAGE = '0';
 /** Ручная копия HH_SEARCH_URL_ALLOWED_PROTOCOL бэкенда (hh/hh.constants.ts). */
 export const SEARCH_URL_TEMPLATE_HTTPS_PREFIX = 'https:';
 
@@ -273,8 +264,6 @@ export const SEARCH_URL_TEMPLATE_HTTPS_PREFIX = 'https:';
 export const KEYWORD_LIST_SEPARATOR = ',';
 export const KEYWORD_LIST_JOIN_SEPARATOR = ', ';
 
-export const SEARCH_TEXT_REQUIRED_MESSAGE = 'Введите текст поиска';
-export const SEARCH_TEXT_TOO_LONG_MESSAGE = `Не длиннее ${SEARCH_TEXT_MAX_LENGTH} символов`;
 export const KEYWORDS_REQUIRED_MESSAGE = 'Укажите хотя бы одно ключевое слово';
 export const PROMPT_REQUIRED_MESSAGE = 'Введите текст промпта';
 export const PROMPT_TOO_LONG_MESSAGE = `Не длиннее ${PROMPT_MAX_LENGTH} символов`;
@@ -285,8 +274,7 @@ export const DESCRIPTION_PROMPT_MISSING_PLACEHOLDERS_MESSAGE =
 
 export const SEARCH_URL_TEMPLATE_REQUIRED_MESSAGE = 'Введите ссылку на выдачу';
 export const SEARCH_URL_TEMPLATE_TOO_LONG_MESSAGE = `Не длиннее ${SEARCH_URL_TEMPLATE_MAX_LENGTH} символов`;
-export const SEARCH_URL_TEMPLATE_MISSING_PLACEHOLDERS_MESSAGE =
-  'Ссылка обязана содержать {text} и {page}';
+export const SEARCH_URL_TEMPLATE_MISSING_PAGE_PLACEHOLDER_MESSAGE = 'Ссылка обязана содержать {page}';
 export const SEARCH_URL_TEMPLATE_INVALID_MESSAGE = 'Нужна полная ссылка, начинающаяся с https://';
 
 /**
@@ -295,7 +283,6 @@ export const SEARCH_URL_TEMPLATE_INVALID_MESSAGE = 'Нужна полная сс
  * нужны кнопке «Вернуть промпт по умолчанию» (§7.9.4). Текст промптов — verbatim,
  * менять только вместе с миграцией.
  */
-export const DEFAULT_SEARCH_TEXT = 'fullstack';
 export const DEFAULT_KEYWORDS_TEXT =
   'fullstack, full-stack, full stack, node.js, nodejs, react, typescript';
 export const DEFAULT_EXCLUDE_KEYWORDS_TEXT = '1С, 1C, php, java, стажёр, стажер, junior';
@@ -316,9 +303,9 @@ export const DEFAULT_AI_ENABLED = false;
 
 /**
  * Дословная копия дефолтного шаблона ссылки из миграции
- * backend/src/database/migrations/1787100000000-AddVacancySearchUrlTemplate.ts,
+ * backend/src/database/migrations/1787200000000-RemoveVacancySearchText.ts,
  * нужна кнопке «Вернуть ссылку по умолчанию» (§7.9.4). Менять только вместе с миграцией.
  */
 export const DEFAULT_SEARCH_URL_TEMPLATE =
-  'https://ekaterinburg.hh.ru/search/vacancy?text={text}&salary=&ored_clusters=true' +
+  'https://ekaterinburg.hh.ru/search/vacancy?text=fullstack&salary=&ored_clusters=true' +
   '&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}';

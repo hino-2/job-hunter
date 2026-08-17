@@ -122,7 +122,7 @@ export class VacancyLeadsController {
       this.settingsService.getSnapshot(),
     ]);
 
-    const available = isResumablePosition(position, settings.searchText, this.maxPages);
+    const available = isResumablePosition(position, settings.searchUrlTemplate, this.maxPages);
     const resume: VacancyScanResumeState = {
       available,
       nextPage: available ? position.nextPage : null,
