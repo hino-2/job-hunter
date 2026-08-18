@@ -1,5 +1,4 @@
-import { Box, FormControl, InputLabel, MenuItem, Select, Stack, TextField } from '@mui/material';
-import type { SelectChangeEvent } from '@mui/material';
+import { Box, Stack, TextField } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import type { DateTimeValidationError, PickerChangeHandlerContext } from '@mui/x-date-pickers';
 import type { Dayjs } from 'dayjs';
@@ -8,10 +7,6 @@ import type { ChangeEvent } from 'react';
 
 import {
   APPLICATION_FIELD_LABELS,
-  APPLICATION_RESULT_LABELS,
-  APPLICATION_RESULT_ORDER,
-  APPLICATION_STATUS_LABELS,
-  APPLICATION_STATUS_ORDER,
   COMPANY_MAX_LENGTH,
   COMPANY_REQUIRED_MESSAGE,
   EMPLOYER_CONTACT_MAX_LENGTH,
@@ -34,14 +29,9 @@ import {
   PICKER_FIELD_SLOT_PROPS,
   PICKER_TEXT_FIELD_SLOT_PROPS,
 } from '../../constants/pickers.constants';
-import type {
-  ApplicationResult,
-  ApplicationStatus,
-  EditableTextField,
-} from '../../types/application.type';
+import type { EditableTextField } from '../../types/application.type';
 import { readTextFieldValue } from '../../utils/application.utils';
 import { isCommittableDate, toDayjsOrNull, toIsoOrNull } from '../../utils/date.utils';
-import { RESULT_LABEL_ID_SUFFIX, STATUS_LABEL_ID_SUFFIX } from './application-fields.constants';
 import type { ApplicationFieldsProps } from './application-fields.interfaces';
 import { FieldCell } from '../FieldCell/FieldCell';
 import { UrlField } from '../UrlField/UrlField';
@@ -66,8 +56,6 @@ export const ApplicationFields = memo(function ApplicationFields({
   handlers,
 }: ApplicationFieldsProps) {
   const { id } = application;
-  const statusLabelId = `${id}${STATUS_LABEL_ID_SUFFIX}`;
-  const resultLabelId = `${id}${RESULT_LABEL_ID_SUFFIX}`;
   const company = readTextFieldValue(application, 'company');
   const isCompanyEmpty = company.trim().length === 0;
 
@@ -82,14 +70,6 @@ export const ApplicationFields = memo(function ApplicationFields({
 
   const blurText = (field: EditableTextField) => () => {
     handlers.blurText(id, field);
-  };
-
-  const handleStatusChange = (event: SelectChangeEvent<ApplicationStatus>) => {
-    handlers.commit(id, { status: event.target.value });
-  };
-
-  const handleResultChange = (event: SelectChangeEvent<ApplicationResult>) => {
-    handlers.commit(id, { result: event.target.value });
   };
 
   const handleHrInterviewChange = (
@@ -176,42 +156,6 @@ export const ApplicationFields = memo(function ApplicationFields({
             onValueChange={changeUrl('resumeUrl')}
             onBlur={blurText('resumeUrl')}
           />
-        </FieldCell>
-
-        <FieldCell flex={FIELD_FLEX.status} isSaved={savedFields.has('status')}>
-          <FormControl fullWidth>
-            <InputLabel id={statusLabelId}>{APPLICATION_FIELD_LABELS.status}</InputLabel>
-            <Select<ApplicationStatus>
-              labelId={statusLabelId}
-              label={APPLICATION_FIELD_LABELS.status}
-              value={application.status}
-              onChange={handleStatusChange}
-            >
-              {APPLICATION_STATUS_ORDER.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {APPLICATION_STATUS_LABELS[status]}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </FieldCell>
-
-        <FieldCell flex={FIELD_FLEX.result} isSaved={savedFields.has('result')}>
-          <FormControl fullWidth>
-            <InputLabel id={resultLabelId}>{APPLICATION_FIELD_LABELS.result}</InputLabel>
-            <Select<ApplicationResult>
-              labelId={resultLabelId}
-              label={APPLICATION_FIELD_LABELS.result}
-              value={application.result}
-              onChange={handleResultChange}
-            >
-              {APPLICATION_RESULT_ORDER.map((result) => (
-                <MenuItem key={result} value={result}>
-                  {APPLICATION_RESULT_LABELS[result]}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
         </FieldCell>
 
         <FieldCell flex={FIELD_FLEX.hrInterviewAt} isSaved={savedFields.has('hrInterviewAt')}>

@@ -6,6 +6,28 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**41. The «Статус» Select moved into the collapsed header as well.** _(frontend)_
+The mirror of step 40 for the second `Select`: the status `Chip` in `ApplicationSummaryRow` became a
+`FieldCell` + `Select`, and `ApplicationFields` lost its status cell. Both header `Select`s share one
+`handleSelectClick` stopping click propagation. `STATUS_LABEL_ID_SUFFIX` moved to
+`application-summary-row.constants.ts` and the flex basis to `SUMMARY_FLEX.status`;
+`ApplicationFields/application-fields.constants.ts` is deleted — it held nothing else. The expanded rows
+are now text fields, links and dates only, so `ApplicationFields` no longer imports `FormControl`,
+`InputLabel`, `MenuItem` or `Select`. Both the header row and the create dialog's field `Stack` got 8px
+of vertical breathing room (`CONTROL_BLOCK_MARGIN_Y`) so a field outline and the §7.3 saved ring are not
+clipped by the container edge.
+
+**40. The «Результат» Select moved from the expanded fields into the collapsed header.** _(frontend)_
+`ApplicationSummaryRow` now renders the result `Select` inside a `FieldCell` where the read-only result
+`Chip` used to be, and `ApplicationFields` no longer holds that cell — the result is editable without
+expanding a record. The row therefore takes `isResultSaved` and `handlers` on top of `application` — a
+plain boolean derived by `ApplicationAccordion` from its per-id `savedFields`, not the `Set` itself, so
+`memo` on the header does not re-render on every autosave of a field it does not show.
+`RESULT_LABEL_ID_SUFFIX` moved to `application-summary-row.constants.ts` and the flex basis from
+`FIELD_FLEX.result` to `SUMMARY_FLEX.result`. The `FormControl` root stops click propagation: a click on
+the Select — or on an item of its menu, which portals to `body` but still bubbles through the React
+tree — must not toggle the accordion. `APPLICATION_RESULT_CHIP_COLORS` is now unused by the header.
+
 **39. Turquoise accent on the header title and the active tab.** _(frontend)_
 `ACCENT_COLOR = '#86E4E1'` (`constants/theme.constants.ts`) colours the «Job Hunter» title and the
 selected `Tab` together with its indicator, via `MuiTabs.indicator` / `MuiTab.root['&.Mui-selected']`

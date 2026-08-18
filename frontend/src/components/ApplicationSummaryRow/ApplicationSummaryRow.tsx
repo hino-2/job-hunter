@@ -6,23 +6,31 @@ import {
   Button,
   Chip,
   CircularProgress,
+  FormControl,
   IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
   Tooltip,
   Typography,
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material';
 import { memo } from 'react';
 import type { MouseEvent } from 'react';
 
 import { APPLICATIONS_ENDPOINT } from '../../constants/api.constants';
 import {
+  APPLICATION_FIELD_LABELS,
   APPLICATION_RESULT,
-  APPLICATION_RESULT_CHIP_COLORS,
   APPLICATION_RESULT_LABELS,
+  APPLICATION_RESULT_ORDER,
   APPLICATION_STATUS,
   APPLICATION_STATUS_LABELS,
+  APPLICATION_STATUS_ORDER,
   EMPTY_VALUE_PLACEHOLDER,
 } from '../../constants/application.constants';
 import {
+  CONTROL_BLOCK_MARGIN_Y,
   FIELD_GAP,
   SUMMARY_FLEX,
   SUMMARY_ICON_GAP,
@@ -33,16 +41,22 @@ import {
   SUMMARY_TEXT_MIN_WIDTH_PX,
 } from '../../constants/layout.constants';
 import { SYNC_ROW_LABEL, SYNC_ROW_PENDING_LABEL } from '../../constants/sync.constants';
+import type { ApplicationResult, ApplicationStatus } from '../../types/application.type';
 import { selectUpcomingInterview } from '../../utils/application.utils';
 import { buildCompanyInitial, buildCompanyLogoUrl } from '../../utils/company-logo.utils';
 import { formatDateTimeFull, formatDateTimeShort } from '../../utils/date.utils';
+import {
+  RESULT_LABEL_ID_SUFFIX,
+  STATUS_LABEL_ID_SUFFIX,
+} from './application-summary-row.constants';
 import type { ApplicationSummaryRowProps } from './application-summary-row.interfaces';
+import { FieldCell } from '../FieldCell/FieldCell';
 import { SyncStatusIcon } from '../SyncStatusIcon/SyncStatusIcon';
 
 /**
- * Содержимое AccordionSummary — восемь элементов свёрнутой шапки (§7.2.1), только чтение
- * плюс две кнопки действий. Полей ввода здесь нет: клик по шапке обязан переключать
- * раскрытие, а не попадать в инпут.
+ * Содержимое AccordionSummary — восемь элементов свёрнутой шапки (§7.2.1): чтение, две
+ * кнопки действий и Select'ы «Статус» и «Результат». Только эти два контрола редактируемы —
+ * поэтому они и гасят всплытие клика: клик по остальной шапке обязан переключать раскрытие.
  *
  * memo обязателен: шапка не зависит от `expanded` (поворот стрелки делает CSS-класс
  * на AccordionSummary, а не проп этого компонента), поэтому при переключении раскрытости
@@ -50,11 +64,16 @@ import { SyncStatusIcon } from '../SyncStatusIcon/SyncStatusIcon';
  */
 export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
   application,
+  isStatusSaved,
+  isResultSaved,
+  handlers,
   isSyncing,
   onSync,
   onRejectByCompany,
 }: ApplicationSummaryRowProps) {
   const isClosed = application.status === APPLICATION_STATUS.CLOSED;
+  const statusLabelId = `${application.id}${STATUS_LABEL_ID_SUFFIX}`;
+  const resultLabelId = `${application.id}${RESULT_LABEL_ID_SUFFIX}`;
   const upcoming = selectUpcomingInterview(application);
   const logoSrc = application.hasCompanyLogo
     ? buildCompanyLogoUrl(APPLICATIONS_ENDPOINT, application.id)
@@ -74,6 +93,21 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
     event.stopPropagation();
   };
 
+  const handleStatusChange = (event: SelectChangeEvent<ApplicationStatus>) => {
+    handlers.commit(application.id, { status: event.target.value });
+  };
+
+  const handleResultChange = (event: SelectChangeEvent<ApplicationResult>) => {
+    handlers.commit(application.id, { result: event.target.value });
+  };
+
+  // Тот же §7.2.1, что и у кнопок: без гашения клик по Select — и по пункту его меню —
+  // всплыл бы до AccordionSummary и переключил раскрытость. Портал MUI Menu от этого
+  // не спасает: синтетическое событие идёт по дереву React, а не по DOM.
+  const handleSelectClick = (event: MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+  };
+
   const handleRejectByCompany = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     onRejectByCompany(application.id);
@@ -88,6 +122,7 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
         flexWrap: 'wrap',
         width: '100%',
         minWidth: SUMMARY_TEXT_MIN_WIDTH_PX,
+        my: CONTROL_BLOCK_MARGIN_Y,
       }}
     >
       <Box
@@ -138,16 +173,41 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
 
       <Chip label={formatDateTimeFull(application.createdAt)} sx={{ flex: SUMMARY_FLEX.auto }} />
 
-      <Chip
-        label={APPLICATION_STATUS_LABELS[application.status]}
-        sx={{ flex: SUMMARY_FLEX.auto }}
-      />
+      <FieldCell flex={SUMMARY_FLEX.status} isSaved={isStatusSaved}>
+        <FormControl fullWidth size="small" onClick={handleSelectClick}>
+          <InputLabel id={statusLabelId}>{APPLICATION_FIELD_LABELS.status}</InputLabel>
+          <Select<ApplicationStatus>
+            labelId={statusLabelId}
+            label={APPLICATION_FIELD_LABELS.status}
+            value={application.status}
+            onChange={handleStatusChange}
+          >
+            {APPLICATION_STATUS_ORDER.map((status) => (
+              <MenuItem key={status} value={status}>
+                {APPLICATION_STATUS_LABELS[status]}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </FieldCell>
 
-      <Chip
-        color={APPLICATION_RESULT_CHIP_COLORS[application.result]}
-        label={APPLICATION_RESULT_LABELS[application.result]}
-        sx={{ flex: SUMMARY_FLEX.auto }}
-      />
+      <FieldCell flex={SUMMARY_FLEX.result} isSaved={isResultSaved}>
+        <FormControl fullWidth size="small" onClick={handleSelectClick}>
+          <InputLabel id={resultLabelId}>{APPLICATION_FIELD_LABELS.result}</InputLabel>
+          <Select<ApplicationResult>
+            labelId={resultLabelId}
+            label={APPLICATION_FIELD_LABELS.result}
+            value={application.result}
+            onChange={handleResultChange}
+          >
+            {APPLICATION_RESULT_ORDER.map((result) => (
+              <MenuItem key={result} value={result}>
+                {APPLICATION_RESULT_LABELS[result]}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </FieldCell>
 
       {upcoming !== null ? (
         <Box

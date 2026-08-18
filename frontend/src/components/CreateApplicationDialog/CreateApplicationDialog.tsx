@@ -32,6 +32,7 @@ import {
   URL_MAX_LENGTH,
 } from '../../constants/application.constants';
 import {
+  CONTROL_BLOCK_MARGIN_Y,
   DATE_TIME_DISPLAY_FORMAT,
   DIALOG_CONTENT_PADDING_TOP,
   FIELD_FLEX,
@@ -219,7 +220,7 @@ export function CreateApplicationDialog({
 
       {/* form не используем: DateTimePicker и multiline-поля перехватывают Enter. */}
       <DialogContent sx={{ pt: DIALOG_CONTENT_PADDING_TOP }}>
-        <Stack spacing={FIELD_GAP}>
+        <Stack spacing={FIELD_GAP} sx={{ my: CONTROL_BLOCK_MARGIN_Y }}>
           <UrlField
             autoFocus
             label={APPLICATION_FIELD_LABELS.vacancyUrl}

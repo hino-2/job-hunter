@@ -1284,19 +1284,21 @@ take **100% of available width** — no pixel `maxWidth`.
 
 #### 7.2.1 `AccordionSummary` — collapsed state
 
-One line (~48px), **read-only** content plus action buttons, no inputs — a click toggles expansion. One row, `gap: 8px`,
+One line (~56px: a `size="small"` `Select` is 40px, plus 8px of vertical margin above and below), read-only content plus
+action buttons and the «Статус» / «Результат» `Select`s — a click anywhere else toggles
+expansion. One row, `gap: 8px`,
 `alignItems: 'center'`; buttons 7–8 always visible, not hover-only.
 
-| #   | Element        | Width                                                | Content                                                                                                                                                                                                                 |
-| --- | -------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Company        | `flex: 0 0 220px`, `noWrap` + `Tooltip` when clipped | `Avatar` 24px (company logo or letter fallback, §4.10) + 8px gap + bold `Typography`                                                                                                                                    |
-| 2   | Position       | `flex: 1 1 auto`, `noWrap`                           | `Typography` color `text.secondary`                                                                                                                                                                                     |
-| 3   | Status         | `flex: 0 0 auto`                                     | `Chip` size=small, ru label §3.2                                                                                                                                                                                        |
-| 4   | Result         | `flex: 0 0 auto`                                     | `Chip` size=small, ru label §3.3                                                                                                                                                                                        |
-| 5   | Next interview | `flex: 0 0 auto`                                     | `Event` icon + `DD.MM HH:mm` of the nearest future of `hrInterviewAt`/`techInterviewAt`; hidden if both empty or past                                                                                                   |
-| 6   | Sync           | `flex: 0 0 auto`                                     | Status icon (✓ / ⚠ / ✕) + `Tooltip` with «Обновлено 06.08.2026 14:32» or the `SyncOutcome` label and `lastSyncError`, third line — source («Источник: hh.ru» / «Источник: getmatch.ru» / «Источник не определён», §4.8) |
-| 7   | 🔄 Sync        | `flex: 0 0 auto`                                     | `IconButton` size=small, **`event.stopPropagation()` mandatory** — must not toggle the accordion                                                                                                                        |
-| 8   | Отказ компании | `flex: 0 0 auto`                                     | `Button` variant=contained size=medium, no icon (looks like «Скрыть» of §7.9.1); one click writes `result = REJECTED_BY_COMPANY` through the §7.3 autosave path, also with `stopPropagation()`                          |
+| #   | Element        | Width                                                | Content                                                                                                                                                                                                                    |
+| --- | -------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Company        | `flex: 0 0 220px`, `noWrap` + `Tooltip` when clipped | `Avatar` 24px (company logo or letter fallback, §4.10) + 8px gap + bold `Typography`                                                                                                                                       |
+| 2   | Position       | `flex: 1 1 auto`, `noWrap`                           | `Typography` color `text.secondary`                                                                                                                                                                                        |
+| 3   | Status         | `flex: 0 0 150px`                                    | `Select` size=small in a `FieldCell` (§7.3 saved ring), ru labels §3.2; **`event.stopPropagation()` on the `FormControl` root mandatory** — neither the control nor an item of its portalled menu may toggle the accordion |
+| 4   | Result         | `flex: 0 0 190px`                                    | `Select` size=small in a `FieldCell` (§7.3 saved ring), ru labels §3.3; **`event.stopPropagation()` on the `FormControl` root mandatory** — neither the control nor an item of its portalled menu may toggle the accordion |
+| 5   | Next interview | `flex: 0 0 auto`                                     | `Event` icon + `DD.MM HH:mm` of the nearest future of `hrInterviewAt`/`techInterviewAt`; hidden if both empty or past                                                                                                      |
+| 6   | Sync           | `flex: 0 0 auto`                                     | Status icon (✓ / ⚠ / ✕) + `Tooltip` with «Обновлено 06.08.2026 14:32» or the `SyncOutcome` label and `lastSyncError`, third line — source («Источник: hh.ru» / «Источник: getmatch.ru» / «Источник не определён», §4.8)    |
+| 7   | 🔄 Sync        | `flex: 0 0 auto`                                     | `IconButton` size=small, **`event.stopPropagation()` mandatory** — must not toggle the accordion                                                                                                                           |
+| 8   | Отказ компании | `flex: 0 0 auto`                                     | `Button` variant=contained size=medium, no icon (looks like «Скрыть» of §7.9.1); one click writes `result = REJECTED_BY_COMPANY` through the §7.3 autosave path, also with `stopPropagation()`                             |
 
 #### 7.2.2 `AccordionDetails` — expanded state
 
@@ -1309,8 +1311,6 @@ One line (~48px), **read-only** content plus action buttons, no inputs — a cli
 | Должность          | `TextField`                                               | `1 1 240px` | `19%`     |
 | Ссылка на вакансию | `TextField` + `IconButton`(OpenInNew) in `InputAdornment` | `1 1 280px` | `15%`     |
 | Ссылка на резюме   | `TextField` + `IconButton`(OpenInNew) in `InputAdornment` | `1 1 280px` | `15%`     |
-| Статус             | `Select`                                                  | `0 0 150px` | —         |
-| Результат          | `Select`                                                  | `0 0 190px` | —         |
 | HR-собес           | `DateTimePicker` (`clearable`)                            | `0 0 210px` | —         |
 | Тех-собес          | `DateTimePicker` (`clearable`)                            | `0 0 210px` | —         |
 
@@ -1330,7 +1330,6 @@ not the viewport. Rows are separate flex containers in one vertical `Stack spaci
 #### 7.2.3 Visual accents
 
 - `status = CLOSED`: muted summary background (`action.hover`), company/position `text.secondary`; fields stay editable.
-- Result `Chip`: `success` for `OFFER`, `error` for `REJECTED_BY_COMPANY`, `default` otherwise.
 - Nearest future interview within **48 hours** — date in `warning` and bold; non-empty `lastSyncError` — sync icon in `error`.
 
 #### 7.2.4 Sorting and group expand
@@ -1815,7 +1814,8 @@ of the list **expanded**. 6. Any field edit saves without a «Сохранить
 10.1. Each vacancy is its own full-width `Accordion`; no `Table`/`DataGrid` in the code.
 10.2. All collapsed on load; a summary-row click toggles only its own; several may be expanded.
 10.3. Clicking 🔄 or «Отказ компании» in the summary row **must not** change expanded state.
-10.4. At 1920×1080 at least **12** collapsed vacancies fit at once.
+10.4. At 1920×1080 at least **12** collapsed vacancies fit at once (~56px per row plus an 8px gap since the two `Select`s
+moved into the header).
 10.5. At ≥1600px expanded rows 1 (company, position, vacancy URL, résumé URL, status, result, HR
 interview, tech interview) and 2 (§7.2.2) each take one line; narrowing wraps fields, no horizontal
 page scroll.

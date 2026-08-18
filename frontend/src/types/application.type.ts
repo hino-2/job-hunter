@@ -58,12 +58,9 @@ export type NullableTextPatch = Partial<Record<NullableTextField, string | null>
 export type PendingTextValues = Partial<Record<EditableTextField, string>>;
 
 /**
- * Собственные литеральные union'ы, а не ChipProps['color'] / SvgIconProps['color']:
- * так application.constants.ts не тянет типы MUI, а присваиваемость в проп color
- * при этом сохраняется.
+ * Собственный литеральный union, а не SvgIconProps['color']: так application.constants.ts
+ * не тянет типы MUI, а присваиваемость в проп color при этом сохраняется.
  */
-export type ResultChipColor = 'default' | 'success' | 'error';
-
 export type SyncIconColor = 'success' | 'warning' | 'error' | 'disabled';
 
 /**

@@ -23,7 +23,6 @@ import type {
   EditableField,
   IconComponent,
   PendingTextValues,
-  ResultChipColor,
   StatusFilter,
   SyncIconColor,
   SyncOutcome,
@@ -116,7 +115,10 @@ export const EDITABLE_TEXT_FIELDS = [
  */
 export const URL_TEXT_FIELDS = ['vacancyUrl', 'resumeUrl', 'interviewUrl'] as const;
 
-/** Все редактируемые поля раскрытого состояния (§7.2.2) — в порядке рядов 1–2. */
+/**
+ * Все редактируемые поля записи, независимо от того, где они отрисованы — «Статус» и
+ * «Результат» ушли в шапку (§7.2.1), остальные остались в раскрытом состоянии (§7.2.2).
+ */
 export const EDITABLE_FIELDS = [
   'company',
   'position',
@@ -131,7 +133,10 @@ export const EDITABLE_FIELDS = [
   'notes',
 ] as const;
 
-/** Подписи полей раскрытого состояния (§7.2.2). */
+/**
+ * Подписи всех редактируемых полей: «Статус»/«Результат» — шапка (§7.2.1), остальные —
+ * раскрытое состояние (§7.2.2).
+ */
 export const APPLICATION_FIELD_LABELS: Record<EditableField, string> = {
   company: 'Компания',
   position: 'Должность',
@@ -235,16 +240,6 @@ export const VACANCY_SOURCE_LABELS: Record<VacancySource, string> = {
 
 export const VACANCY_SOURCE_UNKNOWN_LABEL = 'Источник не определён';
 export const SYNC_SOURCE_TOOLTIP_PREFIX = 'Источник: ';
-
-/** §7.2.3 */
-export const APPLICATION_RESULT_CHIP_COLORS: Record<ApplicationResult, ResultChipColor> = {
-  IN_PROGRESS: 'default',
-  OFFER: 'success',
-  REJECTED_BY_COMPANY: 'error',
-  DECLINED_BY_ME: 'default',
-  NO_RESPONSE: 'default',
-  VACANCY_WITHDRAWN: 'default',
-};
 
 /**
  * §7.2.3: «строка с непустым lastSyncError — иконка цветом error». Отдельной проверки

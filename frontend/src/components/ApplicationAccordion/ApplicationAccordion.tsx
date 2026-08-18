@@ -85,6 +85,12 @@ export const ApplicationAccordion = memo(function ApplicationAccordion({
       >
         <ApplicationSummaryRow
           application={merged}
+          // Плоские булевы, не весь savedFields (см. доккомментарий пропов) — иначе шапка
+          // перерисовывалась бы на автосейве company/notes/дат собесов и прочих полей,
+          // которых она не показывает.
+          isStatusSaved={savedFields.has('status')}
+          isResultSaved={savedFields.has('result')}
+          handlers={handlers}
           isSyncing={isSyncing}
           onSync={onSync}
           onRejectByCompany={onRejectByCompany}

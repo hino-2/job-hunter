@@ -8,6 +8,11 @@
 export const FIELD_GAP = 1;
 export const ACCORDION_GAP = 1;
 
+/** Вертикальный воздух вокруг блока контролов: 8px сверху и снизу, по горизонтали 0.
+ *  Нужен там, где контролы стоят вплотную к краю контейнера — иначе рамка поля
+ *  и кольцо подсветки «сохранено» (§7.3) обрезаются этим краем. */
+export const CONTROL_BLOCK_MARGIN_Y = 1;
+
 /** Внутренние отступы: 16px по горизонтали, 8px сверху / 16px снизу. */
 export const CONTAINER_PADDING_X = 2;
 export const CONTAINER_PADDING_Y = 2;
@@ -18,8 +23,10 @@ export const ACCORDION_DETAILS_PADDING_BOTTOM = 2;
 /** Шапка аккордеона (свёрнутое состояние, §7.2.1). */
 export const SUMMARY_COMPANY_WIDTH_PX = 500;
 
-/** Свёрнутая шапка — одна строка ~48px (§7.2.1): столько нужно, чтобы на 1920×1080
- *  помещалось не меньше 12 записей (§13.10.4). */
+/** Нижняя граница высоты свёрнутой шапки (§7.2.1). Фактическая строка выше: самый
+ *  высокий контрол — Select size="small" (40px), плюс CONTROL_BLOCK_MARGIN_Y сверху
+ *  и снизу, итого ~56px. Запас §13.10.4 (не меньше 12 записей на 1920×1080) это
+ *  переживает: 56px строки и 8px зазора дают ~768px на двенадцать записей. */
 export const SUMMARY_MIN_HEIGHT_PX = 48;
 
 /** 16px по горизонтали — как у внешнего контейнера, чтобы колонки визуально совпадали. */
@@ -43,6 +50,10 @@ export const SUMMARY_FLEX = {
   // а название сжимается/растягивается рядом с Avatar-логотипом (§4.10).
   companyText: '1 1 auto',
   position: '1 1 auto',
+  // Select'ы «Статус» и «Результат» переехали в шапку (§7.2.1): фиксированная ширина,
+  // иначе подпись контрола обрезалась бы при переносе строки.
+  status: '0 0 150px',
+  result: '0 0 190px',
   auto: '0 0 auto',
 } as const;
 
@@ -75,8 +86,6 @@ export const FIELD_FLEX = {
   position: '1 1 240px',
   vacancyUrl: '1 1 280px',
   resumeUrl: '1 1 280px',
-  status: '0 0 150px',
-  result: '0 0 190px',
   hrInterviewAt: '0 0 210px',
   techInterviewAt: '0 0 210px',
   employerContact: '1 1 320px',
