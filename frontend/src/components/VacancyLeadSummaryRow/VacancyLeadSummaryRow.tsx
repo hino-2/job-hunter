@@ -55,6 +55,7 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
   const handleApply = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     onApply(lead.id);
+    onToggleHidden(lead.id, !lead.hidden);
   };
 
   const applyLabel = lead.hasApplication
@@ -139,21 +140,6 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
       </Typography>
 
       {/*
-       * Обычная кнопка с подписью вместо иконки: действие скрытия используется чаще
-       * остальных, подпись читается без наведения — поэтому Tooltip здесь не нужен.
-       * variant="contained" без color — как у остальных кнопок действия проекта, цвет
-       * берётся из темы (`primary.main`, серый).
-       */}
-      <Button
-        variant="contained"
-        size="medium"
-        onClick={handleToggleHidden}
-        sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.auto }}
-      >
-        {lead.hidden ? RESTORE_VACANCY_LABEL : HIDE_VACANCY_LABEL}
-      </Button>
-
-      {/*
        * Кнопка «Отклик» — последняя в ряду (§7.9.1). Обёртка со stopPropagation
        * обязательна: у disabled Button pointer-events: none, и клик по спиннеру-подписи
        * провалился бы в шапку мимо собственного onClick (тот же приём, что у 🔄 откликов).
@@ -173,6 +159,21 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
           {applyLabel}
         </Button>
       </Box>
+
+      {/*
+       * Обычная кнопка с подписью вместо иконки: действие скрытия используется чаще
+       * остальных, подпись читается без наведения — поэтому Tooltip здесь не нужен.
+       * variant="contained" без color — как у остальных кнопок действия проекта, цвет
+       * берётся из темы (`primary.main`, серый).
+       */}
+      <Button
+        variant="contained"
+        size="medium"
+        onClick={handleToggleHidden}
+        sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.auto }}
+      >
+        {lead.hidden ? RESTORE_VACANCY_LABEL : HIDE_VACANCY_LABEL}
+      </Button>
     </Box>
   );
 });
