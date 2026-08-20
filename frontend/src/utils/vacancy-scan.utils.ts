@@ -1,4 +1,8 @@
 import {
+  VACANCY_SOURCE_LABELS,
+  VACANCY_SOURCE_UNKNOWN_LABEL,
+} from '../constants/application.constants';
+import {
   SCAN_PAGE_NUMBER_OFFSET,
   SCAN_PAGE_PROGRESS_PREFIX,
   SCAN_PAGE_PROGRESS_SEPARATOR,
@@ -18,6 +22,7 @@ import {
   SCAN_SUMMARY_VALUE_SEPARATOR,
 } from '../constants/vacancy-search.constants';
 import { NOTIFICATION_SEVERITY } from '../constants/notification.constants';
+import type { VacancySource } from '../types/application.type';
 import type { NotificationSeverity } from '../types/notification.type';
 import type {
   ScanPageProgress,
@@ -29,14 +34,30 @@ import type {
 /** Производные статуса прогона поиска (§7.9.2), чистые функции без литералов внутри. */
 
 /**
- * «страниц 3 · просмотрено 40 · найдено 2 · дублей 5 · отклонено моделью 12 · ошибок 0».
+ * §5.7, §7.9.2: подпись источника прогона — тот же словарь, что у tooltip'а иконки
+ * синхронизации отклика (§7.2.3). null приходит только до самого первого прогона,
+ * когда Alert ещё не показывается вовсе, но значение всё равно обязано остаться
+ * читаемым, а не пустым.
+ */
+export function formatScanSourceLabel(source: VacancySource | null): string {
+  return source === null ? VACANCY_SOURCE_UNKNOWN_LABEL : VACANCY_SOURCE_LABELS[source];
+}
+
+/**
+ * «hh.ru · страниц 3 · просмотрено 40 · найдено 2 · дублей 5 · отклонено моделью 12 ·
+ * ошибок 0». Источник идёт первым: прогон один на все источники (§4.11.12), и по одним
+ * счётчикам не понять, чью выдачу сейчас разбирают.
  * После смены порядка эшелонов дедупликации (§4.11.4, §4.11.5) «дублей» считает лидов,
  * узнанных ещё ДО ИИ по названию (эшелон 2 по БД), а «отклонено моделью» — только тех,
  * кто дедупликацию уже прошёл.
  */
-export function formatScanProgressText(progress: ScanProgress): string {
+export function formatScanProgressText(
+  progress: ScanProgress,
+  source: VacancySource | null,
+): string {
   const rejectedByModel = progress.rejectedTitle + progress.rejectedDescription;
   const parts = [
+    formatScanSourceLabel(source),
     `${SCAN_PROGRESS_PAGES_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.pagesFetched}`,
     `${SCAN_PROGRESS_SEEN_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.itemsSeen}`,
     `${SCAN_PROGRESS_CREATED_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.created}`,
@@ -52,9 +73,11 @@ export function formatScanProgressText(progress: ScanProgress): string {
 export function formatScanSummaryText(status: ScanStatusResponse): string {
   const reasonLabel =
     status.stoppedReason === null ? null : SCAN_STOPPED_REASON_LABELS[status.stoppedReason];
-  const parts = [reasonLabel, formatScanProgressText(status.progress), status.message].filter(
-    (part): part is string => part !== null && part.length > 0,
-  );
+  const parts = [
+    reasonLabel,
+    formatScanProgressText(status.progress, status.source),
+    status.message,
+  ].filter((part): part is string => part !== null && part.length > 0);
 
   return parts.join(SCAN_SUMMARY_SEPARATOR);
 }

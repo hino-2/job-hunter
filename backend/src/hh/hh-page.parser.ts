@@ -1,4 +1,11 @@
+import { JSON_LD_FIELD } from '../vacancies/vacancies.constants';
 import type { Vacancy } from '../vacancies/vacancies.interfaces';
+import {
+  extractJsonLdEntries,
+  findJobPosting,
+  isRecord,
+  readString,
+} from '../vacancies/vacancy-json-ld.helpers';
 import { resolveVacancyLogoUrl } from '../vacancies/vacancy-logo-url.helpers';
 import { readHhCompanyLogoSrc } from './hh-company-logo.helpers';
 import {
@@ -7,9 +14,7 @@ import {
   HH_ARCHIVED_MARKER,
   HH_ARCHIVED_TRUE_TOKEN,
   HH_LOGO_ALLOWED_HOST_PATTERN,
-  JSON_LD_FIELD,
 } from './hh.constants';
-import { extractJsonLdEntries, findJobPosting, isRecord, readString } from './hh-json-ld.helpers';
 
 /**
  * Признак архивности — консенсус токенов "archived":true|false (обычных и

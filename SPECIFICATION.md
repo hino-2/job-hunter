@@ -268,30 +268,35 @@ removes the record from the default list while leaving the key in place.
 ### 3.6 Table `vacancy_search_settings`
 
 Search settings the user edits **in the frontend** (§7.9), not in `.env`: search text, keywords, the
-two AI prompts, and the results-page link template. Env keeps only infrastructure (addresses, limits,
-budgets, §8).
+two AI prompts, and one results-page link template **per lead-search source** (§4.11.1). Env keeps
+only infrastructure (addresses, limits, budgets, §8).
 
 The table holds **exactly one row**: `id smallint PK` with `CHECK (id = 1)`. Not a key-value settings
 table: the field set is known, the types differ, and "a second search configuration" is out of scope
 (§12).
 
-| Column (DB)           | DB type         | Req. | Default     | Description                                                                                                                                                |
-| --------------------- | --------------- | ---- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                  | `smallint` PK   | yes  | `1`         | Always `1` (`CHECK (id = 1)`)                                                                                                                              |
-| `keywords`            | `text`          | yes  | see below   | Comma-separated keywords: used both for deterministic screening and for the prompts                                                                        |
-| `exclude_keywords`    | `text`          | no   | `null`      | Comma-separated exclude keywords (§4.11.4)                                                                                                                 |
-| `title_prompt`        | `text`          | yes  | see §4.12   | Stage 1 prompt — vacancy title evaluation                                                                                                                  |
-| `description_prompt`  | `text`          | yes  | see §4.12   | Stage 2 prompt — vacancy description evaluation                                                                                                            |
-| `ai_enabled`          | `boolean`       | yes  | `false`     | Whether AI screening (§4.12) is on. Off — keyword screening only                                                                                           |
-| `search_url_template` | `varchar(2048)` | yes  | see §4.11.1 | hh.ru results URL template; the query itself lives in the URL's own `text=` parameter, only `{page}` is a mandatory placeholder, https + hh.ru host (§5.7) |
-| `updated_at`          | `timestamptz`   | yes  | `now()`     |                                                                                                                                                            |
+| Column (DB)                        | DB type         | Req. | Default     | Description                                                                                                                                                |
+| ---------------------------------- | --------------- | ---- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                               | `smallint` PK   | yes  | `1`         | Always `1` (`CHECK (id = 1)`)                                                                                                                              |
+| `keywords`                         | `text`          | yes  | see below   | Comma-separated keywords: used both for deterministic screening and for the prompts                                                                        |
+| `exclude_keywords`                 | `text`          | no   | `null`      | Comma-separated exclude keywords (§4.11.4)                                                                                                                 |
+| `title_prompt`                     | `text`          | yes  | see §4.12   | Stage 1 prompt — vacancy title evaluation                                                                                                                  |
+| `description_prompt`               | `text`          | yes  | see §4.12   | Stage 2 prompt — vacancy description evaluation                                                                                                            |
+| `ai_enabled`                       | `boolean`       | yes  | `false`     | Whether AI screening (§4.12) is on. Off — keyword screening only                                                                                           |
+| `search_url_template`              | `varchar(2048)` | yes  | see §4.11.1 | hh.ru results URL template; the query itself lives in the URL's own `text=` parameter, only `{page}` is a mandatory placeholder, https + hh.ru host (§5.7) |
+| `it_vacancies_search_url_template` | `varchar(2048)` | yes  | see §4.11.1 | it-vacancies.ru results URL template; same contract as `search_url_template` — mandatory `{page}`, https + it-vacancies.ru host (§5.7)                     |
+| `updated_at`                       | `timestamptz`   | yes  | `now()`     |                                                                                                                                                            |
 
 The row is created **by the migration itself** (`INSERT … ON CONFLICT DO NOTHING`) with default
 values, not by code on first access: the service reading the settings must not be able to create
 them, otherwise there is a second data-creation path and a race at startup.
 
 Keyword and prompt defaults are in §4.11.4 and §4.12; the `search_url_template` default is the
-§4.11.1 literal, seeded by the `AddVacancySearchUrlTemplate` migration.
+§4.11.1 literal, seeded by the `AddVacancySearchUrlTemplate` migration, and the
+`it_vacancies_search_url_template` default is the §4.11.1 it-vacancies literal, seeded the same way
+by `AddItVacanciesSearchUrlTemplate`. Both columns are **NOT NULL**: "empty means this source is
+disabled" is deliberately not a state — the source is chosen per run (§5.7), so an empty template
+would only be discovered as a run failure.
 
 ### 3.7 Table `vacancy_scan_position`
 
@@ -306,22 +311,28 @@ user `PUT` of the whole row. The settings resource has no read-only field at all
 position must not live there either: every field of that resource is user-owned. A separate singleton
 table keeps both lifecycles and both contracts clean.
 
-The table holds **exactly one row**: `id smallint PK` with `CHECK (id = 1)`, the same pattern as
-§3.6, seeded by the migration itself — the service must never create the row.
+The table holds **one row per lead-search source**: `source varchar(16)` is the primary key, seeded
+by the migrations themselves (`'HH'`, `'IT_VACANCIES'`) — the service must never create a row. The
+former `id smallint PK CHECK (id = 1)` singleton became per-source in `AddVacancyScanPositionSource`:
+a run is still one at a time process-wide (§4.11.9), but the position of one source must survive a
+run of another, otherwise starting an it-vacancies scan would silently destroy the hh «Продолжить».
 
-| Column (DB)           | DB type         | Req. | Default | Description                                                                                                                     |
-| --------------------- | --------------- | ---- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                  | `smallint` PK   | yes  | `1`     | Always `1` (`CHECK (id = 1)`)                                                                                                   |
-| `next_page`           | `integer`       | yes  | `0`     | 0-based page to resume from on the next `RESUME` start                                                                          |
-| `search_url_template` | `varchar(2048)` | no   | `null`  | `search_url_template` (§3.6) the position was saved under — a resume is only offered when it still matches the current settings |
-| `updated_at`          | `timestamptz`   | yes  | `now()` | Auto-updated on every save (once per processed page during a run)                                                               |
+| Column (DB)           | DB type          | Req. | Default | Description                                                                                                                     |
+| --------------------- | ---------------- | ---- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `source`              | `varchar(16)` PK | yes  | —       | Lead-search source of the position: `'HH'` or `'IT_VACANCIES'` (§4.11.1). Not `'GETMATCH'` — that source has no results page    |
+| `next_page`           | `integer`        | yes  | `0`     | 0-based page to resume from on the next `RESUME` start of **this** source                                                       |
+| `search_url_template` | `varchar(2048)`  | no   | `null`  | `search_url_template` (§3.6) the position was saved under — a resume is only offered when it still matches the current settings |
+| `updated_at`          | `timestamptz`    | yes  | `now()` | Auto-updated on every save (once per processed page during a run)                                                               |
 
 `next_page = 0` together with `search_url_template = null` (the seeded/cleared state) is never
 resumable (§4.11.12): `isResumablePosition` also requires `next_page > 0` and
 `next_page < VACANCY_SCAN_MAX_PAGES`. `search_url_template` travels with the position rather than
 being re-read from `vacancy_search_settings` at resume time, so a settings change between saving
 the position and clicking «Продолжить» (region, filters, sort, the query itself) reliably disables
-the button instead of silently resuming a different search.
+the button instead of silently resuming a different search. The comparison is per source: the row of
+source `X` is checked against the template column of source `X` in §3.6, and `GET /api/vacancy-leads/scan/status`
+answers with `resumeBySource` — one resume state per source, so the button state of one source never
+depends on the other (§5.7).
 
 ---
 
@@ -468,20 +479,43 @@ scheduler container (§2.4 item 8).
 
 ### 4.8 Sources and providers
 
-`VacancySource` (values `'HH'` | `'GETMATCH'`) generalizes both sites behind one contract.
+`VacancySource` (values `'HH'` | `'GETMATCH'` | `'IT_VACANCIES'`) generalizes all three sites behind
+one contract. The column is a plain `varchar(16)` with no `CHECK`, so adding a value needs no
+migration (§3.1, §3.5).
 
 - The enum lives in `applications/applications.constants.ts` next to `SyncOutcome`: module dependency
   runs `vacancies`/`hh`/`getmatch` → `applications`, so a back-reference would be a cycle.
 - **`VacancySourceProvider`** (in `vacancies/`): `source`, `parseUrl(url): string | null` (pure, never
   throws), `fetchVacancy(externalId): Promise<VacancyFetchResult>` (never lets an exception escape — any
-  failure becomes a §4.5 outcome). Implemented by `HhApiService`/`GetmatchApiService` themselves.
+  failure becomes a §4.5 outcome). Implemented by `HhApiService`/`GetmatchApiService`/`ItVacanciesApiService`
+  themselves.
+- **`VacancyLeadSearchProvider`** (in `vacancies/`) is the second, independent contract — the lead
+  search of §4.11: `source`, `acquireRequestSlot()`, `fetchSearchPage({ searchUrlTemplate, page })`,
+  `fetchVacancyDescription(externalId)`, results discriminated by `ok`, not by `SyncOutcome` (a search
+  page has no notion of "the vacancy is archived"). Implemented by `HhSearchService` and
+  `ItVacanciesSearchService`; **getmatch.ru implements only the sync contract** — it publishes no
+  paginated results page we may crawl. Dispatch is `VacancyLeadSearchRegistry` in `vacancy-search/`,
+  the mirror of `VacancyProviderRegistry` for the search lane.
 - **`VacancyProviderRegistry` is the single dispatch point**: `resolveByUrl(url)` returns the first
   recognized source + external ID (host sets do not overlap, so order does not matter); `find(source)`
   returns the provider for a record's `vacancy_source`. **An unknown source is not a 500**: `find` returns
   `null` and sync yields `SKIPPED_UNSUPPORTED`.
 - **Retries, limits and HTTP client options are a shared framework** (`vacancies/`): backoff, timeout,
   size cap, `validateStatus`. Per-source: env keys (base URL, User-Agent, own timeout/retries), page
-  path, error texts.
+  path, error texts. Each source module registers **its own** `HttpModule.registerAsync` — the `baseURL`
+  differs, so a shared `HttpService` would send one source's request to another's host.
+
+#### The it-vacancies.ru source
+
+Page path `/vacancies/{id}/` (digits only, trailing slash mandatory in the request — without it the
+source answers a redirect, wasting one throttle slot). No public API. Unlike getmatch.ru the
+`application/ld+json` `schema.org/JobPosting` block **is** the reliable contract and is present on both
+the vacancy page and the results page; `window.__NUXT__` is never evaluated (§2.4) — it is minified
+JavaScript, not data. A withdrawn vacancy answers `404` → `NOT_FOUND`; a missing `JobPosting` on a `200`
+is fail-loud `ERROR`, exactly like hh.ru. **NOT VERIFIED:** no live page ever showed an "archived"
+marker (the flag exists only inside `window.__NUXT__`), so `archived` rests on the project assumption
+"withdrawn ⇒ 404", with `IT_VACANCIES_ARCHIVED_MARKER_PATTERN` kept as a documented heuristic. Like
+`GETMATCH_USER_AGENT`, `IT_VACANCIES_USER_AGENT` is optional with a safe default (§8).
 
 ### 4.9 The getmatch.ru source
 
@@ -523,10 +557,11 @@ re-fetched, `fileKey = application.id`, and the throttle slot comes from the sou
 (`acquireRequestSlot`, §4.11.2). `VacancySyncService` keeps only the §4.3 patch (`last_sync_*`,
 `vacancy_archived`, `status`, `position`); it does not decide on the logo itself anymore.
 
-| Source      | Where the logo address lives                                           |
-| ----------- | ---------------------------------------------------------------------- |
-| hh.ru       | page state: `"logos":{"logo":[{"@type":…,"@url":"/employer-logo/…"}]}` |
-| getmatch.ru | `<img src="…">` inside `div.b-company-logotype`                        |
+| Source          | Where the logo address lives                                                                         |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| hh.ru           | page state: `"logos":{"logo":[{"@type":…,"@url":"/employer-logo/…"}]}`                               |
+| getmatch.ru     | `<img src="…">` inside `div.b-company-logotype`                                                      |
+| it-vacancies.ru | JSON-LD `JobPosting.hiringOrganization.logo` (§4.8), same block the rest of the page data comes from |
 
 At hh.ru the **state** is parsed, not the markup — the `<img>` inside `div[data-qa="vacancy-company-logo"]`
 has no `src` in the server response. The state JSON arrives HTML-escaped (`&#34;`), so
@@ -537,7 +572,8 @@ unscaled it easily exceeds the size limit). These two constants in `hh/hh.consta
 edit point** when hh.ru changes format.
 
 The address is absolutized against the source's `*_SITE_BASE_URL` and checked against its host allow-list
-(`hhcdn.ru`/`hh.ru`; `getmatch.ru`) — this blocks SSRF and guarantees e2e against local stubs
+(`hhcdn.ru`/`hh.ru`; `getmatch.ru`; `it-vacancies.ru` including `api.it-vacancies.ru`, where its logos
+actually live) — this blocks SSRF and guarantees e2e against local stubs
 (`127.0.0.1`) downloads nothing. The result (absolute http(s) URL from a trusted host, or `null`) is
 `Vacancy.logoUrl`, degrading softly, with the allow-list pattern as `Vacancy.logoAllowedHostPattern`.
 `CompanyLogoService.download` follows up to `COMPANY_LOGO_MAX_REDIRECTS` (3) redirects, and a CDN could
@@ -569,9 +605,11 @@ and leaves the sync outcome unchanged.
 same protection space, §6).
 
 **Vacancy lead logo (step #26, §14).** The same `logos/` module (same allow-list, storage, limits) serves
-`vacancy_leads` (`company_logo_file`, §3.5) with no extra HTTP request:
-`HhSearchService.fetchVacancyDescription` (§4.11.7) already downloads the vacancy page, parsed by the same
-`readHhCompanyLogoSrc`. The download starts **only after** the row is inserted
+`vacancy_leads` (`company_logo_file`, §3.5) with no extra HTTP request: the lead-search provider's
+`fetchVacancyDescription` (§4.11.7) already downloads the vacancy page and returns `logoUrl` **together
+with** its allow-list pattern, so `null` means "the source gave no logo", never "the pair is incomplete".
+The throttle slot for the download comes from that same provider (`acquireRequestSlot`), never from
+another source's — otherwise a logo would bypass the rate limit of the site it is fetched from. The download starts **only after** the row is inserted
 (`VacancyLeadsService.insertIgnoringConflict`) — `fileKey` must be an existing record id
 (`COMPANY_LOGO_FILE_KEY_PATTERN`) — and a duplicate causes no repeat download. A lead-logo failure does
 not count into `created`/`failed` (§4.11.11); only `logger.warn` with the record id, no URL. **Deliberate
@@ -580,17 +618,24 @@ logo, and no backfill is done. `VacancyLeadDto` exposes boolean `hasCompanyLogo`
 `GET /api/vacancy-leads/:id/logo` (§5.7), behaving identically to the applications endpoint including
 status codes, headers and Basic Auth.
 
-### 4.11 Vacancy search on hh.ru
+### 4.11 Vacancy search (hh.ru, it-vacancies.ru)
 
 A pipeline separate from sync (§4.3): it does not update existing applications but **finds new vacancies**
 into `vacancy_leads` (§3.5) for a separate tab (§7.9). Module `vacancy-search/`, dependencies
-`VacancySearchModule → { HhModule, VacancyAiModule }`, no back-references.
+`VacancySearchModule → { HhModule, ItVacanciesModule, VacancyAiModule, LogosModule, ApplicationsModule }`,
+no back-references.
+
+**A run is per source.** One run at a time process-wide (§4.11.9), but _which_ source it crawls comes
+from the `POST /scan` body (§5.7), and everything source-specific is behind
+`VacancyLeadSearchProvider` (§4.8): the pipeline itself — screening, dedup, budgets, stop/resume — is
+source-agnostic and exists exactly once. Lead-search sources are `'HH'` and `'IT_VACANCIES'`;
+`'GETMATCH'` is a sync-only source and is rejected with `400`, not `500`.
 
 #### 4.11.1 Search results source and link template
 
 The public HTML search page, requested with the same `User-Agent` and `Accept` headers as the vacancy page
-(§4.1), `responseType: text`, redirects followed. Template (§3.6, `search_url_template`, edited in §7.9.4;
-default seeded by the migrations):
+(§4.1), `responseType: text`, redirects followed. **One template per source** (§3.6), each edited in
+§7.9.4 and each seeded by its own migration. hh.ru (`search_url_template`):
 
 ```
 https://ekaterinburg.hh.ru/search/vacancy?text=fullstack&salary=&ored_clusters=true&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}
@@ -629,7 +674,25 @@ strictly canonical (§4.1); compensation is an honest `User-Agent` with contact 
 > description and company name — more noise) and no `search_period` (freshness is cut by
 > `VACANCY_SCAN_MAX_AGE_DAYS`). Both are accepted anonymously and are the cheapest speedup.
 
-#### 4.11.2 Request rate and the shared hh.ru throttle
+it-vacancies.ru (`it_vacancies_search_url_template`), same contract — mandatory `{page}`, `https://`
+scheme, host from the it-vacancies.ru allow-list, validated on `PUT` and fail-loud with `500` when a
+hand-corrupted row is read:
+
+```
+https://it-vacancies.ru/vacancies/?search_field=node.js&page={page}
+```
+
+- **Source pages are 1-based**, the run loop is 0-based: the builder substitutes `page + 1`. `{page}` is
+  mandatory here for the same two reasons as at hh.ru — one validation rule for both fields, and
+  without substitution every iteration would re-fetch page one forever.
+- **The origin check runs on the raw template**, before `{page}` is substituted, so
+  `https://{page}.evil.tld/…` is rejected instead of becoming a valid foreign host at runtime.
+- **No depth ceiling is reported**: the results page carries no pagination metadata, so `lastPage` is
+  always `null` and a run ends on the page budget (§4.11.8), an empty page, or the age limit (§4.11.6).
+- **Verified on live results (18.08.2026):** anonymous request → `200`, **20 vacancies per page**, all
+  list metadata inside the `application/ld+json` `@graph`.
+
+#### 4.11.2 Request rate and the per-source throttle
 
 **No more than 2 requests per second to hh.ru**, across all requests, not just search. Hence a
 **process-wide throttle `HhRequestThrottle`** (module `hh/`) through which **every** outgoing hh.ru request
@@ -643,6 +706,14 @@ changes §4.5 outcomes; the accepted side effect is slower scheduled sync (50 op
 on 429/5xx (`HH_MAX_RETRIES`, backoff 500/1500 ms), `VACANCY_MAX_RESPONSE_BYTES` (4 MiB; measured page
 1.3 MB). Search run concurrency is **1** — pages are fetched strictly sequentially, because whether to page
 further depends on parsing the previous page.
+
+**Every source has its own throttle instance and its own rate variable** — `ItVacanciesRequestThrottle`
+with `IT_VACANCIES_MAX_REQUESTS_PER_SECOND` (default `2`), provided **once** in `ItVacanciesModule` and
+shared by that module's sync service and search service, exactly as `hh/` does. One instance per source
+is load-bearing in both directions: two instances inside one source would double its real request rate,
+while one instance across sources would let a scan on one site starve sync on the other. The limits are
+therefore independent by construction; the timeout, retry count and response-size cap stay the shared
+§4.6 framework.
 
 #### 4.11.3 Parsing the search results page
 
@@ -676,6 +747,31 @@ unparsable JSON or missing `vacancySearchResult.vacancies` → outcome `ERROR` a
 - `links.desktop` is ignored deliberately (regional host); `vacancy_url` stores canonical
   `{HH_SITE_BASE_URL}/vacancy/{external_id}`. All other state fields (tags, labels, application counters,
   address, contacts, promo properties) are neither extracted nor stored (§12).
+
+**it-vacancies.ru** carries its results in `application/ld+json` instead of a state blob: one or more
+blocks, a `@graph` array unwrapped one level, every `JobPosting` taken **in document order**. The
+decisive difference from hh.ru: a results-page `JobPosting` contains **neither the vacancy id nor a link
+to it**. External ids therefore come from the card markup (`href="/vacancies/{id}/…"`, deduplicated
+keeping first-occurrence order — each card renders that href twice, on the logo wrapper and on the
+title) and are zipped with the postings **by index**.
+
+- **The count is the invariant.** `JobPosting` count ≠ unique-href count → fail-loud `null` → the run
+  stops with `ERROR`, because the id↔vacancy binding is no longer trustworthy; the log line carries the
+  page number and **both** counts — the most likely breakage when the site's markup changes. Both counts
+  being `0` at once is the normal end of pagination, not a failure. Response bodies are never logged,
+  only their length.
+- Fields: `title` → `position` (the results page wraps matches in `<em>`, stripped, whitespace runs
+  collapsed to one line), `hiringOrganization.name` → `company`, `datePosted` → `published_at`
+  (arrives **naive**, `"2026-03-29 02:00:56"`, normalized with a `+03:00` offset — **NOT VERIFIED**,
+  an error shifts `published_on` by at most a day at a date boundary), `jobLocation.address.addressLocality`
+  (or the part of a plain address string before the first comma) → `area_name`,
+  `baseSalary.value.{value,minValue,maxValue}` → `salary_*`. `vacancy_url` is built canonically from
+  `IT_VACANCIES_SITE_BASE_URL` + `/vacancies/{external_id}/`, never from the card href with its query
+  string. `experience`, `employment_form` and `work_formats` stay `null` — the source publishes no
+  equivalent in JSON-LD.
+- Per-item breakage (missing title, company or date) degrades softly into `skippedInvalid`, as at hh.ru.
+- **No HTML library and no `eval`**: JSON-LD via `JSON.parse`, everything else plain regexes; the
+  description block is delimited by a single forward `<div>`-depth pass (§2.4 item 7).
 
 #### 4.11.4 Screening pipeline
 
@@ -756,6 +852,13 @@ vacancies also stops the run (`stoppedReason = 'AGE_LIMIT'`).
 
 From the vacancy page's `<script type="application/ld+json">` (`schema.org/JobPosting`), field
 `description` — an HTML string (~2.2 KB on a real vacancy).
+
+At **it-vacancies.ru** the JSON-LD `description` is truncated by the source itself (it ends in `…`), so
+the primary text is the SSR block `<div class="… content">`, delimited by the depth-aware `<div>` pass,
+with the truncated JSON-LD value kept only as a fallback — a missing block degrades the text instead of
+dropping the lead. **NOT VERIFIED:** that class token was observed once; an upstream rename would
+silently fall back to the truncated text. A page with no usable description at all still fails stage 4,
+as below.
 
 - Fetched **only** for vacancies that reached stage 3 (§4.11.4). Truncated at
   `VACANCY_AI_DESCRIPTION_MAX_CHARS` (default 6000). **Not stored in the DB** (§3.5) — only the verdict and
@@ -863,8 +966,13 @@ one: this is safe and cheap precisely because dedup (§4.11.5) now runs before t
 inserted from that page on the previous attempt is filtered out by the DB lookup before a single AI token is
 spent on it again.
 
+**The position is per source** (§3.7): a run saves, clears and reads the row of **its own** source, so
+starting a run on one site never destroys the «Продолжить» of the other, and `RESUME` can never resume
+source A from a position recorded for source B. `GET /scan/status` answers with one resume state per
+source (`resumeBySource`, §5.7).
+
 **A resume is only offered when it still matches.** `isResumablePosition` requires the saved
-`search_url_template` to equal the current settings' `search_url_template`, and
+`search_url_template` to equal the current settings' template **of that source**, and
 `0 < next_page < VACANCY_SCAN_MAX_PAGES`. `search_url_template` is stored **with** the position (not
 re-read from `vacancy_search_settings` at resume time) so that editing the results link between saving a
 position and clicking «Продолжить» reliably disables the button instead of silently resuming a different
@@ -875,8 +983,9 @@ is cleared like any other exhaustion.
 
 **Two start modes** travel in the `POST /scan` body (§5.7): `FRESH` (default, starts at page 0) and `RESUME`
 (starts at the saved `next_page`). Both still go through the same synchronous `tryStart()` check-and-set, so
-a `409` for "a run is already in progress" is unaffected; `RESUME` additionally answers `409` when no valid
-saved position exists, with a distinct message (§5.5).
+a `409` for "a run is already in progress" is unaffected — the check is global, not per source, so a
+running hh.ru scan also blocks an it-vacancies one; `RESUME` additionally answers `409` when no valid
+saved position exists **for the requested source**, with a distinct message (§5.5).
 
 ### 4.12 AI screening: a local model in Ollama
 
@@ -1178,12 +1287,16 @@ the next run.
 
 #### `POST /api/vacancy-leads/scan`
 
-Starts a search run (§4.11). Body — `StartScanDto`, optional: `{ "mode"?: "FRESH" | "RESUME" }`,
-absent treated as `FRESH` (so the pre-existing button keeps working unchanged). **Asynchronous**
-(§4.11.9): responds without waiting for the run to finish. `202 Accepted`:
+Starts a search run (§4.11). Body — `StartScanDto`, both fields optional:
+`{ "mode"?: "FRESH" | "RESUME", "source"?: "HH" | "IT_VACANCIES" }`; absent `mode` is treated as
+`FRESH` and absent `source` as `HH` (so the pre-existing button keeps working unchanged).
+`"source": "GETMATCH"` — and any other value — is a `400`: the allowed list is the lead-search
+sources only (§4.8), so an unsupported source is a validation error, never a `500` from the
+registry. **Asynchronous** (§4.11.9): responds without waiting for the run to finish. `202 Accepted`:
 `{ "status": "RUNNING", "startedAt": "2026-08-14T05:00:00.000Z" }`. `409 Conflict` — either a run
-is already in progress, or (`mode: "RESUME"` only) there is no valid saved position to continue
-from (§4.11.12), each with its own message (§5.5). Routes `scan`, `scan/stop`, `scan/status`,
+is already in progress (**any** source: the run is one per process), or (`mode: "RESUME"` only) there
+is no valid saved position of **that source** to continue from (§4.11.12), each with its own message
+(§5.5). Routes `scan`, `scan/stop`, `scan/status`,
 `:id/logo` and `:id/apply` **must** be declared **above** the `:id` routes (§5.2, §4.10).
 
 #### `POST /api/vacancy-leads/scan/stop`
@@ -1196,7 +1309,7 @@ the flag is set; poll `GET /scan/status` for the actual end. `409 Conflict` — 
 #### `GET /api/vacancy-leads/scan/status`
 
 Progress and result of the last run. `200`: `{ status, startedAt, finishedAt, progress,
-pageProgress, stopRequested, resume, stoppedReason, message }`, where `progress` holds counters
+pageProgress, stopRequested, source, resumeBySource, stoppedReason, message }`, where `progress` holds counters
 `pagesFetched`, `itemsSeen`, `skippedInvalid`, `skippedOld`, `skippedExcluded`, `rejectedTitle`,
 `duplicates`, `descriptionsFailed`, `rejectedDescription`, `created`, `failed`, `aiFallbacks`.
 
@@ -1211,9 +1324,14 @@ pageProgress, stopRequested, resume, stoppedReason, message }`, where `progress`
   display.
 - `stopRequested`: `true` once `POST /scan/stop` has been accepted for the current run, `false`
   otherwise; reset by the next `tryStart()`.
-- `resume`: `{ available: boolean, nextPage: number | null }` — whether `mode: "RESUME"` would
-  currently succeed, computed from the persisted position (§3.7) and the current search settings
-  (§4.11.12); `nextPage` is `null` unless `available`.
+- `source`: the source of the running run, or of the last one after it finished; `null` until the
+  first run of the process. Like the rest of the run state it lives in memory only.
+- `resumeBySource`: `{ "HH": { available, nextPage }, "IT_VACANCIES": { available, nextPage } }` —
+  whether `mode: "RESUME"` would currently succeed **for each source**, computed from that source's
+  persisted position (§3.7) and its own template in the current settings (§4.11.12); `nextPage` is
+  `null` unless `available`. One key per lead-search source, so the «Продолжить» button of the
+  selected source never depends on the other's state. This replaced the single `resume` object of
+  step 31.
 - An unsuccessful `stoppedReason` (including `ERROR` and `STOPPED`) is returned with status
   **`200`** — an operation result, not an HTTP error; same rule as sync (§5.2).
 
@@ -1221,9 +1339,10 @@ pageProgress, stopRequested, resume, stoppedReason, message }`, where `progress`
 
 `200` — the single settings row (§3.6): `keywords[]`, `excludeKeywords[]`, `titlePrompt`,
 `descriptionPrompt`, `aiEnabled`, `searchUrlTemplate`
-(`"https://ekaterinburg.hh.ru/search/vacancy?text=fullstack&…&page={page}"`), `updatedAt`.
-`searchUrlTemplate` is an ordinary field of the row (§3.6), edited like the rest — the search
-query is part of this URL, not a separate field.
+(`"https://ekaterinburg.hh.ru/search/vacancy?text=fullstack&…&page={page}"`),
+`itVacanciesSearchUrlTemplate` (`"https://it-vacancies.ru/vacancies/?search_field=node.js&page={page}"`),
+`updatedAt`. Both templates are ordinary fields of the row (§3.6), edited like the rest — the search
+query is part of each URL, not a separate field.
 
 #### `PUT /api/vacancy-search-settings`
 
@@ -1238,7 +1357,11 @@ A body containing `searchText` now `400`s — the field is gone, and the global
 - both prompts — no longer than 8000 characters;
 - `searchUrlTemplate` — 1…2048 characters, must contain `{page}` (not `{text}` — the search query
   is already part of the pasted link), and must parse as an absolute `https://` URL whose host
-  matches the hh.ru allow-list (§4.2).
+  matches the hh.ru allow-list (§4.2);
+- `itVacanciesSearchUrlTemplate` — same rules against the it-vacancies.ru allow-list. Two separate
+  validators rather than one parameterized by source: the allow-lists differ, and each field must
+  report its own `400` message (§5.5). Both fields are **required** in the body — the resource is
+  sent whole, and `forbidNonWhitelisted` plus a missing field both yield `400`.
 
 Violations return `400` with a message prefixed by the field name (§5.5).
 
@@ -1407,6 +1530,12 @@ Two screens switched by MUI `Tabs` («Отклики», «Вакансии») un
   `components/ApplicationsScreen/ApplicationsScreen.tsx`; `App.tsx` keeps `AppHeader`, `Tabs` and screen selection.
 - The inactive tab **unmounts**; unsaved edits are sent on `blur` (§7.3) first. The «Открытых: N / M» counter stays in `AppHeader` on both
   tabs and refers to applications.
+- **The search source is picked on the «Вакансии» screen**, as the first control of the leads filter
+  bar: a small `select` over the lead-search sources (§4.8), disabled while a run is starting or
+  running. It is local `useState` (default `HH`), not persisted (§12); both «Начать поиск» and
+  «Продолжить» send it in the `POST /scan` body, «Продолжить» is enabled from
+  `resumeBySource[selected]`, and the run alert names the source of the running/last run from
+  `scan-status.source` (§5.7).
 
 #### 7.9.1 The «Вакансии» screen
 
@@ -1471,6 +1600,10 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 - **Ссылка на выдачу hh.ru** (`searchUrlTemplate`) — an editable multiline `TextField` with a hint
   about the mandatory placeholder `{page}` and a «Вернуть ссылку по умолчанию» button; the search
   query is part of this pasted link, so there is no separate query field and no first-page preview.
+- **Ссылка на выдачу it-vacancies.ru** (`itVacanciesSearchUrlTemplate`) — the same control right
+  below, with its own reset button and the same client-side rules (non-empty, `{page}` present,
+  parses as a URL). Both fields are always sent; the client checks are deliberately laxer than the
+  server's host allow-list, so a link the server would accept is never made unsavable.
 - **Промпт для названия** and **промпт для описания** — multiline fields with a hint about the available placeholders (§4.12.2) and a
   «Вернуть промпт по умолчанию» button. **«Использовать ИИ-отбор»** (`aiEnabled`): off means keyword screening and no description fetch.
 - Saving — `PUT /api/vacancy-search-settings` in full; validation errors (`400`, in particular a missing placeholder) are shown under the
@@ -1482,50 +1615,55 @@ record returns and an error-`Snackbar` appears. The «Скрытые» toggle sw
 
 `.env` in the repo root (not committed), plus `.env.example` with the same keys and safe placeholders.
 
-| Variable                           | Req. | Example / default                          | Description                                                                                             |
-| ---------------------------------- | ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `POSTGRES_USER`                    | yes  | `jobhunter`                                |                                                                                                         |
-| `POSTGRES_PASSWORD`                | yes  | `change-me`                                |                                                                                                         |
-| `POSTGRES_DB`                      | yes  | `jobhunter`                                |                                                                                                         |
-| `DATABASE_HOST`                    | yes  | `db`                                       | Compose service name                                                                                    |
-| `DATABASE_PORT`                    | no   | `5432`                                     |                                                                                                         |
-| `AUTH_USER`                        | yes  | `admin`                                    | Basic Auth login                                                                                        |
-| `AUTH_PASSWORD`                    | yes  | `admin`                                    | Basic Auth password; startup fails without it                                                           |
-| `HH_SITE_BASE_URL`                 | no   | `https://hh.ru`                            | Base of the hh.ru site serving the vacancy page                                                         |
-| `HH_USER_AGENT`                    | yes  | `job-hunter/1.0 (igor.ushakov@fastdev.se)` | hh.ru requires a meaningful User-Agent, else `400`                                                      |
-| `HH_REQUEST_TIMEOUT_MS`            | no   | `10000`                                    |                                                                                                         |
-| `HH_MAX_RETRIES`                   | no   | `2`                                        |                                                                                                         |
-| `GETMATCH_SITE_BASE_URL`           | no   | `https://getmatch.ru`                      | Base of the getmatch.ru site (§4.9)                                                                     |
-| `GETMATCH_USER_AGENT`              | no   | `job-hunter/1.0`                           | Optional unlike `HH_USER_AGENT`: getmatch.ru does not `403` a plain User-Agent (§4.9)                   |
-| `GETMATCH_REQUEST_TIMEOUT_MS`      | no   | `10000`                                    |                                                                                                         |
-| `GETMATCH_MAX_RETRIES`             | no   | `2`                                        |                                                                                                         |
-| `SYNC_CONCURRENCY`                 | no   | `3`                                        | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_CONCURRENCY`                                |
-| `SYNC_MIN_DELAY_MS`                | no   | `200`                                      | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_MIN_DELAY_MS`                               |
-| `SCHEDULED_SYNC_ENABLED`           | no   | `true`                                     | Scheduled sync of open records (§4.7). Only `true`/`false` allowed                                      |
-| `SCHEDULED_SYNC_INTERVAL_MS`       | no   | `1800000`                                  | Scheduled run interval, ms (30 min). Range 60000…86400000 (§4.7)                                        |
-| `COMPANY_LOGO_DIR`                 | no   | `os.tmpdir()/job-hunter-logos`             | Company-logo directory on disk (§4.10). In Docker — `/var/lib/job-hunter/logos` on named volume `logos` |
-| `COMPANY_LOGO_REQUEST_TIMEOUT_MS`  | no   | `5000`                                     | Logo download timeout from the source CDN (§4.10), no retries                                           |
-| `HH_MAX_REQUESTS_PER_SECOND`       | no   | `2`                                        | Rate ceiling for **all** hh.ru requests: shared throttle (§4.11.2). Range 0.1…50                        |
-| `VACANCY_SCAN_MAX_PAGES`           | no   | `40`                                       | Max search-results pages per run (§4.11.8). Range 1…40 — hh.ru itself cuts off at page 40               |
-| `VACANCY_SCAN_MAX_DETAILS`         | no   | `600`                                      | Max opened vacancy pages (and model description scorings) per run — sized for a full 40-page sweep      |
-| `VACANCY_SCAN_MAX_AGE_DAYS`        | no   | `30`                                       | Vacancies older than N days are skipped (§4.11.6)                                                       |
-| `VACANCY_SCAN_MAX_DURATION_MS`     | no   | `14400000`                                 | Hard run deadline — 4 hours (§4.11.8)                                                                   |
-| `VACANCY_PREFILTER_MODE`           | no   | `exclude_only`                             | `exclude_only` / `full` / `off` — what is checked deterministically before AI (§4.11.4)                 |
-| `VACANCY_MATCH_MODE`               | no   | `any`                                      | `any` / `all` — keyword screening mode when AI is off or unavailable                                    |
-| `VACANCY_LEADS_LIST_LIMIT`         | no   | `500`                                      | Max records in the GET /api/vacancy-leads response (§5.7)                                               |
-| `VACANCY_AI_PROVIDER`              | no   | `ollama`                                   | `ollama` / `openai` — model request protocol (§4.12.1)                                                  |
-| `VACANCY_AI_BASE_URL`              | no   | `http://ollama:11434`                      | Model address. For the openai provider — base URL of the compatible API                                 |
-| `VACANCY_AI_MODEL`                 | no   | `qwen3:4b-instruct`                        | Model name (§4.12.6). Changing model = this variable + ollama pull                                      |
-| `VACANCY_AI_API_KEY`               | no   | `—`                                        | Provider key; needed only with VACANCY_AI_PROVIDER=openai. Never logged                                 |
-| `VACANCY_AI_BATCH_SIZE`            | no   | `10`                                       | Titles per stage-1 request (§4.12). Descriptions go one at a time                                       |
-| `VACANCY_AI_TIMEOUT_MS`            | no   | `120000`                                   | Model request timeout; on failure keywords decide (§4.12.3)                                             |
-| `VACANCY_AI_DESCRIPTION_MAX_CHARS` | no   | `6000`                                     | Description is truncated to this before being sent to the model (§4.11.7)                               |
-| `API_PORT`                         | no   | `3000`                                     | Internal Nest port                                                                                      |
-| `WEB_PORT`                         | no   | `8080`                                     | Port published to the host                                                                              |
-| `LOG_LEVEL`                        | no   | `log`                                      |                                                                                                         |
-| `DATABASE_PORT_HOST`               | no   | `5432`                                     | Port on which `db` is published on `127.0.0.1` (for e2e and the TypeORM CLI from the host)              |
-| `TEST_DATABASE_HOST`               | no   | `127.0.0.1`                                | DB host for e2e tests run from the host                                                                 |
-| `TEST_DATABASE_NAME`               | no   | `jobhunter_test`                           | Separate e2e DB, recreated each run. Must differ from `POSTGRES_DB` and end with `_test`                |
+| Variable                               | Req. | Example / default                          | Description                                                                                                   |
+| -------------------------------------- | ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`                        | yes  | `jobhunter`                                |                                                                                                               |
+| `POSTGRES_PASSWORD`                    | yes  | `change-me`                                |                                                                                                               |
+| `POSTGRES_DB`                          | yes  | `jobhunter`                                |                                                                                                               |
+| `DATABASE_HOST`                        | yes  | `db`                                       | Compose service name                                                                                          |
+| `DATABASE_PORT`                        | no   | `5432`                                     |                                                                                                               |
+| `AUTH_USER`                            | yes  | `admin`                                    | Basic Auth login                                                                                              |
+| `AUTH_PASSWORD`                        | yes  | `admin`                                    | Basic Auth password; startup fails without it                                                                 |
+| `HH_SITE_BASE_URL`                     | no   | `https://hh.ru`                            | Base of the hh.ru site serving the vacancy page                                                               |
+| `HH_USER_AGENT`                        | yes  | `job-hunter/1.0 (igor.ushakov@fastdev.se)` | hh.ru requires a meaningful User-Agent, else `400`                                                            |
+| `HH_REQUEST_TIMEOUT_MS`                | no   | `10000`                                    |                                                                                                               |
+| `HH_MAX_RETRIES`                       | no   | `2`                                        |                                                                                                               |
+| `GETMATCH_SITE_BASE_URL`               | no   | `https://getmatch.ru`                      | Base of the getmatch.ru site (§4.9)                                                                           |
+| `GETMATCH_USER_AGENT`                  | no   | `job-hunter/1.0`                           | Optional unlike `HH_USER_AGENT`: getmatch.ru does not `403` a plain User-Agent (§4.9)                         |
+| `GETMATCH_REQUEST_TIMEOUT_MS`          | no   | `10000`                                    |                                                                                                               |
+| `GETMATCH_MAX_RETRIES`                 | no   | `2`                                        |                                                                                                               |
+| `IT_VACANCIES_SITE_BASE_URL`           | no   | `https://it-vacancies.ru`                  | Base of the it-vacancies.ru site (§4.8) — vacancy pages, results pages and logos                              |
+| `IT_VACANCIES_USER_AGENT`              | no   | `job-hunter/1.0`                           | Optional like `GETMATCH_USER_AGENT`: the source does not `403` a plain User-Agent (§4.8)                      |
+| `IT_VACANCIES_REQUEST_TIMEOUT_MS`      | no   | `10000`                                    |                                                                                                               |
+| `IT_VACANCIES_MAX_RETRIES`             | no   | `2`                                        |                                                                                                               |
+| `SYNC_CONCURRENCY`                     | no   | `3`                                        | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_CONCURRENCY`                                      |
+| `SYNC_MIN_DELAY_MS`                    | no   | `200`                                      | Shared by all vacancy sources (§4.6); renamed from `HH_SYNC_MIN_DELAY_MS`                                     |
+| `SCHEDULED_SYNC_ENABLED`               | no   | `true`                                     | Scheduled sync of open records (§4.7). Only `true`/`false` allowed                                            |
+| `SCHEDULED_SYNC_INTERVAL_MS`           | no   | `1800000`                                  | Scheduled run interval, ms (30 min). Range 60000…86400000 (§4.7)                                              |
+| `COMPANY_LOGO_DIR`                     | no   | `os.tmpdir()/job-hunter-logos`             | Company-logo directory on disk (§4.10). In Docker — `/var/lib/job-hunter/logos` on named volume `logos`       |
+| `COMPANY_LOGO_REQUEST_TIMEOUT_MS`      | no   | `5000`                                     | Logo download timeout from the source CDN (§4.10), no retries                                                 |
+| `HH_MAX_REQUESTS_PER_SECOND`           | no   | `2`                                        | Rate ceiling for **all** hh.ru requests: shared throttle (§4.11.2). Range 0.1…50                              |
+| `IT_VACANCIES_MAX_REQUESTS_PER_SECOND` | no   | `2`                                        | Rate ceiling for **all** it-vacancies.ru requests: own throttle, independent of hh.ru (§4.11.2). Range 0.1…50 |
+| `VACANCY_SCAN_MAX_PAGES`               | no   | `40`                                       | Max search-results pages per run (§4.11.8). Range 1…40 — hh.ru itself cuts off at page 40                     |
+| `VACANCY_SCAN_MAX_DETAILS`             | no   | `600`                                      | Max opened vacancy pages (and model description scorings) per run — sized for a full 40-page sweep            |
+| `VACANCY_SCAN_MAX_AGE_DAYS`            | no   | `30`                                       | Vacancies older than N days are skipped (§4.11.6)                                                             |
+| `VACANCY_SCAN_MAX_DURATION_MS`         | no   | `14400000`                                 | Hard run deadline — 4 hours (§4.11.8)                                                                         |
+| `VACANCY_PREFILTER_MODE`               | no   | `exclude_only`                             | `exclude_only` / `full` / `off` — what is checked deterministically before AI (§4.11.4)                       |
+| `VACANCY_MATCH_MODE`                   | no   | `any`                                      | `any` / `all` — keyword screening mode when AI is off or unavailable                                          |
+| `VACANCY_LEADS_LIST_LIMIT`             | no   | `500`                                      | Max records in the GET /api/vacancy-leads response (§5.7)                                                     |
+| `VACANCY_AI_PROVIDER`                  | no   | `ollama`                                   | `ollama` / `openai` — model request protocol (§4.12.1)                                                        |
+| `VACANCY_AI_BASE_URL`                  | no   | `http://ollama:11434`                      | Model address. For the openai provider — base URL of the compatible API                                       |
+| `VACANCY_AI_MODEL`                     | no   | `qwen3:4b-instruct`                        | Model name (§4.12.6). Changing model = this variable + ollama pull                                            |
+| `VACANCY_AI_API_KEY`                   | no   | `—`                                        | Provider key; needed only with VACANCY_AI_PROVIDER=openai. Never logged                                       |
+| `VACANCY_AI_BATCH_SIZE`                | no   | `10`                                       | Titles per stage-1 request (§4.12). Descriptions go one at a time                                             |
+| `VACANCY_AI_TIMEOUT_MS`                | no   | `120000`                                   | Model request timeout; on failure keywords decide (§4.12.3)                                                   |
+| `VACANCY_AI_DESCRIPTION_MAX_CHARS`     | no   | `6000`                                     | Description is truncated to this before being sent to the model (§4.11.7)                                     |
+| `API_PORT`                             | no   | `3000`                                     | Internal Nest port                                                                                            |
+| `WEB_PORT`                             | no   | `8080`                                     | Port published to the host                                                                                    |
+| `LOG_LEVEL`                            | no   | `log`                                      |                                                                                                               |
+| `DATABASE_PORT_HOST`                   | no   | `5432`                                     | Port on which `db` is published on `127.0.0.1` (for e2e and the TypeORM CLI from the host)                    |
+| `TEST_DATABASE_HOST`                   | no   | `127.0.0.1`                                | DB host for e2e tests run from the host                                                                       |
+| `TEST_DATABASE_NAME`                   | no   | `jobhunter_test`                           | Separate e2e DB, recreated each run. Must differ from `POSTGRES_DB` and end with `_test`                      |
 
 Env is validated at startup via `@nestjs/config` + a schema (`class-validator` or `joi`). A missing
 required variable **must** crash the process with a clear message.

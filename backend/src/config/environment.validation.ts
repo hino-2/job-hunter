@@ -23,6 +23,11 @@ import {
   DEFAULT_GETMATCH_SITE_BASE_URL,
   DEFAULT_GETMATCH_USER_AGENT,
   DEFAULT_HH_MAX_REQUESTS_PER_SECOND,
+  DEFAULT_IT_VACANCIES_MAX_REQUESTS_PER_SECOND,
+  DEFAULT_IT_VACANCIES_MAX_RETRIES,
+  DEFAULT_IT_VACANCIES_REQUEST_TIMEOUT_MS,
+  DEFAULT_IT_VACANCIES_SITE_BASE_URL,
+  DEFAULT_IT_VACANCIES_USER_AGENT,
   DEFAULT_HH_MAX_RETRIES,
   DEFAULT_HH_REQUEST_TIMEOUT_MS,
   DEFAULT_HH_SITE_BASE_URL,
@@ -163,6 +168,43 @@ export class EnvironmentVariables {
   @Min(0)
   @Max(MAX_RETRIES_MAX)
   GETMATCH_MAX_RETRIES: number = DEFAULT_GETMATCH_MAX_RETRIES;
+
+  /**
+   * §4.8/§4.11: it-vacancies.ru — как и getmatch, все ключи опциональны с
+   * безопасными дефолтами. Свой лимит частоты (в отличие от getmatch, у которого
+   * троттла нет вовсе): по этому источнику идёт прогон поиска лидов, то есть
+   * десятки запросов подряд.
+   */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  IT_VACANCIES_SITE_BASE_URL: string = DEFAULT_IT_VACANCIES_SITE_BASE_URL;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  IT_VACANCIES_USER_AGENT: string = DEFAULT_IT_VACANCIES_USER_AGENT;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(REQUEST_TIMEOUT_MIN_MS)
+  @Max(REQUEST_TIMEOUT_MAX_MS)
+  IT_VACANCIES_REQUEST_TIMEOUT_MS: number = DEFAULT_IT_VACANCIES_REQUEST_TIMEOUT_MS;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(MAX_RETRIES_MAX)
+  IT_VACANCIES_MAX_RETRIES: number = DEFAULT_IT_VACANCIES_MAX_RETRIES;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(HH_MAX_REQUESTS_PER_SECOND_MIN)
+  @Max(HH_MAX_REQUESTS_PER_SECOND_MAX)
+  IT_VACANCIES_MAX_REQUESTS_PER_SECOND: number = DEFAULT_IT_VACANCIES_MAX_REQUESTS_PER_SECOND;
 
   @IsOptional()
   @Type(() => Number)

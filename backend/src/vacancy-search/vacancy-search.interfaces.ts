@@ -1,6 +1,11 @@
 import type { VacancySource } from '../applications/applications.type';
-import type { HhSearchItem } from '../hh/hh.interfaces';
-import type { MatchSource, ScanStatus, ScanStoppedReason } from './vacancy-search.type';
+import type { VacancySearchItem } from '../vacancies/vacancies.interfaces';
+import type {
+  MatchSource,
+  ScanStatus,
+  ScanStoppedReason,
+  VacancySearchUrlTemplateBySource,
+} from './vacancy-search.type';
 
 /**
  * §5.7: снимок настроек поиска с уже разобранными списками ключевых/стоп-слов
@@ -15,8 +20,13 @@ export interface VacancySearchSettingsSnapshot {
   titlePrompt: string;
   descriptionPrompt: string;
   aiEnabled: boolean;
-  /** §3.6/§4.11.1/§5.7: читается один раз при старте прогона, как и остальные поля снимка. */
-  searchUrlTemplate: string;
+  /**
+   * §3.6/§4.11.1/§5.7: шаблоны ссылок на выдачу по источникам, читаются один раз при
+   * старте прогона, как и остальные поля снимка. Оба проверены fail-loud, даже если
+   * прогон идёт только по одному источнику: повреждённый шаблон соседнего источника
+   * лучше обнаружить сразу, а не при следующем запуске.
+   */
+  searchUrlTemplateBySource: VacancySearchUrlTemplateBySource;
   updatedAt: Date;
 }
 
@@ -49,6 +59,8 @@ export interface VacancyScanProgress {
  * уходит только копия через snapshot().
  */
 export interface ScanRunHandle {
+  /** Источник, по которому идёт этот прогон — прогон один, но источник у него свой (§5.7). */
+  readonly source: VacancySource;
   increment(counter: keyof VacancyScanProgress, delta?: number): void;
   /** Кооперативная отмена (§4.11.12): проверяется в тех же точках, что и дедлайн. */
   isStopRequested(): boolean;
@@ -65,6 +77,7 @@ export interface VacancyScanPageProgress {
 
 /** §3.7: сохранённая позиция прогона и ссылка на выдачу, при которой она была взята. */
 export interface VacancyScanPositionSnapshot {
+  source: VacancySource;
   nextPage: number;
   searchUrlTemplate: string | null;
 }
@@ -78,6 +91,8 @@ export interface VacancyScanResumeState {
 /** §5.7: тело GET .../scan/status — статус, прогресс и итог последнего прогона. */
 export interface VacancyScanStateSnapshot {
   status: ScanStatus;
+  /** Источник идущего прогона, а после finish() — последнего завершённого; null, если прогонов ещё не было. */
+  source: VacancySource | null;
   startedAt: Date | null;
   finishedAt: Date | null;
   progress: VacancyScanProgress;
@@ -118,7 +133,8 @@ export interface VacancyLeadInsertRow {
 
 /** Вход buildVacancyLeadRow (vacancy-lead.builder.ts) — уже принятое решение конвейера, не сырые данные источника. */
 export interface VacancyLeadRowInput {
-  item: HhSearchItem;
+  item: VacancySearchItem;
+  source: VacancySource;
   positionKey: string;
   companyKey: string;
   publishedOn: string;
@@ -135,7 +151,7 @@ export interface VacancyLeadRowInput {
  * оба эшелона дедупликации ДО ИИ по названию.
  */
 export interface VacancyScanSurvivor {
-  item: HhSearchItem;
+  item: VacancySearchItem;
   dedupKey: VacancyLeadDedupKey;
 }
 
@@ -152,7 +168,7 @@ export interface VacancyLeadLogoSource {
 
 /** §4.11.4: итог этапа 2 (ИИ по названию либо детерминированный фолбэк на ключевые слова). */
 export interface VacancyTitleDecision {
-  item: HhSearchItem;
+  item: VacancySearchItem;
   dedupKey: VacancyLeadDedupKey;
   matches: boolean;
   matchSource: MatchSource;

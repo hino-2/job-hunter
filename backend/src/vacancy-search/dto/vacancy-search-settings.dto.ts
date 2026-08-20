@@ -10,6 +10,8 @@ export class VacancySearchSettingsDto {
   aiEnabled!: boolean;
   /** §3.6/§4.11.1: обычное поле настроек — читается из entity, а не из env (§5.7). */
   searchUrlTemplate!: string;
+  /** §3.6/§4.11.1: шаблон ссылки на выдачу второго источника поиска лидов (§5.7). */
+  itVacanciesSearchUrlTemplate!: string;
   updatedAt!: string;
 
   static fromEntity(entity: VacancySearchSettings): VacancySearchSettingsDto {
@@ -21,6 +23,7 @@ export class VacancySearchSettingsDto {
     dto.descriptionPrompt = entity.descriptionPrompt;
     dto.aiEnabled = entity.aiEnabled;
     dto.searchUrlTemplate = entity.searchUrlTemplate;
+    dto.itVacanciesSearchUrlTemplate = entity.itVacanciesSearchUrlTemplate;
     dto.updatedAt = entity.updatedAt.toISOString();
 
     return dto;

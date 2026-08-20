@@ -1,4 +1,5 @@
 import { unescapeHtmlEntities } from '../common/html.helpers';
+import { isRecord, readString } from '../vacancies/vacancy-json-ld.helpers';
 import {
   HH_SEARCH_COMPANY_VISIBLE_NAME_FIELD,
   HH_SEARCH_COMPENSATION_FIELD,
@@ -14,8 +15,8 @@ import {
   HH_SEARCH_WORK_FORMATS_SEPARATOR,
   HH_VACANCY_PAGE_PATH,
 } from './hh.constants';
-import { isRecord, readString } from './hh-json-ld.helpers';
-import type { HhSearchItem, HhSearchPage, HhSearchState } from './hh.interfaces';
+import type { VacancySearchItem, VacancySearchPage } from '../vacancies/vacancies.interfaces';
+import type { HhSearchState } from './hh.interfaces';
 
 /**
  * §4.11.3 шаг 3: явный предикат сужения unknown → HhSearchState. Отсутствие
@@ -100,7 +101,7 @@ function readAreaName(raw: Record<string, unknown>): string | null {
 }
 
 type CompensationFields = Pick<
-  HhSearchItem,
+  VacancySearchItem,
   'salaryFrom' | 'salaryTo' | 'salaryCurrency' | 'salaryGross'
 >;
 
@@ -170,7 +171,7 @@ function readCompanyName(company: Record<string, unknown>): string | null {
  * а не роняет разбор страницы целиком (мягкая деградация в противоположность
  * isHhSearchState выше).
  */
-function parseSearchItem(raw: unknown, siteBaseUrl: string): HhSearchItem | null {
+function parseSearchItem(raw: unknown, siteBaseUrl: string): VacancySearchItem | null {
   if (!isRecord(raw)) {
     return null;
   }
@@ -213,7 +214,7 @@ function parseSearchItem(raw: unknown, siteBaseUrl: string): HhSearchItem | null
  * состояния — null целиком, а не «нашли 0 вакансий». Внутри списка вакансий —
  * мягкая деградация поэлементно (см. parseSearchItem).
  */
-export function parseHhSearchPage(html: unknown, siteBaseUrl: string): HhSearchPage | null {
+export function parseHhSearchPage(html: unknown, siteBaseUrl: string): VacancySearchPage | null {
   if (typeof html !== 'string' || html.length === 0) {
     return null;
   }
@@ -238,7 +239,7 @@ export function parseHhSearchPage(html: unknown, siteBaseUrl: string): HhSearchP
   }
 
   const { vacancies, paging } = parsed.vacancySearchResult;
-  const items: HhSearchItem[] = [];
+  const items: VacancySearchItem[] = [];
   let skippedInvalid = 0;
 
   for (const entry of vacancies) {

@@ -6,6 +6,8 @@
  * SYNC_OUTCOME/VACANCY_SOURCE в applications.constants.ts (§10 пп.3–4).
  */
 
+import { VACANCY_SOURCE } from '../applications/applications.constants';
+
 export const VACANCY_LEADS_TABLE = 'vacancy_leads';
 
 export const VACANCY_SEARCH_SETTINGS_TABLE = 'vacancy_search_settings';
@@ -82,6 +84,7 @@ export const VACANCY_SEARCH_SETTINGS_COLUMN = {
   DESCRIPTION_PROMPT: 'description_prompt',
   AI_ENABLED: 'ai_enabled',
   SEARCH_URL_TEMPLATE: 'search_url_template',
+  IT_VACANCIES_SEARCH_URL_TEMPLATE: 'it_vacancies_search_url_template',
   UPDATED_AT: 'updated_at',
 } as const;
 
@@ -95,6 +98,10 @@ export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH = 2048;
 
 /** Имя ValidatorConstraint, проверяющего протокол и хост шаблона ссылки (search-url-template.validator.ts). */
 export const SEARCH_URL_TEMPLATE_CONSTRAINT_NAME = 'searchUrlTemplateOrigin';
+
+/** То же для шаблона ссылки на выдачу it-vacancies.ru (it-vacancies-search-url-template.validator.ts). */
+export const IT_VACANCIES_SEARCH_URL_TEMPLATE_CONSTRAINT_NAME =
+  'itVacanciesSearchUrlTemplateOrigin';
 
 export const VACANCY_SEARCH_SETTINGS_ROUTE = 'vacancy-search-settings';
 
@@ -154,6 +161,16 @@ export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_ORIGIN_MESSAGE =
   '$property: ссылка обязана начинаться с https:// и вести на hh.ru (или региональный домен hh)';
 
 /**
+ * §5.7: те же два сообщения для шаблона ссылки на выдачу it-vacancies.ru. Свои
+ * константы, а не переиспользование hh-текстов: сообщение называет конкретный хост,
+ * и фронт кладёт его под свой контрол по префиксу $property.
+ */
+export const VACANCY_SEARCH_SETTINGS_IT_VACANCIES_SEARCH_URL_MISSING_PAGE_MESSAGE =
+  '$property: обязан содержать плейсхолдер {page}, иначе прогон читал бы первую страницу бесконечно';
+export const VACANCY_SEARCH_SETTINGS_IT_VACANCIES_SEARCH_URL_ORIGIN_MESSAGE =
+  '$property: ссылка обязана начинаться с https:// и вести на it-vacancies.ru';
+
+/**
  * §4.11.1: строка засеивается той же миграцией, что и остальные поля (§3.6) —
  * повреждённое значение (руками правленный SQL) обнаруживается только при старте
  * прогона (VacancySearchSettingsService.getSnapshot), поэтому GET продолжает
@@ -161,6 +178,8 @@ export const VACANCY_SEARCH_SETTINGS_SEARCH_URL_ORIGIN_MESSAGE =
  */
 export const VACANCY_SEARCH_SETTINGS_INVALID_URL_TEMPLATE_MESSAGE =
   'Шаблон ссылки на выдачу в настройках повреждён: нет плейсхолдера {page} либо хост не hh.ru';
+export const VACANCY_SEARCH_SETTINGS_INVALID_IT_VACANCIES_URL_TEMPLATE_MESSAGE =
+  'Шаблон ссылки на выдачу в настройках повреждён: нет плейсхолдера {page} либо хост не it-vacancies.ru';
 
 /** Общий делитель для бюджета по возрасту (§4.11.6, VACANCY_SCAN_MAX_AGE_DAYS). */
 export const MS_IN_DAY = 86_400_000;
@@ -268,8 +287,17 @@ export const SCAN_MODES = ['FRESH', 'RESUME'] as const;
 export const DEFAULT_SCAN_MODE = SCAN_MODES[0];
 
 /**
- * §3.7: singleton-таблица сохранённой позиции прогона — тот же приём, что у
- * vacancy_search_settings (id smallint + CHECK (id = 1)), но своя таблица и свой
+ * §5.7: источник, с которым идёт прогон, если тело POST /scan его не назвало —
+ * ровно та же схема совместимости, что у DEFAULT_SCAN_MODE. Допустимые значения
+ * перечисляет VACANCY_LEAD_SEARCH_SOURCES (vacancies/vacancies.constants.ts):
+ * поиск лидов поддерживают не все источники синхронизации.
+ */
+export const DEFAULT_SCAN_SOURCE = VACANCY_SOURCE.HH;
+
+/**
+ * §3.7: таблица сохранённых позиций прогона — по строке на источник поиска (PK по
+ * source), а не единственная строка: прогон идёт по одному источнику за раз, но
+ * «Продолжить» предлагается для каждого источника отдельно. Своя таблица и свой
  * сервис (VacancyScanPositionService), а не поле в vacancy_search_settings: это
  * машинная позиция, а не пользовательская настройка (см. обоснование в blueprint
  * §3, «Chosen approach»).
@@ -278,15 +306,11 @@ export const VACANCY_SCAN_POSITION_TABLE = 'vacancy_scan_position';
 
 /** Свойство сущности VacancyScanPosition → имя колонки в БД. */
 export const VACANCY_SCAN_POSITION_COLUMN = {
-  ID: 'id',
+  SOURCE: 'source',
   NEXT_PAGE: 'next_page',
   SEARCH_URL_TEMPLATE: 'search_url_template',
   UPDATED_AT: 'updated_at',
 } as const;
-
-export const VACANCY_SCAN_POSITION_SINGLETON_ID = 1;
-
-export const VACANCY_SCAN_POSITION_ID_CHECK = 'CHK_vacancy_scan_position_id';
 
 /** По определению совпадает с шириной vacancy_search_settings.search_url_template — колонка хранит её копию. */
 export const VACANCY_SCAN_POSITION_SEARCH_URL_TEMPLATE_LENGTH =
@@ -302,6 +326,10 @@ export const VACANCY_SCAN_POSITION_MISSING_MESSAGE =
   'Позиция прогона поиска не найдена: миграция не выполнена или строка удалена вручную';
 export const VACANCY_SCAN_POSITION_SAVE_FAILED_MESSAGE =
   'Не удалось сохранить позицию прогона поиска';
+
+/** §4.11: источник запрошен, но провайдера поиска для него нет — рассинхронизация реестра, не плохой запрос. */
+export const VACANCY_LEAD_SEARCH_PROVIDER_MISSING_MESSAGE =
+  'Поиск лидов для этого источника не поддерживается';
 
 /** §8: имена env-переменных бюджетов и режимов прогона (значения — в config/config.constants.ts). */
 export const VACANCY_SCAN_MAX_PAGES_ENV_KEY = 'VACANCY_SCAN_MAX_PAGES';

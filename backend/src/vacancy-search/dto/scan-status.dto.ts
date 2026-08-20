@@ -1,10 +1,14 @@
+import type { VacancySource } from '../../applications/applications.type';
 import type {
   VacancyScanPageProgress,
   VacancyScanProgress,
-  VacancyScanResumeState,
   VacancyScanStateSnapshot,
 } from '../vacancy-search.interfaces';
-import type { ScanStatus, ScanStoppedReason } from '../vacancy-search.type';
+import type {
+  ScanStatus,
+  ScanStoppedReason,
+  VacancyScanResumeStateBySource,
+} from '../vacancy-search.type';
 
 function toIsoOrNull(value: Date | null): string | null {
   return value === null ? null : value.toISOString();
@@ -23,13 +27,19 @@ export class ScanStatusDto {
   progress!: VacancyScanProgress;
   pageProgress!: VacancyScanPageProgress;
   stopRequested!: boolean;
-  resume!: VacancyScanResumeState;
+  /** §5.7: источник идущего прогона, а после завершения — последнего; null, если прогонов не было. */
+  source!: VacancySource | null;
+  /**
+   * §5.7: «Продолжить» отдельно по каждому источнику поиска — прогон один на процесс,
+   * но сохранённая позиция у источников своя, и кнопка гасится независимо.
+   */
+  resumeBySource!: VacancyScanResumeStateBySource;
   stoppedReason!: ScanStoppedReason | null;
   message!: string | null;
 
   static fromState(
     snapshot: VacancyScanStateSnapshot,
-    resume: VacancyScanResumeState,
+    resumeBySource: VacancyScanResumeStateBySource,
   ): ScanStatusDto {
     const dto = new ScanStatusDto();
 
@@ -41,7 +51,8 @@ export class ScanStatusDto {
     dto.progress = { ...snapshot.progress };
     dto.pageProgress = { ...snapshot.pageProgress };
     dto.stopRequested = snapshot.stopRequested;
-    dto.resume = resume;
+    dto.source = snapshot.source;
+    dto.resumeBySource = resumeBySource;
     dto.stoppedReason = snapshot.stoppedReason;
     dto.message = snapshot.message;
 

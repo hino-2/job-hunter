@@ -43,6 +43,19 @@ export class VacancySearchSettings {
   })
   searchUrlTemplate!: string;
 
+  /**
+   * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу it-vacancies.ru — своя колонка, а не
+   * общая с hh.ru: у источников свой синтаксис запроса, фильтров и пагинации, одним
+   * шаблоном они не выражаются. Требования те же: обязателен плейсхолдер {page},
+   * хост — из allow-list it-vacancies.ru.
+   */
+  @Column({
+    type: COLUMN_TYPE.VARCHAR,
+    name: VACANCY_SEARCH_SETTINGS_COLUMN.IT_VACANCIES_SEARCH_URL_TEMPLATE,
+    length: VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH,
+  })
+  itVacanciesSearchUrlTemplate!: string;
+
   /** §4.11.4: ключевые слова через запятую — и для детерминированного отбора, и для промптов. */
   @Column({ type: COLUMN_TYPE.TEXT, name: VACANCY_SEARCH_SETTINGS_COLUMN.KEYWORDS })
   keywords!: string;

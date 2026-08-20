@@ -4,8 +4,9 @@ import type { AiTitleVerdict } from './vacancy-ai.interfaces';
 /**
  * Сужение unknown → провалидированные вердикты модели (§4.12.3). Общие
  * unknown-narrowing хелперы (isRecord/readString/…) объявлены здесь же, а не
- * переиспользованы из hh/hh-json-ld.helpers.ts: модуль vacancy-ai не должен знать
- * про hh.ru, а копия трёх однострочных функций дешевле лишней межмодульной связи.
+ * переиспользованы из vacancies/vacancy-json-ld.helpers.ts: модуль vacancy-ai не
+ * должен знать про разбор страниц источников, а копия трёх однострочных функций
+ * дешевле лишней межмодульной связи.
  */
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

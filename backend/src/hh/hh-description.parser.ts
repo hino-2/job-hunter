@@ -1,5 +1,9 @@
-import { JSON_LD_FIELD } from './hh.constants';
-import { extractJsonLdEntries, findJobPosting, readString } from './hh-json-ld.helpers';
+import { JSON_LD_FIELD } from '../vacancies/vacancies.constants';
+import {
+  extractJsonLdEntries,
+  findJobPosting,
+  readString,
+} from '../vacancies/vacancy-json-ld.helpers';
 
 /**
  * §4.11.7: описание вакансии для ИИ-отбора — поле description того же блока

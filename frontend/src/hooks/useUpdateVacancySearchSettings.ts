@@ -16,8 +16,9 @@ import type { UpdateVacancySearchSettingsOptions } from './use-update-vacancy-se
  * Сохранение настроек поиска (§7.9.4): PUT ресурса целиком. Идущий прогон не затрагивает —
  * vacancy-scan.service читает настройки заново только при следующем запуске (снимок берётся
  * один раз при старте, §5.7). Ключ статуса прогона всё же инвалидируется (§4.11.12):
- * resume.available зависит от searchUrlTemplate, и сохранённое изменение обязано мгновенно
- * дизейблить устаревшую кнопку «Продолжить», не дожидаясь планового опроса.
+ * available каждого среза resumeBySource зависит от шаблона ссылки своего источника,
+ * и сохранённое изменение любого из них обязано мгновенно дизейблить устаревшую кнопку
+ * «Продолжить», не дожидаясь планового опроса.
  */
 export function useUpdateVacancySearchSettings(
   options: UpdateVacancySearchSettingsOptions,

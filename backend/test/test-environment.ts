@@ -4,6 +4,7 @@ import {
   DEFAULT_DATABASE_PORT,
   DEFAULT_GETMATCH_MAX_RETRIES,
   DEFAULT_HH_MAX_RETRIES,
+  DEFAULT_IT_VACANCIES_MAX_RETRIES,
   ENV_FILE_PATHS,
 } from '../src/config/config.constants';
 import type { TestDatabaseSettings } from './e2e.interfaces';
@@ -12,6 +13,7 @@ import {
   DEFAULT_TEST_DATABASE_NAME,
   GETMATCH_STUB_BASE_URL,
   HH_STUB_BASE_URL,
+  IT_VACANCIES_STUB_BASE_URL,
   TEST_AUTH_PASSWORD,
   TEST_AUTH_USER,
   TEST_DATABASE_NAME_PATTERN,
@@ -20,6 +22,8 @@ import {
   TEST_GETMATCH_USER_AGENT,
   TEST_HH_MAX_REQUESTS_PER_SECOND,
   TEST_HH_USER_AGENT,
+  TEST_IT_VACANCIES_MAX_REQUESTS_PER_SECOND,
+  TEST_IT_VACANCIES_USER_AGENT,
   TEST_NODE_ENV,
   TEST_SCHEDULED_SYNC_ENABLED,
   TEST_SYNC_CONCURRENCY,
@@ -95,7 +99,7 @@ export function applyTestEnvironment(): TestDatabaseSettings {
   // детерминированные значения, совпадающие с теми, что подставляет агент.
   process.env.AUTH_USER = TEST_AUTH_USER;
   process.env.AUTH_PASSWORD = TEST_AUTH_PASSWORD;
-  // hh.ru и getmatch.ru подменяются локальными заглушками для ВСЕХ e2e: ни один тест
+  // hh.ru, getmatch.ru и it-vacancies.ru подменяются локальными заглушками для ВСЕХ e2e: ни один тест
   // не должен ходить в интернет — ни случайно, ни в спеках синхронизации.
   // Значения тоже фиксируются принудительно, иначе ожидания в спеках зависели бы
   // от содержимого .env разработчика.
@@ -109,6 +113,15 @@ export function applyTestEnvironment(): TestDatabaseSettings {
   process.env.GETMATCH_SITE_BASE_URL = GETMATCH_STUB_BASE_URL;
   process.env.GETMATCH_USER_AGENT = TEST_GETMATCH_USER_AGENT;
   process.env.GETMATCH_MAX_RETRIES = String(DEFAULT_GETMATCH_MAX_RETRIES);
+  // it-vacancies.ru (§4.8): оверрайд заведён вместе с самим источником, ДО появления
+  // его фикстур. Без него дефолт config.constants.ts (https://it-vacancies.ru) увёл бы
+  // первый же e2e этого источника в интернет, да ещё и с продовым лимитом частоты.
+  // Порт заглушки свой (IT_VACANCIES_STUB_PORT): пока её никто не поднимает, попытка
+  // запроса упирается в loopback (ECONNREFUSED), а не в живой сайт.
+  process.env.IT_VACANCIES_SITE_BASE_URL = IT_VACANCIES_STUB_BASE_URL;
+  process.env.IT_VACANCIES_USER_AGENT = TEST_IT_VACANCIES_USER_AGENT;
+  process.env.IT_VACANCIES_MAX_RETRIES = String(DEFAULT_IT_VACANCIES_MAX_RETRIES);
+  process.env.IT_VACANCIES_MAX_REQUESTS_PER_SECOND = TEST_IT_VACANCIES_MAX_REQUESTS_PER_SECOND;
   // Общие для всех источников (§4.6) — переименованы из HH_SYNC_CONCURRENCY/
   // HH_SYNC_MIN_DELAY_MS вместе с обобщением синхронизации в vacancies/.
   process.env.SYNC_CONCURRENCY = String(TEST_SYNC_CONCURRENCY);

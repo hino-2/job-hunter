@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import type { VacancySource } from '../applications/applications.type';
 import { GetmatchApiService } from '../getmatch/getmatch-api.service';
 import { HhApiService } from '../hh/hh-api.service';
+import { ItVacanciesApiService } from '../it-vacancies/it-vacancies-api.service';
 import { VACANCY_SOURCE_ORDER } from './vacancies.constants';
 import type { VacancyResolution, VacancySourceProvider } from './vacancies.interfaces';
 
@@ -10,20 +11,21 @@ import type { VacancyResolution, VacancySourceProvider } from './vacancies.inter
  * Единственная точка диспетчеризации по источнику вакансии (§4.8): и разбор
  * пользовательской ссылки, и поиск провайдера по колонке vacancy_source записи.
  *
- * HhApiService и GetmatchApiService импортируются как значения — этого требует
- * emitDecoratorMetadata для DI (§2.4 п.4). Добавление третьего источника —
- * один параметр конструктора и одна запись в byId, файл больше никто не трогает.
+ * Сервисы источников импортируются как значения — этого требует emitDecoratorMetadata
+ * для DI (§2.4 п.4). Добавление источника — один параметр конструктора и одна запись
+ * в entries, файл больше никто не трогает.
  */
 @Injectable()
 export class VacancyProviderRegistry {
   private readonly byId: ReadonlyMap<VacancySource, VacancySourceProvider>;
 
-  constructor(hh: HhApiService, getmatch: GetmatchApiService) {
+  constructor(hh: HhApiService, getmatch: GetmatchApiService, itVacancies: ItVacanciesApiService) {
     // Аннотация элемента кортежа обязательна: без неё TS выводит union конкретных
     // сервисов, а не VacancySourceProvider, и Map получает несовместимый тип значений.
     const entries: [VacancySource, VacancySourceProvider][] = [
       [hh.source, hh],
       [getmatch.source, getmatch],
+      [itVacancies.source, itVacancies],
     ];
 
     this.byId = new Map(entries);

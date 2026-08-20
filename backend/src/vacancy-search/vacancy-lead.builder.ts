@@ -1,4 +1,3 @@
-import { VACANCY_SOURCE } from '../applications/applications.constants';
 import { clampText } from '../common/text.helpers';
 import {
   KEYWORD_LIST_JOIN_SEPARATOR,
@@ -23,9 +22,12 @@ function clampOrNull(value: string | null, maxLength: number): string | null {
 
 /**
  * §4.11.4/§4.11.5: единственное место, где значения будущей строки vacancy_leads
- * режутся по ширине колонки (§10) — источник (hh.ru) не гарантирует длину, а без
+ * режутся по ширине колонки (§10) — источник не гарантирует длину, а без
  * среза insertIgnoringConflict упал бы QueryFailedError'ом вместо штатной вставки
  * (тот же принцип, что normalizeVacancyPosition у applications, §4.3).
+ *
+ * source приходит из входа (источник идущего прогона), а не зашит константой: лиды
+ * бывают из разных источников (§4.8).
  *
  * matchedKeywords — колонка text без предела длины (§3.5), поэтому не клампится,
  * только склеивается через запятую; пустой массив → null (колонка «нет совпавших
@@ -35,7 +37,7 @@ export function buildVacancyLeadRow(input: VacancyLeadRowInput): VacancyLeadInse
   const { item } = input;
 
   return {
-    source: VACANCY_SOURCE.HH,
+    source: input.source,
     externalId: clampText(item.externalId, VACANCY_LEAD_EXTERNAL_ID_LENGTH),
     position: clampText(item.position, VACANCY_LEAD_POSITION_LENGTH),
     company: clampText(item.company, VACANCY_LEAD_COMPANY_LENGTH),

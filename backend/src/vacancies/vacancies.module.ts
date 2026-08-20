@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Application } from '../applications/application.entity';
 import { GetmatchModule } from '../getmatch/getmatch.module';
 import { HhModule } from '../hh/hh.module';
+import { ItVacanciesModule } from '../it-vacancies/it-vacancies.module';
 import { LogosModule } from '../logos/logos.module';
 import { VacanciesController } from './vacancies.controller';
 import { VacancyLogoService } from './vacancy-logo.service';
@@ -16,12 +17,13 @@ import { VacancySyncService } from './vacancy-sync.service';
  * без знания о конкретном источнике.
  *
  * ApplicationsModule сюда НЕ импортируется: зависимость идёт ровно в одну сторону,
- * ApplicationsModule → VacanciesModule → { HhModule, GetmatchModule } (эндпоинты
- * синхронизации по §5.2 принадлежат контроллеру applications). Поэтому
+ * ApplicationsModule → VacanciesModule → { HhModule, GetmatchModule, ItVacanciesModule }
+ * (эндпоинты синхронизации по §5.2 принадлежат контроллеру applications). Поэтому
  * VacancySyncService получает репозиторий записей напрямую через forFeature, а не
  * через ApplicationsService — иначе получился бы цикл модулей и forwardRef.
  *
- * GetmatchModule зарегистрирован фазой B3: реестр теперь знает про оба источника.
+ * GetmatchModule и ItVacanciesModule зарегистрированы здесь же: реестр знает про все
+ * три источника, каждый со своим module-scoped HttpService.
  *
  * LogosModule (§4.10) не зависит ни от applications, ни от vacancies — импорт сюда
  * не создаёт цикла: VacancyLogoService использует CompanyLogoService для скачивания
@@ -29,11 +31,18 @@ import { VacancySyncService } from './vacancy-sync.service';
  *
  * VacancyLogoService экспортируется отдельно от VacancySyncService: он нужен ещё и
  * ApplicationsService (create-путь, §4.4/§4.10) — направление зависимостей остаётся
- * прежним, ApplicationsModule → VacanciesModule → { HhModule, GetmatchModule, LogosModule },
+ * прежним, ApplicationsModule → VacanciesModule →
+ * { HhModule, GetmatchModule, ItVacanciesModule, LogosModule },
  * без forwardRef.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Application]), HhModule, GetmatchModule, LogosModule],
+  imports: [
+    TypeOrmModule.forFeature([Application]),
+    HhModule,
+    GetmatchModule,
+    ItVacanciesModule,
+    LogosModule,
+  ],
   controllers: [VacanciesController],
   providers: [VacancyProviderRegistry, VacancySyncService, VacancyLogoService],
   exports: [VacancyProviderRegistry, VacancySyncService, VacancyLogoService],

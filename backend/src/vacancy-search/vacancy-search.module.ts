@@ -3,10 +3,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ApplicationsModule } from '../applications/applications.module';
 import { HhModule } from '../hh/hh.module';
+import { ItVacanciesModule } from '../it-vacancies/it-vacancies.module';
 import { LogosModule } from '../logos/logos.module';
 import { VacancyAiModule } from '../vacancy-ai/vacancy-ai.module';
 import { VacancyAiCheckService } from './vacancy-ai-check.service';
+import { ItVacanciesSearchUrlTemplateConstraint } from './dto/it-vacancies-search-url-template.validator';
 import { VacancyLeadApplicationService } from './vacancy-lead-application.service';
+import { VacancyLeadSearchRegistry } from './vacancy-lead-search.registry';
 import { VacancyLead } from './vacancy-lead.entity';
 import { VacancyLeadsController } from './vacancy-leads.controller';
 import { VacancyLeadsService } from './vacancy-leads.service';
@@ -26,8 +29,11 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
  * vacancy_scan_position и VacancyScanPositionService — сохранённую позицию
  * прогона, переживающую рестарт процесса, в отличие от VacancyScanStateService
  * (только память). Зависимость модулей — VacancySearchModule → { HhModule,
- * VacancyAiModule, LogosModule, ApplicationsModule } — циклов нет: ни hh/, ни
- * vacancy-ai/, ни logos/, ни applications/ не импортируют vacancy-search/. LogosModule
+ * ItVacanciesModule, VacancyAiModule, LogosModule, ApplicationsModule } — циклов нет:
+ * ни hh/, ни it-vacancies/, ни vacancy-ai/, ни logos/, ни applications/ не импортируют
+ * vacancy-search/. ItVacanciesModule добавлен ради второго источника поиска лидов
+ * (§4.11): VacancyLeadSearchRegistry диспетчеризует прогон по source, а сам конвейер
+ * знает только контракт VacancyLeadSearchProvider. LogosModule
  * добавлен шагом №26 (§14, §4.10) — CompanyLogoService нужен VacancyScanService для
  * скачивания логотипа лида. ApplicationsModule добавлен ради VacancyLeadApplicationService
  * (§5.7): кнопка «Отклик» создаёт запись тем же путём, что ручное создание, а
@@ -37,6 +43,7 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
   imports: [
     TypeOrmModule.forFeature([VacancyLead, VacancySearchSettings, VacancyScanPosition]),
     HhModule,
+    ItVacanciesModule,
     VacancyAiModule,
     LogosModule,
     ApplicationsModule,
@@ -44,12 +51,18 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
   controllers: [VacancySearchSettingsController, VacancyLeadsController],
   providers: [
     VacancySearchSettingsService,
+    VacancyLeadSearchRegistry,
     VacancyLeadsService,
     VacancyScanStateService,
     VacancyScanPositionService,
     VacancyScanService,
     VacancyAiCheckService,
     VacancyLeadApplicationService,
+    // §5.7: валидатор шаблона ссылки it-vacancies объявлен провайдером по чертежу шага
+    // 28 — экземпляр для @Validate class-validator создаёт сам (useContainer не
+    // настроен), зависимостей у валидатора нет, так что регистрация лишь держит его
+    // в графе модуля.
+    ItVacanciesSearchUrlTemplateConstraint,
   ],
 })
 export class VacancySearchModule {}

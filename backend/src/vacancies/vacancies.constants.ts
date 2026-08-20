@@ -57,10 +57,25 @@ export const VACANCY_RETRY_MAX_DELAY_MS = 10_000;
  * не критичен, но список обязан покрывать все значения VACANCY_SOURCE: источник,
  * забытый здесь, молча перестал бы распознаваться в ссылках.
  */
-export const VACANCY_SOURCE_ORDER = [VACANCY_SOURCE.HH, VACANCY_SOURCE.GETMATCH] as const;
+export const VACANCY_SOURCE_ORDER = [
+  VACANCY_SOURCE.HH,
+  VACANCY_SOURCE.GETMATCH,
+  VACANCY_SOURCE.IT_VACANCIES,
+] as const;
+
+/**
+ * §4.11.1: источники, у которых есть поиск лидов. getmatch.ru сюда не входит
+ * сознательно — у него есть только синхронизация одной вакансии по ссылке.
+ * Отдельный список, а не VACANCY_SOURCE_ORDER: тем же значением параметризуется
+ * прогон (POST /scan), таблица позиций и карта шаблонов ссылок на выдачу.
+ */
+export const VACANCY_LEAD_SEARCH_SOURCES = [
+  VACANCY_SOURCE.HH,
+  VACANCY_SOURCE.IT_VACANCIES,
+] as const;
 
 export const VACANCY_SKIPPED_UNSUPPORTED_MESSAGE =
-  'В ссылке на вакансию нет поддерживаемого источника (hh.ru или getmatch.ru)';
+  'В ссылке на вакансию нет поддерживаемого источника (hh.ru, getmatch.ru или it-vacancies.ru)';
 
 export const VACANCY_UNKNOWN_SOURCE_MESSAGE = 'Источник вакансии не поддерживается этой версией';
 
@@ -75,6 +90,34 @@ export const SYNC_FINISHED_MESSAGE = 'Массовая синхронизаци�
  * не срывает: запись получает исход ERROR, остальные обрабатываются дальше (§4.6).
  */
 export const SYNC_UNEXPECTED_ERROR_MESSAGE = 'Не удалось применить результат синхронизации';
+
+/** Основание пересчёта «запросов в секунду» в миллисекунды между стартами. */
+export const MS_PER_SECOND = 1_000;
+
+/**
+ * Содержимое <script> — raw text element по спецификации HTML: `</script>` внутри
+ * невозможен, поэтому нежадный захват до первого закрывающего тега корректен.
+ */
+export const JSON_LD_SCRIPT_PATTERN =
+  /<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+export const JSON_LD_CONTENT_GROUP = 1;
+export const JSON_LD_JOB_POSTING_TYPE = 'JobPosting';
+
+/**
+ * schema.org-контейнер: массив сущностей в одном блоке ld+json. Так отдаёт выдачу
+ * it-vacancies.ru (BreadcrumbList + 20 JobPosting в одном @graph), поэтому разворот
+ * живёт в общем хелпере, а не в модуле источника.
+ */
+export const JSON_LD_GRAPH_FIELD = '@graph';
+
+export const JSON_LD_FIELD = {
+  TYPE: '@type',
+  TITLE: 'title',
+  HIRING_ORGANIZATION: 'hiringOrganization',
+  NAME: 'name',
+  /** §4.11.7: описание вакансии для ИИ-отбора — то же поле JobPosting.description. */
+  DESCRIPTION: 'description',
+} as const;
 
 /** §4.4/§4.10: докачка логотипа сразу после создания записи — только debug/warn в лог. */
 export const CREATE_LOGO_DOWNLOADED_MESSAGE = 'Логотип компании скачан при создании записи';

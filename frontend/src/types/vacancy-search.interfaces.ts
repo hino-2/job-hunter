@@ -2,8 +2,10 @@ import type { VacancySource } from './application.type';
 import type {
   MatchSource,
   ScanMode,
+  ScanResumeStateBySource,
   ScanStatusValue,
   ScanStoppedReason,
+  VacancyLeadSearchSource,
   VacancyLeadsHiddenFilter,
   VacancyLeadsOrder,
   VacancyLeadsSortField,
@@ -70,9 +72,15 @@ export interface ScanAcceptedResponse {
   startedAt: string;
 }
 
-/** Тело POST /api/vacancy-leads/scan (§5.7, §4.11.12) — режим старта прогона. */
+/**
+ * Тело POST /api/vacancy-leads/scan (§5.7, §4.11.12) — режим старта прогона и источник
+ * выдачи. source на сервере опционален (дефолт HH), но фронт всегда шлёт его явно:
+ * в панели фильтров источник выбран всегда, и неявный дефолт разошёлся бы с тем,
+ * что видит пользователь.
+ */
 export interface StartScanRequest {
   mode: ScanMode;
+  source: VacancyLeadSearchSource;
 }
 
 /** Ответ 202 POST /api/vacancy-leads/scan/stop (§5.7, §4.11.12) — остановка запрошена, статус ещё RUNNING. */
@@ -106,6 +114,15 @@ export interface ScanPageProgress {
   totalPages: number;
 }
 
+/**
+ * §7.9.2: пункт выпадающего списка «Источник» в панели фильтров — значение поля source
+ * запроса и подпись из VACANCY_SOURCE_LABELS.
+ */
+export interface LeadSearchSourceOption {
+  value: VacancyLeadSearchSource;
+  label: string;
+}
+
 /** §5.7, §4.11.12: можно ли продолжить прогон с сохранённой позиции. */
 export interface ScanResumeState {
   available: boolean;
@@ -120,7 +137,13 @@ export interface ScanStatusResponse {
   progress: ScanProgress;
   pageProgress: ScanPageProgress;
   stopRequested: boolean;
-  resume: ScanResumeState;
+  /**
+   * §5.7: позиция для продолжения — по строке на источник (§3.7). Кнопка «Продолжить»
+   * читает срез выбранного источника, а не одно общее значение.
+   */
+  resumeBySource: ScanResumeStateBySource;
+  /** §5.7: источник идущего прогона, а после его окончания — последнего завершённого. */
+  source: VacancySource | null;
   stoppedReason: ScanStoppedReason | null;
   message: string | null;
 }
@@ -137,6 +160,8 @@ export interface VacancySearchSettings {
   descriptionPrompt: string;
   aiEnabled: boolean;
   searchUrlTemplate: string;
+  /** §3.6, §5.7: тот же шаблон для второго источника лидов — выдачи it-vacancies.ru. */
+  itVacanciesSearchUrlTemplate: string;
   updatedAt: string;
 }
 
@@ -151,6 +176,7 @@ export interface VacancySearchSettingsUpdate {
   descriptionPrompt: string;
   aiEnabled: boolean;
   searchUrlTemplate: string;
+  itVacanciesSearchUrlTemplate: string;
 }
 
 /**

@@ -77,6 +77,10 @@ export const APP_BAR_TITLE_FLEX_GROW = 1;
 export const SEARCH_FIELD_WIDTH_PX = 280;
 export const SORT_FIELD_WIDTH_PX = 220;
 
+/** Выпадающий список «Источник» панели фильтров вакансий (§7.9.2): подписи короткие
+ *  (hh.ru, it-vacancies.ru), но подпись самого контрола шире их обеих. */
+export const SCAN_SOURCE_FIELD_WIDTH_PX = 180;
+
 /** Вертикальные отступы пустого состояния (§7.8). */
 export const EMPTY_STATE_PADDING_Y = 6;
 

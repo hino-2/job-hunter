@@ -13,6 +13,7 @@ import type {
   ScanAcceptedResponse,
   ScanStatusResponse,
   ScanStopAcceptedResponse,
+  StartScanRequest,
   VacancyLead,
   VacancyLeadsFilters,
   VacancyLeadsQueryParams,
@@ -20,7 +21,6 @@ import type {
   VacancySearchSettings,
   VacancySearchSettingsUpdate,
 } from '../types/vacancy-search.interfaces';
-import type { ScanMode } from '../types/vacancy-search.type';
 import { apiClient } from './client';
 
 /**
@@ -90,16 +90,17 @@ export async function applyVacancyLead(id: string): Promise<Application> {
 }
 
 /**
- * POST /api/vacancy-leads/scan (§5.7, §4.11.9, §4.11.12). Тело — режим старта (FRESH/RESUME).
- * Ответ 202 приходит сразу, не дожидаясь конца прогона — таймаут по умолчанию не трогаем
- * (api.constants.ts). 409 (прогон уже идёт где-то ещё, либо для RESUME — валидной
- * сохранённой позиции нет) — штатный исход, а не сбой; различать его по коду должен
- * вызывающий хук (§7.9.2), здесь исключение просто пробрасывается.
+ * POST /api/vacancy-leads/scan (§5.7, §4.11.9, §4.11.12). Тело — режим старта (FRESH/RESUME)
+ * и источник выдачи (HH/IT_VACANCIES), уходит целиком одним объектом. Ответ 202 приходит
+ * сразу, не дожидаясь конца прогона — таймаут по умолчанию не трогаем (api.constants.ts).
+ * 409 (прогон уже идёт где-то ещё — он один на все источники, либо для RESUME — валидной
+ * сохранённой позиции этого источника нет) — штатный исход, а не сбой; различать его
+ * по коду должен вызывающий хук (§7.9.2), здесь исключение просто пробрасывается.
  */
-export async function startVacancyScan(mode: ScanMode): Promise<ScanAcceptedResponse> {
+export async function startVacancyScan(request: StartScanRequest): Promise<ScanAcceptedResponse> {
   const response = await apiClient.post<ScanAcceptedResponse>(
     `${VACANCY_LEADS_ENDPOINT}${API_PATH_SEPARATOR}${VACANCY_LEADS_SCAN_PATH_SEGMENT}`,
-    { mode },
+    request,
   );
 
   return response.data;

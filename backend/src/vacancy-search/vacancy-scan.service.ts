@@ -1,13 +1,19 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { HhSearchService } from '../hh/hh-search.service';
-import type { HhSearchItem } from '../hh/hh.interfaces';
-import type { HhDescriptionResult } from '../hh/hh.type';
+import type {
+  VacancyLeadSearchProvider,
+  VacancySearchItem,
+} from '../vacancies/vacancies.interfaces';
+import type {
+  VacancyDescriptionResult,
+  VacancyLeadSearchSource,
+} from '../vacancies/vacancies.type';
 import { CompanyLogoService } from '../logos/company-logo.service';
 import { VACANCY_AI_BATCH_SIZE_ENV_KEY } from '../vacancy-ai/vacancy-ai.constants';
 import { VacancyAiService } from '../vacancy-ai/vacancy-ai.service';
 import { buildDedupKey, derivePublishedOn, serializeDedupKey } from './vacancy-lead-key.helpers';
+import { VacancyLeadSearchRegistry } from './vacancy-lead-search.registry';
 import { buildVacancyLeadRow } from './vacancy-lead.builder';
 import { VacancyLeadsService } from './vacancy-leads.service';
 import { hasExcluded, isKeywordMatch, matchKeywords } from './vacancy-keywords.helpers';
@@ -55,12 +61,12 @@ function describeError(error: unknown): string {
 
 /**
  * §4.10 (шаг №26 §14): логотип компании лида берётся из той же страницы вакансии,
- * что hhSearch.fetchVacancyDescription уже загрузила ради описания (§4.11.7) — оба
- * поля результата заполняются вместе (HhSearchService), поэтому null здесь означает
- * «источник логотип не дал», а не «данные неполные».
+ * что provider.fetchVacancyDescription уже загрузила ради описания (§4.11.7) — оба
+ * поля результата заполняются вместе (контракт VacancyLeadSearchProvider), поэтому
+ * null здесь означает «источник логотип не дал», а не «данные неполные».
  */
 function resolveLeadLogoSource(
-  descriptionResult: HhDescriptionResult,
+  descriptionResult: VacancyDescriptionResult,
 ): VacancyLeadLogoSource | null {
   if (!descriptionResult.ok) {
     return null;
@@ -106,8 +112,10 @@ function passesPrefilter(
 
 /**
  * §4.11: конвейер отбора «стоп-слова → дедупликация → ИИ по названию → загрузка
- * страницы → ИИ по описанию» (§4.11.4). Публичные входы — start(mode) и
- * requestStop() (§4.11.12). start() резолвит стартовую страницу (снимок настроек,
+ * страницы → ИИ по описанию» (§4.11.4). Публичные входы — start(mode, source) и
+ * requestStop() (§4.11.12). Источник прогона резолвится в провайдера через
+ * VacancyLeadSearchRegistry, а шаблон ссылки на выдачу берётся из снимка настроек по
+ * тому же source — сам конвейер об источниках больше ничего не знает (§4.11). start() резолвит стартовую страницу (снимок настроек,
  * для RESUME — сохранённая позиция), а затем СИНХРОННО вызывает
  * VacancyScanStateService.tryStart() (§4.11.9) — единственный check-and-set,
  * второй POST /scan при идущем прогоне получает 409 ДО первого await ниже него.
@@ -131,7 +139,7 @@ export class VacancyScanService {
     private readonly state: VacancyScanStateService,
     private readonly settingsService: VacancySearchSettingsService,
     private readonly position: VacancyScanPositionService,
-    private readonly hhSearch: HhSearchService,
+    private readonly leadSearchRegistry: VacancyLeadSearchRegistry,
     private readonly leadsService: VacancyLeadsService,
     private readonly aiService: VacancyAiService,
     private readonly logos: CompanyLogoService,
@@ -157,21 +165,25 @@ export class VacancyScanService {
    * ни одного await — иначе tryStart() перестаёт быть единственным арбитром
    * конкурентности и два одновременных RESUME могли бы породить два прогона.
    */
-  async start(mode: ScanMode): Promise<Date> {
+  async start(mode: ScanMode, source: VacancyLeadSearchSource): Promise<Date> {
     const settings = await this.settingsService.getSnapshot();
+    const provider = this.leadSearchRegistry.require(source);
+    const searchUrlTemplate = settings.searchUrlTemplateBySource[source];
     let startPage: number = VACANCY_SCAN_INITIAL_PAGE;
 
     if (mode === 'RESUME') {
-      const position = await this.position.load();
+      // Позиция и ссылка на выдачу — того же источника: продолжать прогон одного
+      // источника с позиции другого нельзя (§4.11.12).
+      const position = await this.position.load(source);
 
-      if (!isResumablePosition(position, settings.searchUrlTemplate, this.maxPages)) {
+      if (!isResumablePosition(position, searchUrlTemplate, this.maxPages)) {
         throw new ConflictException(VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE);
       }
 
       startPage = position.nextPage;
     }
 
-    const handle = this.state.tryStart(startPage);
+    const handle = this.state.tryStart(startPage, source);
 
     if (handle === null) {
       throw new ConflictException(VACANCY_SCAN_ALREADY_RUNNING_MESSAGE);
@@ -182,7 +194,7 @@ export class VacancyScanService {
     // void: run() сама ловит все ошибки (try/finally на state.finish) — необработанный
     // реджект уронил бы процесс (Node --unhandled-rejections=throw), тот же приём,
     // что у ScheduledSyncService.runScheduledSync (§4.7).
-    void this.run(handle, settings, startPage);
+    void this.run(handle, settings, provider, searchUrlTemplate, startPage);
 
     return startedAt;
   }
@@ -203,6 +215,8 @@ export class VacancyScanService {
   private async run(
     handle: ScanRunHandle,
     settings: VacancySearchSettingsSnapshot,
+    provider: VacancyLeadSearchProvider,
+    searchUrlTemplate: string,
     startPage: number,
   ): Promise<void> {
     let stoppedReason: ScanStoppedReason = SCAN_STOPPED_REASON.COMPLETED;
@@ -212,7 +226,7 @@ export class VacancyScanService {
     try {
       // startPage === 0 заодно стирает позицию прошлого прогона: свежий прогон,
       // умерший на нулевой странице, не должен оставлять после себя нечего продолжать.
-      await this.position.save(startPage, settings.searchUrlTemplate);
+      await this.position.save(handle.source, startPage, searchUrlTemplate);
 
       const deadlineAt = Date.now() + this.maxDurationMs;
       const ageCutoffMs = Date.now() - this.maxAgeDays * MS_IN_DAY;
@@ -240,10 +254,7 @@ export class VacancyScanService {
         handle.setCurrentPage(page);
         resumePage = page;
 
-        const pageResult = await this.hhSearch.fetchSearchPage({
-          searchUrlTemplate: settings.searchUrlTemplate,
-          page,
-        });
+        const pageResult = await provider.fetchSearchPage({ searchUrlTemplate, page });
 
         if (!pageResult.ok) {
           // §4.11.3: неразбираемая страница выдачи — fail-loud, останов прогона.
@@ -270,6 +281,7 @@ export class VacancyScanService {
         const pageStop = await this.processPage(
           pageResult.page.items,
           settings,
+          provider,
           handle,
           seenInRun,
           ageCutoffMs,
@@ -285,7 +297,7 @@ export class VacancyScanService {
         // Страница обработана целиком — сохраняем позицию ДО следующей: SIGKILL
         // между страницами не должен стоить больше одной страницы (§4.11.12).
         resumePage = page + 1;
-        await this.position.save(resumePage, settings.searchUrlTemplate);
+        await this.position.save(handle.source, resumePage, searchUrlTemplate);
       }
 
       stoppedReason = outcome ?? SCAN_STOPPED_REASON.MAX_PAGES;
@@ -297,9 +309,9 @@ export class VacancyScanService {
       // Порядок важен: GET .../scan/status, который первым увидит DONE, обязан уже
       // видеть финальную позицию (§4.11.12) — поэтому позиция пишется ДО state.finish().
       if (isExhaustedStop(stoppedReason)) {
-        await this.position.clear();
+        await this.position.clear(handle.source);
       } else {
-        await this.position.save(resumePage, settings.searchUrlTemplate);
+        await this.position.save(handle.source, resumePage, searchUrlTemplate);
       }
 
       this.state.finish(stoppedReason, message);
@@ -309,8 +321,9 @@ export class VacancyScanService {
 
   /** Обрабатывает одну страницу выдачи целиком; null — продолжать листать дальше. */
   private async processPage(
-    items: readonly HhSearchItem[],
+    items: readonly VacancySearchItem[],
     settings: VacancySearchSettingsSnapshot,
+    provider: VacancyLeadSearchProvider,
     handle: ScanRunHandle,
     seenInRun: Set<string>,
     ageCutoffMs: number,
@@ -414,7 +427,7 @@ export class VacancyScanService {
         // §4.11.4: без ИИ (выключен или батч не ответил) описание не грузим —
         // этапы 3–4 пропускаются целиком, вакансия сразу идёт на вставку. Страница
         // вакансии не открывалась вовсе, поэтому логотипа взять неоткуда (§4.10).
-        await this.insertLead(decision, handle, null, null);
+        await this.insertLead(decision, handle, provider, null, null);
         continue;
       }
 
@@ -427,7 +440,7 @@ export class VacancyScanService {
       }
 
       detailsBudget.opened += 1;
-      await this.processDetail(decision, settings, handle);
+      await this.processDetail(decision, settings, provider, handle);
     }
 
     return null;
@@ -513,9 +526,10 @@ export class VacancyScanService {
   private async processDetail(
     decision: VacancyTitleDecision,
     settings: VacancySearchSettingsSnapshot,
+    provider: VacancyLeadSearchProvider,
     handle: ScanRunHandle,
   ): Promise<void> {
-    const descriptionResult = await this.hhSearch.fetchVacancyDescription(decision.item.externalId);
+    const descriptionResult = await provider.fetchVacancyDescription(decision.item.externalId);
 
     if (!descriptionResult.ok) {
       // §4.11.7: fail-closed — вакансия не сохраняется, следующий прогон встретит её снова.
@@ -552,6 +566,7 @@ export class VacancyScanService {
       await this.insertLead(
         { ...decision, matchSource: MATCH_SOURCE.KEYWORDS, matchedKeywords: matchedInDescription },
         handle,
+        provider,
         null,
         resolveLeadLogoSource(descriptionResult),
       );
@@ -567,7 +582,7 @@ export class VacancyScanService {
 
     const logo = resolveLeadLogoSource(descriptionResult);
 
-    await this.insertLead(decision, handle, aiResult.reason, logo);
+    await this.insertLead(decision, handle, provider, aiResult.reason, logo);
   }
 
   /**
@@ -578,11 +593,13 @@ export class VacancyScanService {
   private async insertLead(
     decision: VacancyTitleDecision,
     handle: ScanRunHandle,
+    provider: VacancyLeadSearchProvider,
     aiDescriptionReason: string | null,
     logo: VacancyLeadLogoSource | null,
   ): Promise<void> {
     const row = buildVacancyLeadRow({
       item: decision.item,
+      source: handle.source,
       positionKey: decision.dedupKey.positionKey,
       companyKey: decision.dedupKey.companyKey,
       publishedOn: decision.dedupKey.publishedOn,
@@ -600,7 +617,7 @@ export class VacancyScanService {
         handle.increment('created');
 
         if (logo !== null) {
-          await this.attachCompanyLogo(insertedId, logo);
+          await this.attachCompanyLogo(insertedId, logo, provider);
         }
       } else {
         // §4.11.5 эшелон 3: гонка с параллельной вставкой того же ключа — сам прогон один
@@ -621,13 +638,19 @@ export class VacancyScanService {
    * учла created. CompanyLogoService.download() и так не бросает исключений, но
    * defensive try/catch остаётся симметричным остальным местам конвейера (§4.6).
    */
-  private async attachCompanyLogo(id: string, logo: VacancyLeadLogoSource): Promise<void> {
+  private async attachCompanyLogo(
+    id: string,
+    logo: VacancyLeadLogoSource,
+    provider: VacancyLeadSearchProvider,
+  ): Promise<void> {
     try {
       const fileName = await this.logos.download({
         fileKey: id,
         logoUrl: logo.logoUrl,
         allowedHostPattern: logo.allowedHostPattern,
-        acquireSlot: this.hhSearch.acquireRequestSlot,
+        // Троттл ТОГО ЖЕ источника, чью страницу мы качаем: со слотом другого источника
+        // логотип обходил бы его лимит частоты (§4.11.2).
+        acquireSlot: provider.acquireRequestSlot,
       });
 
       if (fileName !== null) {

@@ -64,6 +64,7 @@ export const SYNC_OUTCOME = {
 export const VACANCY_SOURCE = {
   HH: 'HH',
   GETMATCH: 'GETMATCH',
+  IT_VACANCIES: 'IT_VACANCIES',
 } as const;
 
 /**
@@ -236,6 +237,7 @@ export const SYNC_OUTCOME_LABELS: Record<SyncOutcome, string> = {
 export const VACANCY_SOURCE_LABELS: Record<VacancySource, string> = {
   HH: 'hh.ru',
   GETMATCH: 'getmatch.ru',
+  IT_VACANCIES: 'it-vacancies.ru',
 };
 
 export const VACANCY_SOURCE_UNKNOWN_LABEL = 'Источник не определён';

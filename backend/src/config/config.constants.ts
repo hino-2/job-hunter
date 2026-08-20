@@ -35,6 +35,23 @@ export const DEFAULT_GETMATCH_USER_AGENT = 'job-hunter/1.0';
 export const DEFAULT_GETMATCH_REQUEST_TIMEOUT_MS = 10_000;
 export const DEFAULT_GETMATCH_MAX_RETRIES = 2;
 
+/**
+ * §4.8/§4.11: третий источник. Как и у getmatch.ru, требований к конкретному
+ * User-Agent разведка не обнаружила — поэтому все пять ключей опциональны с
+ * безопасными дефолтами, в отличие от обязательного HH_USER_AGENT.
+ */
+export const DEFAULT_IT_VACANCIES_SITE_BASE_URL = 'https://it-vacancies.ru';
+export const DEFAULT_IT_VACANCIES_USER_AGENT = 'job-hunter/1.0';
+export const DEFAULT_IT_VACANCIES_REQUEST_TIMEOUT_MS = 10_000;
+export const DEFAULT_IT_VACANCIES_MAX_RETRIES = 2;
+
+/**
+ * §4.11.2: свой лимит частоты, независимый от HH_MAX_REQUESTS_PER_SECOND — прогон
+ * поиска по одному источнику не должен отнимать слоты у синхронизации по другому.
+ * Границы диапазона переиспользуются общие (HH_MAX_REQUESTS_PER_SECOND_MIN/MAX).
+ */
+export const DEFAULT_IT_VACANCIES_MAX_REQUESTS_PER_SECOND = 2;
+
 /** Общий параметр массового прогона (§4.6): один прогон может смешивать источники. */
 export const DEFAULT_SYNC_CONCURRENCY = 3;
 export const DEFAULT_SYNC_MIN_DELAY_MS = 200;
@@ -50,9 +67,10 @@ export const DEFAULT_COMPANY_LOGO_REQUEST_TIMEOUT_MS = 5_000;
 
 /**
  * Границы валидации таймаута и числа ретраев — общие для всех источников вакансий:
- * их значения проверяют и HH_REQUEST_TIMEOUT_MS/HH_MAX_RETRIES, и
- * GETMATCH_REQUEST_TIMEOUT_MS/GETMATCH_MAX_RETRIES (без префикса HH_, потому что
- * смысл границы не привязан к конкретному источнику).
+ * их значения проверяют HH_REQUEST_TIMEOUT_MS/HH_MAX_RETRIES,
+ * GETMATCH_REQUEST_TIMEOUT_MS/GETMATCH_MAX_RETRIES и
+ * IT_VACANCIES_REQUEST_TIMEOUT_MS/IT_VACANCIES_MAX_RETRIES (без префикса источника,
+ * потому что смысл границы не привязан к конкретному источнику).
  */
 export const REQUEST_TIMEOUT_MIN_MS = 1_000;
 export const REQUEST_TIMEOUT_MAX_MS = 60_000;
@@ -85,8 +103,12 @@ export const SCHEDULED_SYNC_INTERVAL_MAX_MS = 86_400_000;
  * §4.11.2. Общий троттл всех запросов к hh.ru (HhRequestThrottle, модуль hh/):
  * минимальный интервал между стартами запросов = 1000 / HH_MAX_REQUESTS_PER_SECOND.
  *
+ * Границы диапазона общие для всех источников с троттлом (их же проверяет
+ * IT_VACANCIES_MAX_REQUESTS_PER_SECOND): смысл границы от источника не зависит,
+ * а исторический префикс HH_ сохранён, чтобы не переименовывать переменную .env.
+ *
  * Нижняя граница — защита от деления на ноль и отрицательного интервала в
- * HhRequestThrottle. Верхняя (50) проверяется наравне с ней: значение выше — это уже
+ * VacancyRequestThrottle. Верхняя (50) проверяется наравне с ней: значение выше — это уже
  * не «поиск не должен подозрительно нагружать hh.ru», а отсутствие троттла, и попасть
  * туда опечаткой в .env нельзя. E2e укладывается в тот же потолок: заглушка локальная,
  * и 50 запросов в секунду (интервал 20 мс) не удлиняют прогон заметно.

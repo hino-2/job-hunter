@@ -28,12 +28,15 @@ import {
   AI_ENABLED_DESCRIPTION,
   AI_ENABLED_LABEL,
   DEFAULT_DESCRIPTION_PROMPT,
+  DEFAULT_IT_VACANCIES_SEARCH_URL_TEMPLATE,
   DEFAULT_SEARCH_URL_TEMPLATE,
   DEFAULT_TITLE_PROMPT,
   DESCRIPTION_PROMPT_HINT,
   DESCRIPTION_PROMPT_LABEL,
   DESCRIPTION_PROMPT_MISSING_PLACEHOLDERS_MESSAGE,
   EXCLUDE_KEYWORDS_LABEL,
+  IT_VACANCIES_SEARCH_URL_TEMPLATE_HINT,
+  IT_VACANCIES_SEARCH_URL_TEMPLATE_LABEL,
   KEYWORDS_HINT,
   KEYWORDS_LABEL,
   KEYWORDS_REQUIRED_MESSAGE,
@@ -46,13 +49,8 @@ import {
   RESET_PROMPT_LABEL,
   RESET_SEARCH_URL_TEMPLATE_LABEL,
   SEARCH_URL_TEMPLATE_HINT,
-  SEARCH_URL_TEMPLATE_INVALID_MESSAGE,
   SEARCH_URL_TEMPLATE_LABEL,
   SEARCH_URL_TEMPLATE_MAX_LENGTH,
-  SEARCH_URL_TEMPLATE_MISSING_PAGE_PLACEHOLDER_MESSAGE,
-  SEARCH_URL_TEMPLATE_PAGE_PLACEHOLDER_PATTERN,
-  SEARCH_URL_TEMPLATE_REQUIRED_MESSAGE,
-  SEARCH_URL_TEMPLATE_TOO_LONG_MESSAGE,
   SETTINGS_DIALOG_TITLE,
   SETTINGS_LOAD_ERROR_MESSAGE,
   TITLE_PROMPT_HINT,
@@ -67,8 +65,8 @@ import {
   buildSettingsFormValues,
   buildSettingsUpdatePayload,
   hasAllPlaceholders,
-  isValidSearchUrlTemplateShape,
   parseKeywordsInput,
+  resolveSearchUrlTemplateIssue,
 } from '../../utils/vacancy-search-settings.utils';
 import { SEARCH_SETTINGS_SERVER_VALIDATED_FIELDS } from './search-settings-dialog.constants';
 import type {
@@ -97,6 +95,8 @@ function SearchSettingsForm({
   const [isTitlePromptTouched, setTitlePromptTouched] = useState(false);
   const [isDescriptionPromptTouched, setDescriptionPromptTouched] = useState(false);
   const [isSearchUrlTemplateTouched, setSearchUrlTemplateTouched] = useState(false);
+  const [isItVacanciesSearchUrlTemplateTouched, setItVacanciesSearchUrlTemplateTouched] =
+    useState(false);
 
   const writeValues = (next: SearchSettingsFormValues) => {
     valuesRef.current = next;
@@ -120,14 +120,12 @@ function SearchSettingsForm({
     PLACEHOLDER_KEYWORDS_PATTERN,
     PLACEHOLDER_DESCRIPTION_PATTERN,
   ]);
-  const trimmedSearchUrlTemplate = values.searchUrlTemplate.trim();
-  const isSearchUrlTemplateEmpty = trimmedSearchUrlTemplate.length === 0;
-  const isSearchUrlTemplateTooLong =
-    values.searchUrlTemplate.length > SEARCH_URL_TEMPLATE_MAX_LENGTH;
-  const isSearchUrlTemplateMissingPagePlaceholder = !hasAllPlaceholders(values.searchUrlTemplate, [
-    SEARCH_URL_TEMPLATE_PAGE_PLACEHOLDER_PATTERN,
-  ]);
-  const isSearchUrlTemplateMalformed = !isValidSearchUrlTemplateShape(values.searchUrlTemplate);
+  // Оба шаблона ссылок проверяются одной и той же функцией: правила у них дословно
+  // совпадают, различается только серверный allow-list хостов (§7.9.4).
+  const searchUrlTemplateIssue = resolveSearchUrlTemplateIssue(values.searchUrlTemplate);
+  const itVacanciesSearchUrlTemplateIssue = resolveSearchUrlTemplateIssue(
+    values.itVacanciesSearchUrlTemplate,
+  );
 
   // Заведомо невалидные значения на сервер не отправляются вовсе (§10): каждая проверка
   // здесь дублирует правило UpdateVacancySearchSettingsDto (§5.7).
@@ -140,10 +138,8 @@ function SearchSettingsForm({
     isDescriptionPromptEmpty ||
     isDescriptionPromptTooLong ||
     isDescriptionPromptMissingPlaceholders ||
-    isSearchUrlTemplateEmpty ||
-    isSearchUrlTemplateTooLong ||
-    isSearchUrlTemplateMissingPagePlaceholder ||
-    isSearchUrlTemplateMalformed;
+    searchUrlTemplateIssue !== null ||
+    itVacanciesSearchUrlTemplateIssue !== null;
 
   const titlePromptClientError = !isTitlePromptTouched
     ? null
@@ -168,19 +164,14 @@ function SearchSettingsForm({
   const descriptionPromptError =
     descriptionPromptClientError ?? serverFieldErrors.descriptionPrompt ?? null;
 
-  const searchUrlTemplateClientError = !isSearchUrlTemplateTouched
-    ? null
-    : isSearchUrlTemplateEmpty
-      ? SEARCH_URL_TEMPLATE_REQUIRED_MESSAGE
-      : isSearchUrlTemplateTooLong
-        ? SEARCH_URL_TEMPLATE_TOO_LONG_MESSAGE
-        : isSearchUrlTemplateMissingPagePlaceholder
-          ? SEARCH_URL_TEMPLATE_MISSING_PAGE_PLACEHOLDER_MESSAGE
-          : isSearchUrlTemplateMalformed
-            ? SEARCH_URL_TEMPLATE_INVALID_MESSAGE
-            : null;
   const searchUrlTemplateError =
-    searchUrlTemplateClientError ?? serverFieldErrors.searchUrlTemplate ?? null;
+    (isSearchUrlTemplateTouched ? searchUrlTemplateIssue : null) ??
+    serverFieldErrors.searchUrlTemplate ??
+    null;
+  const itVacanciesSearchUrlTemplateError =
+    (isItVacanciesSearchUrlTemplateTouched ? itVacanciesSearchUrlTemplateIssue : null) ??
+    serverFieldErrors.itVacanciesSearchUrlTemplate ??
+    null;
 
   const handleKeywordsChange = (event: ChangeEvent<HTMLInputElement>) => {
     patchValues({ keywordsText: event.target.value });
@@ -228,11 +219,24 @@ function SearchSettingsForm({
     onFieldEdited('searchUrlTemplate');
   };
 
+  const handleItVacanciesSearchUrlTemplateChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    patchValues({ itVacanciesSearchUrlTemplate: event.target.value });
+    onFieldEdited('itVacanciesSearchUrlTemplate');
+  };
+
+  const handleResetItVacanciesSearchUrlTemplate = () => {
+    patchValues({ itVacanciesSearchUrlTemplate: DEFAULT_IT_VACANCIES_SEARCH_URL_TEMPLATE });
+    onFieldEdited('itVacanciesSearchUrlTemplate');
+  };
+
   const handleSubmit = () => {
     setKeywordsTouched(true);
     setTitlePromptTouched(true);
     setDescriptionPromptTouched(true);
     setSearchUrlTemplateTouched(true);
+    setItVacanciesSearchUrlTemplateTouched(true);
     onSubmit(valuesRef.current);
   };
 
@@ -258,6 +262,33 @@ function SearchSettingsForm({
             <Button
               size="small"
               onClick={handleResetSearchUrlTemplate}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              {RESET_SEARCH_URL_TEMPLATE_LABEL}
+            </Button>
+          </Stack>
+
+          {/* Второй источник лидов (§5.7): своё поле и своя кнопка сброса — шаблоны
+              независимы, прогон разбирает выдачу только выбранного источника. */}
+          <Stack spacing={0}>
+            <TextField
+              fullWidth
+              multiline
+              minRows={MULTILINE_MIN_ROWS_URL_TEMPLATE}
+              maxRows={MULTILINE_MAX_ROWS_URL_TEMPLATE}
+              label={IT_VACANCIES_SEARCH_URL_TEMPLATE_LABEL}
+              value={values.itVacanciesSearchUrlTemplate}
+              error={itVacanciesSearchUrlTemplateError !== null}
+              helperText={
+                itVacanciesSearchUrlTemplateError ?? IT_VACANCIES_SEARCH_URL_TEMPLATE_HINT
+              }
+              onChange={handleItVacanciesSearchUrlTemplateChange}
+              onBlur={() => setItVacanciesSearchUrlTemplateTouched(true)}
+              slotProps={{ htmlInput: { maxLength: SEARCH_URL_TEMPLATE_MAX_LENGTH } }}
+            />
+            <Button
+              size="small"
+              onClick={handleResetItVacanciesSearchUrlTemplate}
               sx={{ alignSelf: 'flex-start' }}
             >
               {RESET_SEARCH_URL_TEMPLATE_LABEL}

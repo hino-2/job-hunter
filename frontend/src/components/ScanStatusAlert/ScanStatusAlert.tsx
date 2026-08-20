@@ -15,6 +15,8 @@ import type { ScanStatusAlertProps } from './scan-status-alert.interfaces';
  * Прогресс/итог прогона поиска (§7.9.2, §4.11.12): один и тот же Alert, во время
  * прогона — строка «страница N из M» (пока currentPage известен) над счётчиками и
  * LinearProgress, после остановки — итоговая сводка с человекочитаемой причиной.
+ * Первым элементом строки счётчиков идёт источник прогона (§5.7): прогон один на все
+ * источники, и по одним цифрам не понять, чью выдачу сейчас разбирают.
  * LinearProgress переключается на determinate, как только известна доля пройденных
  * страниц, и остаётся indeterminate, пока currentPage ещё null (сразу после старта).
  * Кнопки закрытия нет намеренно: §7.9.2 требует показывать статус последнего прогона
@@ -34,7 +36,9 @@ export function ScanStatusAlert({ status }: ScanStatusAlertProps) {
         ) : null}
 
         <Typography variant="body2">
-          {isRunning ? formatScanProgressText(status.progress) : formatScanSummaryText(status)}
+          {isRunning
+            ? formatScanProgressText(status.progress, status.source)
+            : formatScanSummaryText(status)}
         </Typography>
 
         {isRunning ? (

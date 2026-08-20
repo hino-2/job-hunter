@@ -11,6 +11,7 @@ import { SEARCH_DEBOUNCE_MS } from '../../constants/query.constants';
 import {
   APPLY_VACANCY_ERROR_FALLBACK_MESSAGE,
   APPLY_VACANCY_SUCCESS_MESSAGE,
+  DEFAULT_SCAN_SOURCE,
   DEFAULT_VACANCY_LEADS_FILTERS,
   EMPTY_SCAN_RESUME_STATE,
   EMPTY_VACANCY_LEADS,
@@ -33,6 +34,7 @@ import { useVacancyLeads } from '../../hooks/useVacancyLeads';
 import { useVacancyScanStatus } from '../../hooks/useVacancyScanStatus';
 import type { UpdateVacancyLeadVariables } from '../../hooks/use-update-vacancy-lead.interfaces';
 import type { VacancyLeadsFilters } from '../../types/vacancy-search.interfaces';
+import type { VacancyLeadSearchSource } from '../../types/vacancy-search.type';
 import { extractApiErrorMessage } from '../../utils/error.utils';
 import { isVacancyLeadsSearchActive } from '../../utils/vacancy-lead.utils';
 import { ScanStatusAlert } from '../ScanStatusAlert/ScanStatusAlert';
@@ -61,6 +63,10 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   const expanded = useExpandedIds();
   const scanStatus = useVacancyScanStatus();
   const [isSettingsOpen, setSettingsOpen] = useState(false);
+  // §5.7: источник следующего прогона. Локальное состояние экрана, а не часть filters:
+  // на выдачу лидов он не влияет вовсе — только на тело POST …/scan и на то, чей срез
+  // resumeBySource читает «Продолжить».
+  const [scanSource, setScanSource] = useState<VacancyLeadSearchSource>(DEFAULT_SCAN_SOURCE);
 
   const items = leads.data ?? EMPTY_VACANCY_LEADS;
 
@@ -172,11 +178,11 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   });
 
   const handleScanFresh = () => {
-    startScan.mutate(SCAN_MODE.FRESH);
+    startScan.mutate({ mode: SCAN_MODE.FRESH, source: scanSource });
   };
 
   const handleScanResume = () => {
-    startScan.mutate(SCAN_MODE.RESUME);
+    startScan.mutate({ mode: SCAN_MODE.RESUME, source: scanSource });
   };
 
   const handleScanStop = () => {
@@ -193,7 +199,12 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
 
   const isScanRunning = scanStatus.data?.status === SCAN_STATUS.RUNNING;
   const isStopRequested = scanStatus.data?.stopRequested === true;
-  const resume = scanStatus.data?.resume ?? EMPTY_SCAN_RESUME_STATE;
+  // §5.7: позиция для продолжения хранится по строке на источник, кнопке нужен срез
+  // выбранного. Фолбэк стоит на самом срезе, а не на карте: он обязан сработать не только
+  // пока GET …/scan/status не ответил, но и когда ответивший сервер постарее и ключа
+  // только что добавленного источника в resumeBySource нет вовсе — иначе undefined
+  // разыменовался бы тем же рендером (ErrorBoundary в приложении нет).
+  const resume = scanStatus.data?.resumeBySource[scanSource] ?? EMPTY_SCAN_RESUME_STATE;
   const showScanAlert =
     scanStatus.data !== undefined && scanStatus.data.status !== SCAN_STATUS.IDLE;
 
@@ -204,6 +215,8 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
           <VacancyLeadsFilterBar
             filters={filters}
             onFiltersChange={setFilters}
+            scanSource={scanSource}
+            onScanSourceChange={setScanSource}
             onScanFresh={handleScanFresh}
             onScanResume={handleScanResume}
             onScanStop={handleScanStop}

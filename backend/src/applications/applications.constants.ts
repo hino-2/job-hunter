@@ -100,6 +100,7 @@ export const SYNC_OUTCOME = {
 export const VACANCY_SOURCE = {
   HH: 'HH',
   GETMATCH: 'GETMATCH',
+  IT_VACANCIES: 'IT_VACANCIES',
 } as const;
 
 /**

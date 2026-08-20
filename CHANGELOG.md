@@ -6,6 +6,46 @@ specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is hist
 
 ---
 
+**42. Vacancy source it-vacancies.ru: lead search and sync.** _(backend + frontend)_
+A third `VacancySource` (`'IT_VACANCIES'`, §4.8) and a **second** lead-search source (§4.11). The
+source-specific code lives in `backend/src/it-vacancies/` with its own `HttpModule` (its `baseURL`
+differs) and its own throttle instance, provided once and shared by the sync service and the search
+service: two instances inside one source would double its real request rate, one instance across
+sources would let a scan on one site starve sync on the other. Data comes from
+`application/ld+json` `JobPosting` — `window.__NUXT__` is minified JavaScript and is never evaluated
+(§2.4). Two contracts, not one: `ItVacanciesApiService implements VacancySourceProvider` (sync, results
+as `SyncOutcome`) and `ItVacanciesSearchService implements VacancyLeadSearchProvider` (search, results
+discriminated by `ok`); getmatch.ru stays sync-only — it has no crawlable results page — so
+`'GETMATCH'` as a scan source is a `400` from the DTO, not a `500` from the new
+`VacancyLeadSearchRegistry`.
+
+The results page carries **neither the vacancy id nor a link** inside its `JobPosting`s, so external
+ids come from the card hrefs and are zipped with the postings **by index**; a count mismatch is
+fail-loud (`ERROR`, run stops) and logs the page number plus both counts — response bodies are never
+logged, only their length. `lastPage` is always `null` (no pagination metadata), source pages are
+1-based against the run's 0-based loop, and the results `datePosted` is naive, normalized with a
+`+03:00` offset. Descriptions come from the SSR `div.content` block delimited by a depth-aware
+`<div>` pass, with the source-truncated JSON-LD `description` as fallback.
+
+Migrations: `AddItVacanciesSearchUrlTemplate` (NOT NULL `it_vacancies_search_url_template`, seeded
+add-nullable → parameterized backfill → `SET NOT NULL`) and `AddVacancyScanPositionSource`, which
+turns `vacancy_scan_position` from an `id = 1` singleton into one row per lead-search source with
+`source` as the primary key — a run on one site must not destroy the other's «Продолжить». Its
+`down()` deletes its own seed before restoring the singleton PK (the `GeneralizeVacancySource`
+lesson), so a `revert → up` cycle is idempotent: verified by hand, exactly the `HH` and
+`IT_VACANCIES` rows survive.
+
+REST contract (§5.7): `POST /api/vacancy-leads/scan` accepts `source`, defaulting to `HH`;
+`GET /scan/status` replaces `resume` with `resumeBySource` and adds `source` (the running or last
+run's site, `null` before the first run of the process); the settings resource gains a required
+`itVacanciesSearchUrlTemplate` with its own validator (its own host allow-list and its own `400`
+message). New env variables — `IT_VACANCIES_SITE_BASE_URL`, `IT_VACANCIES_USER_AGENT`,
+`IT_VACANCIES_REQUEST_TIMEOUT_MS`, `IT_VACANCIES_MAX_RETRIES`,
+`IT_VACANCIES_MAX_REQUESTS_PER_SECOND` — all optional with defaults (§8). The frontend adds a source
+picker as the first control of the leads filter bar and a second results-link field in the settings
+dialog. No new spec files (project rule); parser verification against the captured live pages is
+manual.
+
 **41. The «Статус» Select moved into the collapsed header as well.** _(frontend)_
 The mirror of step 40 for the second `Select`: the status `Chip` in `ApplicationSummaryRow` became a
 `FieldCell` + `Select`, and `ApplicationFields` lost its status cell. Both header `Select`s share one

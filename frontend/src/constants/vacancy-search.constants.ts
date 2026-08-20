@@ -1,11 +1,17 @@
-import type { ScanResumeState, VacancyLeadsFilters } from '../types/vacancy-search.interfaces';
+import type {
+  LeadSearchSourceOption,
+  ScanResumeState,
+  VacancyLeadsFilters,
+} from '../types/vacancy-search.interfaces';
 import type {
   MatchSource,
   ScanStoppedReason,
+  VacancyLeadSearchSource,
   VacancyLeadsHiddenFilter,
   VacancyLeadsOrder,
   VacancyLeadsSortField,
 } from '../types/vacancy-search.type';
+import { VACANCY_SOURCE, VACANCY_SOURCE_LABELS } from './application.constants';
 
 /**
  * Доменные константы поиска вакансий (§3.5, §3.6, §4.12, §5.7): ручная копия
@@ -63,6 +69,30 @@ export const SCAN_MODE = {
   FRESH: 'FRESH',
   RESUME: 'RESUME',
 } as const;
+
+/**
+ * §5.7: источники, у которых есть поиск лидов — ручная копия VACANCY_LEAD_SEARCH_SOURCES
+ * бэкенда. getmatch.ru сюда намеренно не входит: у него есть только синхронизация отклика
+ * (§4.8), поиска по выдаче нет, и сервер отвергнет такое значение поля source 400-й ошибкой.
+ */
+export const VACANCY_LEAD_SEARCH_SOURCES = [
+  VACANCY_SOURCE.HH,
+  VACANCY_SOURCE.IT_VACANCIES,
+] as const;
+
+/** §5.7: дефолт поля source у POST /api/vacancy-leads/scan (ручная копия DEFAULT_SCAN_SOURCE бэкенда). */
+export const DEFAULT_SCAN_SOURCE: VacancyLeadSearchSource = VACANCY_SOURCE.HH;
+
+/**
+ * §7.9.2: пункты выпадающего списка «Источник» перед запуском прогона. Подписи берутся
+ * из VACANCY_SOURCE_LABELS, а не дублируются: тот же текст показывает tooltip иконки
+ * синхронизации отклика (§7.2.3), и расходиться они не должны.
+ */
+export const LEAD_SEARCH_SOURCE_OPTIONS: readonly LeadSearchSourceOption[] =
+  VACANCY_LEAD_SEARCH_SOURCES.map((value) => ({
+    value,
+    label: VACANCY_SOURCE_LABELS[value],
+  }));
 
 /** Подписи §4.12 — тот же приём, что MATCH_SOURCE_LABELS у остальных enum-ов. */
 export const MATCH_SOURCE_LABELS: Record<MatchSource, string> = {
@@ -210,10 +240,16 @@ export const SCAN_SUMMARY_VALUE_SEPARATOR = ' ';
 
 /**
  * §10: стабильная ссылка на «позиции для продолжения нет» — литерал на месте
- * использования (`scanStatus.data?.resume ?? { … }`) создавал бы новый объект
- * каждый рендер и пробивал memo VacancyLeadsFilterBar.
+ * использования (`scanStatus.data?.resumeBySource[source] ?? { … }`) создавал бы новый
+ * объект каждый рендер и пробивал memo VacancyLeadsFilterBar. Фолбэк стоит именно
+ * на срезе источника, а не на всей карте: сервер постарее может вернуть resumeBySource
+ * без ключа только что добавленного источника, и разыменование undefined уронило бы
+ * весь экран (ErrorBoundary в приложении нет).
  */
 export const EMPTY_SCAN_RESUME_STATE: ScanResumeState = { available: false, nextPage: null };
+
+/** §7.9.2: подпись выпадающего списка «Источник» в панели фильтров. */
+export const SCAN_SOURCE_PICKER_LABEL = 'Источник';
 
 /** §7.9.4: кнопка настроек и заголовок диалога. */
 export const SETTINGS_BUTTON_LABEL = 'Настройки поиска';
@@ -234,6 +270,10 @@ export const SEARCH_URL_TEMPLATE_LABEL = 'Ссылка на выдачу hh.ru';
 export const SEARCH_URL_TEMPLATE_HINT =
   'Обязательный плейсхолдер: {page}. Только https и домены hh.ru';
 export const RESET_SEARCH_URL_TEMPLATE_LABEL = 'Вернуть ссылку по умолчанию';
+
+export const IT_VACANCIES_SEARCH_URL_TEMPLATE_LABEL = 'Ссылка на выдачу it-vacancies.ru';
+export const IT_VACANCIES_SEARCH_URL_TEMPLATE_HINT =
+  'Обязательный плейсхолдер: {page}. Только https и домены it-vacancies.ru';
 
 export const TITLE_PROMPT_HINT = 'Обязательные плейсхолдеры: {keywords}, {titles}';
 export const DESCRIPTION_PROMPT_HINT = 'Обязательные плейсхолдеры: {keywords}, {description}';
@@ -310,3 +350,12 @@ export const DEFAULT_AI_ENABLED = false;
 export const DEFAULT_SEARCH_URL_TEMPLATE =
   'https://ekaterinburg.hh.ru/search/vacancy?text=fullstack&salary=&ored_clusters=true' +
   '&work_schedule_by_days=FIVE_ON_TWO_OFF&order_by=publication_time&page={page}';
+
+/**
+ * Дословная копия дефолтного шаблона ссылки из миграции
+ * backend/src/database/migrations/1787300000000-AddItVacanciesSearchUrlTemplate.ts,
+ * нужна второй кнопке «Вернуть ссылку по умолчанию» (§7.9.4). Менять только вместе
+ * с миграцией.
+ */
+export const DEFAULT_IT_VACANCIES_SEARCH_URL_TEMPLATE =
+  'https://it-vacancies.ru/vacancies/?search_field=node.js&page={page}';

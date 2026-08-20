@@ -11,6 +11,8 @@ import {
 
 import { TrimEachText, TrimText } from '../../common/string.transforms';
 import { HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN } from '../../hh/hh.constants';
+import { IT_VACANCIES_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN } from '../../it-vacancies/it-vacancies.constants';
+import { ItVacanciesSearchUrlTemplateConstraint } from './it-vacancies-search-url-template.validator';
 import { SearchUrlTemplateConstraint } from './search-url-template.validator';
 import {
   PLACEHOLDER_DESCRIPTION_PATTERN,
@@ -18,6 +20,8 @@ import {
   PLACEHOLDER_TITLES_PATTERN,
   VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_DESCRIPTION_MESSAGE,
   VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_KEYWORDS_MESSAGE,
+  VACANCY_SEARCH_SETTINGS_IT_VACANCIES_SEARCH_URL_MISSING_PAGE_MESSAGE,
+  VACANCY_SEARCH_SETTINGS_IT_VACANCIES_SEARCH_URL_ORIGIN_MESSAGE,
   VACANCY_SEARCH_SETTINGS_PROMPT_MAX_LENGTH,
   VACANCY_SEARCH_SETTINGS_SEARCH_URL_MISSING_PAGE_MESSAGE,
   VACANCY_SEARCH_SETTINGS_SEARCH_URL_ORIGIN_MESSAGE,
@@ -105,4 +109,21 @@ export class UpdateVacancySearchSettingsDto {
   })
   @TrimText()
   searchUrlTemplate!: string;
+
+  /**
+   * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу it-vacancies.ru — требования те же,
+   * что у hh-шаблона, но свой паттерн плейсхолдера (подставляет buildItVacanciesSearchUrl)
+   * и свой ValidatorConstraint с allow-list it-vacancies.ru.
+   */
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH)
+  @Matches(IT_VACANCIES_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN, {
+    message: VACANCY_SEARCH_SETTINGS_IT_VACANCIES_SEARCH_URL_MISSING_PAGE_MESSAGE,
+  })
+  @Validate(ItVacanciesSearchUrlTemplateConstraint, {
+    message: VACANCY_SEARCH_SETTINGS_IT_VACANCIES_SEARCH_URL_ORIGIN_MESSAGE,
+  })
+  @TrimText()
+  itVacanciesSearchUrlTemplate!: string;
 }

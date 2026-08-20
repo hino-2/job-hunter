@@ -19,9 +19,6 @@ export const HH_MAX_RETRIES_ENV_KEY = 'HH_MAX_RETRIES';
 /** §4.11.2: общий троттл всех запросов к hh.ru (HhRequestThrottle). */
 export const HH_MAX_REQUESTS_PER_SECOND_ENV_KEY = 'HH_MAX_REQUESTS_PER_SECOND';
 
-/** Основание пересчёта «запросов в секунду» в миллисекунды между стартами. */
-export const MS_PER_SECOND = 1_000;
-
 /** Имена env-переменных для buildVacancyHttpOptions (§4.1) — значения достаёт сам фабричный метод. */
 export const HH_HTTP_ENV_KEYS = {
   baseUrl: HH_SITE_BASE_URL_ENV_KEY,
@@ -37,23 +34,6 @@ export const HH_ALLOWED_HOST_PATTERN =
 export const HH_VACANCY_PATH_PATTERN = /^\/vacancy\/(\d+)\/?$/;
 
 export const HH_VACANCY_ID_GROUP = 1;
-
-/**
- * Содержимое <script> — raw text element по спецификации HTML: `</script>` внутри
- * невозможен, поэтому нежадный захват до первого закрывающего тега корректен.
- */
-export const JSON_LD_SCRIPT_PATTERN =
-  /<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-export const JSON_LD_CONTENT_GROUP = 1;
-export const JSON_LD_JOB_POSTING_TYPE = 'JobPosting';
-export const JSON_LD_FIELD = {
-  TYPE: '@type',
-  TITLE: 'title',
-  HIRING_ORGANIZATION: 'hiringOrganization',
-  NAME: 'name',
-  /** §4.11.7: описание вакансии для ИИ-отбора — то же поле JobPosting.description. */
-  DESCRIPTION: 'description',
-} as const;
 
 /**
  * Ловит "archived":"true", "archived":false и HTML-экранированные &quot;/&#34; формы

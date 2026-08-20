@@ -27,6 +27,7 @@ export const TEST_AUTH_USER = 'e2e';
 export const TEST_AUTH_PASSWORD = 'e2e-password';
 export const TEST_HH_USER_AGENT = 'job-hunter-e2e/1.0';
 export const TEST_GETMATCH_USER_AGENT = 'job-hunter-e2e-getmatch/1.0';
+export const TEST_IT_VACANCIES_USER_AGENT = 'job-hunter-e2e-it-vacancies/1.0';
 
 export const DEFAULT_TEST_DATABASE_HOST = '127.0.0.1';
 export const DEFAULT_TEST_DATABASE_NAME = 'jobhunter_test';
@@ -109,6 +110,8 @@ export const HH_STUB_PORT = 34599;
 export const HH_STUB_BASE_URL = `http://${VACANCY_STUB_HOST}:${HH_STUB_PORT}`;
 export const GETMATCH_STUB_PORT = 34600;
 export const GETMATCH_STUB_BASE_URL = `http://${VACANCY_STUB_HOST}:${GETMATCH_STUB_PORT}`;
+export const IT_VACANCIES_STUB_PORT = 34601;
+export const IT_VACANCIES_STUB_BASE_URL = `http://${VACANCY_STUB_HOST}:${IT_VACANCIES_STUB_PORT}`;
 
 /**
  * §4.11.2: верхняя граница диапазона §8 — троттл в e2e фактически снят (иначе 58 e2e
@@ -117,6 +120,9 @@ export const GETMATCH_STUB_BASE_URL = `http://${VACANCY_STUB_HOST}:${GETMATCH_ST
  * поэтому на длительность прогона это не влияет.
  */
 export const TEST_HH_MAX_REQUESTS_PER_SECOND = '50';
+
+/** То же для it-vacancies.ru: у источника свой троттл (§4.11.2), значит и свой оверрайд. */
+export const TEST_IT_VACANCIES_MAX_REQUESTS_PER_SECOND = '50';
 
 /**
  * §3.6/§4.11.1/§5.7: шаблон ссылки на выдачу теперь колонка

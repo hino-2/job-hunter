@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import type { VacancySource } from '../applications/applications.type';
+
 import {
   SCAN_STATUS,
   SCAN_STOPPED_REASON,
@@ -53,6 +55,7 @@ function createEmptyProgress(): VacancyScanProgress {
 export class VacancyScanStateService {
   private readonly maxPages: number;
   private status: ScanStatus = SCAN_STATUS.IDLE;
+  private source: VacancySource | null = null;
   private startedAt: Date | null = null;
   private finishedAt: Date | null = null;
   private progress: VacancyScanProgress = createEmptyProgress();
@@ -67,13 +70,21 @@ export class VacancyScanStateService {
     this.totalPages = this.maxPages;
   }
 
-  /** null, если прогон уже идёт — вызывающий обязан ответить 409, не запуская run(). */
-  tryStart(startPage: number): ScanRunHandle | null {
+  /**
+   * null, если прогон уже идёт — вызывающий обязан ответить 409, не запуская run().
+   * Проверка НЕ зависит от источника: прогон в процессе один на весь процесс (§4.11.9),
+   * даже если запрошен другой источник, — иначе два прогона делили бы один пул
+   * HTTP-запросов и один бюджет ИИ.
+   */
+  tryStart(startPage: number, source: VacancySource): ScanRunHandle | null {
     if (this.status === SCAN_STATUS.RUNNING) {
       return null;
     }
 
     this.status = SCAN_STATUS.RUNNING;
+    // Источник живёт до следующего tryStart(): после finish() статус отдаёт источник
+    // последнего завершённого прогона (§5.7).
+    this.source = source;
     this.startedAt = new Date();
     this.finishedAt = null;
     this.progress = createEmptyProgress();
@@ -84,6 +95,7 @@ export class VacancyScanStateService {
     this.message = null;
 
     return {
+      source,
       increment: (counter, delta = 1) => {
         this.progress[counter] += delta;
       },
@@ -124,6 +136,7 @@ export class VacancyScanStateService {
 
     return {
       status: this.status,
+      source: this.source,
       startedAt: this.startedAt,
       finishedAt: this.finishedAt,
       progress: { ...this.progress },

@@ -30,7 +30,7 @@ import { ScanStopAcceptedDto } from './dto/scan-stop-accepted.dto';
 import { StartScanDto } from './dto/start-scan.dto';
 import { UpdateVacancyLeadDto } from './dto/update-vacancy-lead.dto';
 import { VacancyLeadDto } from './dto/vacancy-lead.dto';
-import { isResumablePosition } from './vacancy-scan-position.helpers';
+import { buildResumeStateBySource } from './vacancy-scan-position.helpers';
 import { VacancyScanPositionService } from './vacancy-scan-position.service';
 import { VacancyScanStateService } from './vacancy-scan-state.service';
 import { VacancyScanService } from './vacancy-scan.service';
@@ -40,6 +40,7 @@ import { VacancyLeadsService } from './vacancy-leads.service';
 import { VacancySearchSettingsService } from './vacancy-search-settings.service';
 import {
   DEFAULT_SCAN_MODE,
+  DEFAULT_SCAN_SOURCE,
   VACANCY_LEAD_APPLY_ROUTE,
   VACANCY_LEAD_BY_ID_ROUTE,
   VACANCY_LEAD_ID_PARAM,
@@ -50,7 +51,6 @@ import {
   VACANCY_LEADS_SCAN_STOP_ROUTE,
   VACANCY_SCAN_MAX_PAGES_ENV_KEY,
 } from './vacancy-search.constants';
-import type { VacancyScanResumeState } from './vacancy-search.interfaces';
 
 /**
  * Список/скрытие лидов, создание отклика из лида (§5.7) и запуск/остановка/статус
@@ -96,13 +96,16 @@ export class VacancyLeadsController {
 
   /**
    * POST /api/vacancy-leads/scan (§5.7, §4.11.9, §4.11.12) — 202 сразу, 409 при
-   * уже идущем прогоне либо (mode === 'RESUME') при отсутствии валидной сохранённой
-   * позиции.
+   * уже идущем прогоне (любого источника: прогон один на процесс) либо
+   * (mode === 'RESUME') при отсутствии валидной сохранённой позиции ЭТОГО источника.
    */
   @Post(VACANCY_LEADS_SCAN_ROUTE)
   @HttpCode(HttpStatus.ACCEPTED)
   async scan(@Body() dto: StartScanDto): Promise<ScanAcceptedDto> {
-    const startedAt = await this.scanService.start(dto.mode ?? DEFAULT_SCAN_MODE);
+    const startedAt = await this.scanService.start(
+      dto.mode ?? DEFAULT_SCAN_MODE,
+      dto.source ?? DEFAULT_SCAN_SOURCE,
+    );
 
     return ScanAcceptedDto.fromStartedAt(startedAt);
   }
@@ -119,18 +122,18 @@ export class VacancyLeadsController {
   /** GET /api/vacancy-leads/scan/status (§5.7, §4.11.12) — прогресс во время прогона, итог после, доступность «Продолжить». */
   @Get(VACANCY_LEADS_SCAN_STATUS_ROUTE)
   async status(): Promise<ScanStatusDto> {
-    const [position, settings] = await Promise.all([
-      this.positionService.load(),
+    const [positions, settings] = await Promise.all([
+      this.positionService.loadAll(),
       this.settingsService.getSnapshot(),
     ]);
 
-    const available = isResumablePosition(position, settings.searchUrlTemplate, this.maxPages);
-    const resume: VacancyScanResumeState = {
-      available,
-      nextPage: available ? position.nextPage : null,
-    };
+    const resumeBySource = buildResumeStateBySource(
+      positions,
+      settings.searchUrlTemplateBySource,
+      this.maxPages,
+    );
 
-    return ScanStatusDto.fromState(this.scanStateService.snapshot(), resume);
+    return ScanStatusDto.fromState(this.scanStateService.snapshot(), resumeBySource);
   }
 
   /**

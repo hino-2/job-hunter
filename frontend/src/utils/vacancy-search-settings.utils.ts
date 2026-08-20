@@ -2,6 +2,12 @@ import {
   KEYWORD_LIST_JOIN_SEPARATOR,
   KEYWORD_LIST_SEPARATOR,
   SEARCH_URL_TEMPLATE_HTTPS_PREFIX,
+  SEARCH_URL_TEMPLATE_INVALID_MESSAGE,
+  SEARCH_URL_TEMPLATE_MAX_LENGTH,
+  SEARCH_URL_TEMPLATE_MISSING_PAGE_PLACEHOLDER_MESSAGE,
+  SEARCH_URL_TEMPLATE_PAGE_PLACEHOLDER_PATTERN,
+  SEARCH_URL_TEMPLATE_REQUIRED_MESSAGE,
+  SEARCH_URL_TEMPLATE_TOO_LONG_MESSAGE,
 } from '../constants/vacancy-search.constants';
 import type { SearchSettingsFormValues } from '../types/vacancy-search-settings-form.interfaces';
 import type {
@@ -34,7 +40,9 @@ export function hasAllPlaceholders(text: string, patterns: readonly RegExp[]): b
 
 /**
  * §7.9.4: происхождение шаблона ссылки (https:// + абсолютный URL) — до отправки на
- * сервер. Allow-list хостов hh.ru здесь намеренно не проверяется: клиентская проверка
+ * сервер. Одна и та же функция обслуживает оба шаблона (hh.ru и it-vacancies.ru):
+ * различаются они только allow-list'ом хостов, а его тут как раз и нет.
+ * Allow-list хостов источника здесь намеренно не проверяется: клиентская проверка
  * обязана быть мягче серверной (SearchUrlTemplateConstraint, §5.7), иначе отказ по
  * хосту пришёл бы серверной ошибкой поля лишь один раз, а кнопка «Сохранить» после
  * этого осталась бы навсегда заблокированной клиентской копией той же проверки.
@@ -49,6 +57,35 @@ export function isValidSearchUrlTemplateShape(template: string): boolean {
   }
 }
 
+/**
+ * §7.9.4: клиентские правила поля со шаблоном ссылки — одной функцией на оба источника
+ * (hh.ru и it-vacancies.ru), потому что правила у них дословно одни и те же
+ * (UpdateVacancySearchSettingsDto, §5.7), и разъехаться копипастой они не должны.
+ * `null` — значение отправлять можно; иначе готовое сообщение поля. Та же функция
+ * решает и доступность «Сохранить»: заведомо невалидное на сервер не уходит (§10).
+ * Длина считается по сырому значению (как maxLength поля), а пустота — по триммленному:
+ * на сервер уходит именно триммленное (@TrimText).
+ */
+export function resolveSearchUrlTemplateIssue(template: string): string | null {
+  if (template.trim().length === 0) {
+    return SEARCH_URL_TEMPLATE_REQUIRED_MESSAGE;
+  }
+
+  if (template.length > SEARCH_URL_TEMPLATE_MAX_LENGTH) {
+    return SEARCH_URL_TEMPLATE_TOO_LONG_MESSAGE;
+  }
+
+  if (!hasAllPlaceholders(template, [SEARCH_URL_TEMPLATE_PAGE_PLACEHOLDER_PATTERN])) {
+    return SEARCH_URL_TEMPLATE_MISSING_PAGE_PLACEHOLDER_MESSAGE;
+  }
+
+  if (!isValidSearchUrlTemplateShape(template)) {
+    return SEARCH_URL_TEMPLATE_INVALID_MESSAGE;
+  }
+
+  return null;
+}
+
 /** Ресурс с сервера → локальные значения формы (§7.9.4), при первом монтаже диалога. */
 export function buildSettingsFormValues(settings: VacancySearchSettings): SearchSettingsFormValues {
   return {
@@ -58,10 +95,11 @@ export function buildSettingsFormValues(settings: VacancySearchSettings): Search
     descriptionPrompt: settings.descriptionPrompt,
     aiEnabled: settings.aiEnabled,
     searchUrlTemplate: settings.searchUrlTemplate,
+    itVacanciesSearchUrlTemplate: settings.itVacanciesSearchUrlTemplate,
   };
 }
 
-/** Значения формы → тело PUT (§5.7). searchUrlTemplate триммится, как и на бэкенде (@TrimText). */
+/** Значения формы → тело PUT (§5.7). Оба шаблона ссылок триммятся, как и на бэкенде (@TrimText). */
 export function buildSettingsUpdatePayload(
   values: SearchSettingsFormValues,
 ): VacancySearchSettingsUpdate {
@@ -72,5 +110,6 @@ export function buildSettingsUpdatePayload(
     descriptionPrompt: values.descriptionPrompt,
     aiEnabled: values.aiEnabled,
     searchUrlTemplate: values.searchUrlTemplate.trim(),
+    itVacanciesSearchUrlTemplate: values.itVacanciesSearchUrlTemplate.trim(),
   };
 }

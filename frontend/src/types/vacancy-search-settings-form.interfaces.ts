@@ -10,4 +10,5 @@ export interface SearchSettingsFormValues {
   descriptionPrompt: string;
   aiEnabled: boolean;
   searchUrlTemplate: string;
+  itVacanciesSearchUrlTemplate: string;
 }

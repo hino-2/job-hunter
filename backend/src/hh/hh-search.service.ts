@@ -3,6 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 
+import { VACANCY_SOURCE } from '../applications/applications.constants';
+import type { VacancySource } from '../applications/applications.type';
 import {
   FORBIDDEN_STATUS,
   NOT_FOUND_STATUS,
@@ -11,7 +13,15 @@ import {
   SERVER_ERROR_MIN_STATUS,
 } from '../common/common.constants';
 import { htmlToPlainText } from '../common/html.helpers';
-import type { VacancyRequestAttempt } from '../vacancies/vacancies.interfaces';
+import type {
+  VacancyLeadSearchProvider,
+  VacancyRequestAttempt,
+  VacancySearchPageRequest,
+} from '../vacancies/vacancies.interfaces';
+import type {
+  VacancyDescriptionResult,
+  VacancySearchPageResult,
+} from '../vacancies/vacancies.type';
 import { resolveVacancyLogoUrl } from '../vacancies/vacancy-logo-url.helpers';
 import { describeTransportError, fetchWithRetries } from '../vacancies/vacancy-retry.helpers';
 import { readHhCompanyLogoSrc } from './hh-company-logo.helpers';
@@ -32,8 +42,6 @@ import { parseHhVacancyDescription } from './hh-description.parser';
 import { HhRequestThrottle } from './hh-request.throttle';
 import { buildHhSearchUrl } from './hh-search-url.helpers';
 import { parseHhSearchPage } from './hh-search.parser';
-import type { HhSearchPageRequest } from './hh.interfaces';
-import type { HhDescriptionResult, HhSearchPageResult } from './hh.type';
 
 /**
  * §4.11.2–4.11.3, §4.11.7: обращения к hh.ru конвейера поиска — страница выдачи
@@ -45,7 +53,9 @@ import type { HhDescriptionResult, HhSearchPageResult } from './hh.type';
  * а не по SyncOutcome (§4.5): сбой поиска не пишется в applications.last_sync_outcome.
  */
 @Injectable()
-export class HhSearchService {
+export class HhSearchService implements VacancyLeadSearchProvider {
+  readonly source: VacancySource = VACANCY_SOURCE.HH;
+
   private readonly logger = new Logger(HhSearchService.name);
   private readonly maxRetries: number;
   private readonly siteBaseUrl: string;
@@ -69,11 +79,11 @@ export class HhSearchService {
    */
   readonly acquireRequestSlot = (): Promise<void> => this.throttle.acquire();
 
-  fetchSearchPage(request: HhSearchPageRequest): Promise<HhSearchPageResult> {
+  fetchSearchPage(request: VacancySearchPageRequest): Promise<VacancySearchPageResult> {
     const { searchUrlTemplate, page } = request;
     const url = buildHhSearchUrl(searchUrlTemplate, page);
 
-    return fetchWithRetries<HhSearchPageResult>(
+    return fetchWithRetries<VacancySearchPageResult>(
       {
         maxRetries: this.maxRetries,
         onRetry: (pauseMs, attempt, result) => {
@@ -87,10 +97,10 @@ export class HhSearchService {
     );
   }
 
-  fetchVacancyDescription(externalId: string): Promise<HhDescriptionResult> {
+  fetchVacancyDescription(externalId: string): Promise<VacancyDescriptionResult> {
     const path = `${HH_VACANCY_PAGE_PATH}/${encodeURIComponent(externalId)}`;
 
-    return fetchWithRetries<HhDescriptionResult>(
+    return fetchWithRetries<VacancyDescriptionResult>(
       {
         maxRetries: this.maxRetries,
         onRetry: (pauseMs, attempt, result) => {
@@ -107,7 +117,7 @@ export class HhSearchService {
   private async requestSearchPage(
     url: string,
     page: number,
-  ): Promise<VacancyRequestAttempt<HhSearchPageResult>> {
+  ): Promise<VacancyRequestAttempt<VacancySearchPageResult>> {
     // §4.11.2: слот резервируется на КАЖДОЙ попытке ретрая, а не только на первой.
     await this.throttle.acquire();
 
@@ -128,7 +138,7 @@ export class HhSearchService {
     status: number,
     payload: unknown,
     page: number,
-  ): VacancyRequestAttempt<HhSearchPageResult> {
+  ): VacancyRequestAttempt<VacancySearchPageResult> {
     if (status === OK_STATUS) {
       const parsed = parseHhSearchPage(payload, this.siteBaseUrl);
 
@@ -166,7 +176,7 @@ export class HhSearchService {
   private async requestVacancyDescription(
     path: string,
     externalId: string,
-  ): Promise<VacancyRequestAttempt<HhDescriptionResult>> {
+  ): Promise<VacancyRequestAttempt<VacancyDescriptionResult>> {
     await this.throttle.acquire();
 
     try {
@@ -186,7 +196,7 @@ export class HhSearchService {
     status: number,
     payload: unknown,
     externalId: string,
-  ): VacancyRequestAttempt<HhDescriptionResult> {
+  ): VacancyRequestAttempt<VacancyDescriptionResult> {
     if (status === OK_STATUS) {
       const rawDescription = parseHhVacancyDescription(payload);
 

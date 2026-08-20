@@ -16,7 +16,7 @@ import {
 import { formatDateTimeFull } from '../../utils/date.utils';
 import type { SyncStatusIconProps } from './sync-status-icon.interfaces';
 
-/** §4.8: строка «Источник: hh.ru» / «Источник: getmatch.ru» / «Источник не определён». */
+/** §4.8: строка «Источник: hh.ru» / «getmatch.ru» / «it-vacancies.ru» / «Источник не определён». */
 function describeSource(source: SyncStatusIconProps['source']): string {
   const label = source === null ? VACANCY_SOURCE_UNKNOWN_LABEL : VACANCY_SOURCE_LABELS[source];
 
