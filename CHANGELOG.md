@@ -7,6 +7,14 @@ history only. Newest first.
 
 ---
 
+**47. Row action buttons back to the default small size.** _(frontend)_
+«Отклик», «Скрыть»/«Восстановить» (§7.9.1) and «Отклонено компанией» (§7.2) lost their explicit
+`size="medium"`: with the accent turquoise of step 46 on every `contained` button, three oversized
+ones dominated the row. They now inherit `size: 'small'` from `MuiButton.defaultProps`, matching
+«Добавить». Purely visual — flex layout, disabled logic and click handlers are untouched.
+
+---
+
 **46. Accent color for every contained button.** _(frontend)_
 All `variant="contained"` buttons — «Добавить», «Начать поиск», «Отклик», the dialog submits, the
 lead hide/restore toggle — now render in the turquoise of the active tab (`ACCENT_COLOR`), via

@@ -152,7 +152,6 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
         <Button
           fullWidth
           variant="contained"
-          size="medium"
           disabled={lead.hasApplication || isApplying}
           onClick={handleApply}
         >
@@ -168,7 +167,6 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
        */}
       <Button
         variant="contained"
-        size="medium"
         onClick={handleToggleHidden}
         sx={{ flex: VACANCY_LEAD_SUMMARY_FLEX.auto }}
       >

@@ -264,7 +264,6 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
        */}
       <Button
         variant="contained"
-        size="medium"
         onClick={handleRejectByCompany}
         sx={{ flex: SUMMARY_FLEX.auto }}
       >
