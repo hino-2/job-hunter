@@ -164,7 +164,7 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
        * Обычная кнопка с подписью вместо иконки: действие скрытия используется чаще
        * остальных, подпись читается без наведения — поэтому Tooltip здесь не нужен.
        * variant="contained" без color — как у остальных кнопок действия проекта, цвет
-       * берётся из темы (`primary.main`, серый).
+       * берётся из темы: глобальный override contained красит их в акцентный бирюзовый.
        */}
       <Button
         variant="contained"

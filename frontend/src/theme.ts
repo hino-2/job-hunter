@@ -2,6 +2,8 @@ import { createTheme } from '@mui/material/styles';
 
 import {
   ACCENT_COLOR,
+  ACCENT_CONTRAST_TEXT_COLOR,
+  ACCENT_HOVER_COLOR,
   BASE_FONT_SIZE_PX,
   BORDER_RADIUS_PX,
   FONT_FAMILY,
@@ -127,6 +129,27 @@ export const theme = createTheme({
     },
     MuiButton: {
       defaultProps: { size: 'small' },
+
+      styleOverrides: {
+        // Все contained-кнопки — цветом активной вкладки (ACCENT_COLOR). Через
+        // styleOverrides, а не palette.primary: тот держит рамки полей, иконки и
+        // outlined-кнопки — перекрасив его, бирюзовым стал бы весь интерфейс.
+        contained: ({ theme }) => ({
+          backgroundColor: ACCENT_COLOR,
+          color: ACCENT_CONTRAST_TEXT_COLOR,
+
+          '&:hover': {
+            backgroundColor: ACCENT_HOVER_COLOR,
+          },
+
+          // Дизейбл — той же штатной палитрой, что и по умолчанию у MUI: страховка на
+          // случай, если фон/текст выше разойдутся с палитрой action.
+          '&.Mui-disabled': {
+            backgroundColor: theme.palette.action.disabledBackground,
+            color: theme.palette.action.disabled,
+          },
+        }),
+      },
     },
     MuiToggleButton: {
       defaultProps: { size: 'small' },

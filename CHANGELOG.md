@@ -7,6 +7,19 @@ history only. Newest first.
 
 ---
 
+**46. Accent color for every contained button.** _(frontend)_
+All `variant="contained"` buttons — «Добавить», «Начать поиск», «Отклик», the dialog submits, the
+lead hide/restore toggle — now render in the turquoise of the active tab (`ACCENT_COLOR`), via
+`MuiButton.styleOverrides.contained` in `theme.ts` rather than a per-button `sx`: one place, and no
+call site can drift. `palette.primary` is deliberately left alone — it holds field borders, icons
+and outlined buttons, so repainting it would turn the whole interface turquoise. Two new constants
+carry the hover shade and the dark text color (`palette.text.primary` is orange and unreadable on
+the accent); the `&.Mui-disabled` branch pins the disabled state to `palette.action`, mirroring
+MUI's own default so a bright button can never survive being disabled. Purely visual — no
+behaviour, no contracts touched.
+
+---
+
 **45. Uniform button color in the leads filter bar.** _(frontend)_
 "Остановить" lost its `color="warning"`, so all of "Продолжить", "Остановить" and "Настройки
 поиска" now render as `variant="outlined"` in the default primary color. Purely visual — the
