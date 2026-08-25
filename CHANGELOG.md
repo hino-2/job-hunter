@@ -7,6 +7,21 @@ history only. Newest first.
 
 ---
 
+**48. Gray off-state for the «Скрытые» toggle.** _(frontend)_
+The standalone `ToggleButton` of §7.9.1 sat outside any `ToggleButtonGroup`, so it was the one
+control still taking MUI's stock unselected colors (`action.active` text, `divider` border) instead
+of the `palette.primary` gray its outlined neighbours use. A `MuiToggleButton.styleOverrides.root`
+rule scoped to `&:not(.Mui-selected)` paints text with `primary.main` and the border with
+`alpha(primary.main, OUTLINED_BORDER_OPACITY)`, repeating the outlined Button's own formula —
+full opacity would read denser than its neighbour's. Its nested `&:hover` tints with `primary.main`
+too, because MUI's stock toggle hover uses `text.primary`, which is orange in this theme. The
+selected state is untouched. Color and border inside the `ToggleButtonGroup` still come from the
+group's own, more specific rule, but the hover does reach the status-filter buttons — the group
+declares none — which is the better end state anyway: their text and border are gray too, so the
+stock orange tint was the odd one out. Purely visual.
+
+---
+
 **47. Row action buttons back to the default small size.** _(frontend)_
 «Отклик», «Скрыть»/«Восстановить» (§7.9.1) and «Отклонено компанией» (§7.2) lost their explicit
 `size="medium"`: with the accent turquoise of step 46 on every `contained` button, three oversized

@@ -1,4 +1,4 @@
-import { createTheme } from '@mui/material/styles';
+import { alpha, createTheme } from '@mui/material/styles';
 
 import {
   ACCENT_COLOR,
@@ -7,6 +7,7 @@ import {
   BASE_FONT_SIZE_PX,
   BORDER_RADIUS_PX,
   FONT_FAMILY,
+  OUTLINED_BORDER_OPACITY,
   THEME_MODE,
 } from './constants/theme.constants';
 
@@ -153,6 +154,29 @@ export const theme = createTheme({
     },
     MuiToggleButton: {
       defaultProps: { size: 'small' },
+
+      styleOverrides: {
+        // Выключенный переключатель — как outlined-кнопки рядом: серый palette.primary
+        // вместо дефолтных MUI action.active и divider. Полупрозрачность рамки и подсветки
+        // повторяет формулу самой outlined-кнопки, иначе рамка вышла бы плотнее соседней,
+        // а hover — оранжевым от text.primary. Цвет и рамку внутри ToggleButtonGroup
+        // правило ниже перебивает по специфичности, а вот hover достаётся и кнопкам
+        // фильтра статусов: своего hover у группы нет, и серая подсветка там уместнее
+        // оранжевой — текст и рамка у них тоже серые.
+        root: ({ theme }) => ({
+          '&:not(.Mui-selected)': {
+            color: theme.palette.primary.main,
+            borderColor: alpha(theme.palette.primary.main, OUTLINED_BORDER_OPACITY),
+
+            '&:hover': {
+              backgroundColor: alpha(
+                theme.palette.primary.main,
+                theme.palette.action.hoverOpacity,
+              ),
+            },
+          },
+        }),
+      },
     },
     MuiToggleButtonGroup: {
       defaultProps: { size: 'small' },

@@ -26,3 +26,6 @@ export const ACCENT_HOVER_COLOR = '#6FD3D0';
 
 /** Текст на бирюзовом фоне: palette.text.primary — оранжевый, на акценте нечитаем. */
 export const ACCENT_CONTRAST_TEXT_COLOR = '#262626';
+
+/** Прозрачность рамки outlined-кнопки MUI — повторяем её для одиночного ToggleButton. */
+export const OUTLINED_BORDER_OPACITY = 0.5;
