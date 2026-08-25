@@ -2,9 +2,23 @@
 
 Development history of job-hunter, formerly kept as SPECIFICATION.md §14. Step numbering is
 unchanged — comments across the repo cite these numbers (e.g. "шаг №26 §14"). The normative
-specification lives in [SPECIFICATION.md](./SPECIFICATION.md); this file is history only. Newest first.
+specification lives in [spec/](./spec/) (index: [spec/README.md](./spec/README.md)); this file is
+history only. Newest first.
 
 ---
+
+**43. Specification split into `spec/`, one file per section.** _(documentation)_
+`SPECIFICATION.md` (158 KB, 2015 lines) was a single file, so every lookup either grepped it or
+pulled far more text than the question needed — and §4 alone was 36% of it. It is now `spec/`, 71
+files named by section number (`spec/4.3-rules-for-applying-a-sync-result.md`), plus
+`spec/README.md` — an index mapping every `§` to its file with a one-line summary. §4.11 and §4.12
+are split down to `####` level, so the largest section file is 11 KB instead of 56 KB. The split
+is textually lossless: the body of every section is byte-identical to the original, the only edit
+being `./CHANGELOG.md` → `../CHANGELOG.md` in §14. Five section headings whose bodies were empty
+(§1, §3, §7, §9, §4.12 — pure containers for their subsections) have no file; their subsections are
+listed directly in the index. **All `§` numbering is unchanged** — 1206 comments across `backend/` and
+`frontend/` cite it. `SPECIFICATION.md` stays at the root as a pointer to `spec/README.md` so
+existing links keep resolving. `CLAUDE.md` now instructs reading only the one file a `§` names.
 
 **42. Vacancy source it-vacancies.ru: lead search and sync.** _(backend + frontend)_
 A third `VacancySource` (`'IT_VACANCIES'`, §4.8) and a **second** lead-search source (§4.11). The

@@ -4,10 +4,22 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ## Source of truth
 
-**[SPECIFICATION.md](./SPECIFICATION.md) is the project's source of truth.** Read the relevant
-paragraph before any edit — code and comments cite its sections (`§4.3`, `§5.5`, …). Key ones:
-§2.4 fixed technical decisions, §3 data model, §4 vacancy-source integration, §5 REST API,
-§10 code conventions, §12 out of scope, §13 acceptance criteria.
+**The specification in [`spec/`](./spec/) is the project's source of truth**, split one file per
+section. [`spec/README.md`](./spec/README.md) is its index: every `§` with its file and a one-line
+summary.
+
+**Read only the file for the `§` you need — never the directory as a whole**, and never extra files
+"for context". Code and comments cite sections (`§4.3`, `§5.5`, `§4.11.12`); a citation maps to
+`spec/N.M-*.md`. When the right `§` is not obvious, read `spec/README.md` first and pick from the
+index — do not scan the files. Key ones: §2.4 fixed technical decisions, §3 data model, §4
+vacancy-source integration, §5 REST API, §10 code conventions, §12 out of scope, §13 acceptance
+criteria.
+
+Section numbering is frozen — over 1200 comments in `backend/` and `frontend/` cite it. Never
+renumber; a new section takes the next free number and gets a row in `spec/README.md`. A new file
+in `spec/` without a row in the index does not exist as far as the next session is concerned.
+
+`SPECIFICATION.md` at the root is a pointer to `spec/README.md` and holds no requirements.
 
 **[CHANGELOG.md](./CHANGELOG.md)** holds the development history (formerly §14), numbered by
 step. Steps 1–27 are done; further work is targeted edits on top of a finished application.
@@ -16,7 +28,7 @@ Every edit that changes application behaviour must add an entry there.
 §12 lists what must **not** be built (cron beyond the existing scheduler, pagination, dark
 theme, JWT, export, …) — do not add any of it on your own initiative.
 
-**Agent-facing documentation is English**: this file, SPECIFICATION.md, CHANGELOG.md. README.md
+**Agent-facing documentation is English**: this file, everything under `spec/`, CHANGELOG.md. README.md
 stays Russian — it is written for the project owner. Code comments, log messages and error
 strings stay Russian per §10.
 

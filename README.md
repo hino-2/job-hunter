@@ -12,7 +12,8 @@
 - фильтры «Все / Открытые / Закрытые», поиск по компании/должности/заметкам и сортировка;
 - локальный запуск в Docker, рассчитан на одного пользователя за Basic Auth.
 
-Требования и полное описание функциональности — в [SPECIFICATION.md](./SPECIFICATION.md).
+Требования и полное описание функциональности — в каталоге [spec/](./spec/), по файлу на раздел;
+оглавление со ссылками — в [spec/README.md](./spec/README.md).
 
 ---
 
@@ -135,7 +136,7 @@ docker compose exec -T db psql -U jobhunter jobhunter < backup.sql
 
 ```
 job-hunter/
-├─ SPECIFICATION.md      требования (источник истины)
+├─ spec/                 требования (источник истины), по файлу на раздел; оглавление — spec/README.md
 ├─ docker-compose.yml    db + api + web
 ├─ .env.example          шаблон конфигурации
 ├─ eslint.shared.mjs     общее правило пустых строк для обоих воркспейсов
