@@ -7,6 +7,13 @@ history only. Newest first.
 
 ---
 
+**45. Uniform button color in the leads filter bar.** _(frontend)_
+"Остановить" lost its `color="warning"`, so all of "Продолжить", "Остановить" and "Настройки
+поиска" now render as `variant="outlined"` in the default primary color. Purely visual — the
+buttons' enable/disable logic and the §4.11.12 stop/resume semantics are untouched.
+
+---
+
 **44. Description-stage stop-words and evidence grounding for AI screening.** _(backend + frontend)_
 A Java/Spring vacancy titled "Middle backend Developer" survived §4.11 screening with a hallucinated
 `ai_description_reason` ("Node.js (в названии вакансии), TypeScript…") — neither word appears anywhere in

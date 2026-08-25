@@ -125,7 +125,6 @@ export function VacancyLeadsFilterBar({
 
       <Button
         variant="outlined"
-        color="warning"
         startIcon={<StopIcon />}
         disabled={!isScanRunning || isStopRequested || isStopPending}
         onClick={onScanStop}
