@@ -1,5 +1,5 @@
 import { VACANCY_AI_VERDICT_FIELD, VACANCY_AI_VERDICTS_FIELD } from './vacancy-ai.constants';
-import type { AiTitleVerdict } from './vacancy-ai.interfaces';
+import type { AiDescriptionVerdict, AiTitleVerdict } from './vacancy-ai.interfaces';
 
 /**
  * Сужение unknown → провалидированные вердикты модели (§4.12.3). Общие
@@ -111,10 +111,15 @@ export function parseTitleVerdicts(
   return verdicts;
 }
 
-/** §4.12.3: схема этапа 4 — один объект { matches, reason }, без обёртки. */
-export function parseDescriptionVerdict(
-  content: string,
-): { matches: boolean; reason: string } | null {
+/**
+ * §4.12.3: схема этапа 4 — один объект { matches, reason, evidence }, без обёртки.
+ * Схема ТРЕБУЕТ evidence (additionalProperties: false, required включает поле), но
+ * парсер читает его СНИСХОДИТЕЛЬНО (readString(...) ?? '') — отсутствие цитаты не
+ * должно превратить корректный matches: false в фолбэк, который затем мог бы создать
+ * лид: грамматика ответа проверяется на входе (schema), а не задним числом здесь.
+ * matches и reason остаются обязательными, как и раньше.
+ */
+export function parseDescriptionVerdict(content: string): AiDescriptionVerdict | null {
   const parsed = parseJson(content);
 
   if (!isRecord(parsed)) {
@@ -128,5 +133,7 @@ export function parseDescriptionVerdict(
     return null;
   }
 
-  return { matches, reason };
+  const evidence = readString(parsed, VACANCY_AI_VERDICT_FIELD.EVIDENCE) ?? '';
+
+  return { matches, reason, evidence };
 }

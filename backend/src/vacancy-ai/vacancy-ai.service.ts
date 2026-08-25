@@ -7,6 +7,8 @@ import {
   VACANCY_AI_DESCRIPTION_JSON_SCHEMA,
   VACANCY_AI_DESCRIPTION_MAX_CHARS_ENV_KEY,
   VACANCY_AI_DESCRIPTION_PLACEHOLDER,
+  VACANCY_AI_EVIDENCE_LOG_MAX_CHARS,
+  VACANCY_AI_EVIDENCE_UNGROUNDED_MESSAGE,
   VACANCY_AI_INVALID_RESPONSE_MESSAGE,
   VACANCY_AI_KEYWORDS_JOIN_SEPARATOR,
   VACANCY_AI_KEYWORDS_PLACEHOLDER,
@@ -17,7 +19,7 @@ import {
   VACANCY_AI_TITLE_PLACEHOLDER,
   VACANCY_AI_TITLES_PLACEHOLDER,
 } from './vacancy-ai.constants';
-import { formatTitlesBlock, renderPrompt } from './vacancy-ai.helpers';
+import { formatTitlesBlock, isEvidenceGrounded, renderPrompt } from './vacancy-ai.helpers';
 import type {
   AiDescriptionRequest,
   AiJsonSchema,
@@ -39,9 +41,11 @@ function describeChatFailure(error: unknown): string {
  * обрезка уже полученного вердикта).
  *
  * Любой сбой — таймаут, недоступный контейнер, невалидный JSON, несовпадение длины
- * массива вердиктов с батчем — превращается в { ok: false, reason } с warn в лог,
- * без ретраев (§4.12.3: повтор к перегруженной модели только удвоит ожидание) и без
- * исключений наружу: конвейер сам решает про фолбэк на ключевые слова.
+ * массива вердиктов с батчем, а на этапе описания ещё и цитата (evidence), не
+ * найденная в реальном тексте описания (isEvidenceGrounded) — превращается в
+ * { ok: false, reason } с warn в лог, без ретраев (§4.12.3: повтор к перегруженной
+ * модели только удвоит ожидание) и без исключений наружу: конвейер сам решает про
+ * фолбэк на ключевые слова.
  *
  * ai_title_reason/ai_description_reason НЕ обрезаются здесь по ширине колонки (500) —
  * это делает vacancy-lead.builder.ts, единственное место среза значений перед записью (§10).
@@ -119,6 +123,20 @@ export class VacancyAiService {
       this.logger.warn('ИИ по описанию вернул невалидный ответ');
 
       return { ok: false, reason: VACANCY_AI_INVALID_RESPONSE_MESSAGE };
+    }
+
+    // §4.12.3: цитата проверяется ТОЛЬКО при matches === true — при отрицательном
+    // вердикте ничего не сохраняется, значит сфабрикованная цитата ничего не стоит,
+    // а требование проверять её и там превратило бы верный reject в фолбэк, который
+    // ещё мог бы создать лид. Сверяем с ТОЙ ЖЕ обрезанной description, что реально
+    // ушла модели (переменная выше), а не с исходным request.description.
+    if (verdict.matches && !isEvidenceGrounded(verdict.evidence, description)) {
+      this.logger.warn(
+        `ИИ по описанию сослался на текст, которого нет в описании: ` +
+          `«${clampText(verdict.evidence, VACANCY_AI_EVIDENCE_LOG_MAX_CHARS)}»`,
+      );
+
+      return { ok: false, reason: VACANCY_AI_EVIDENCE_UNGROUNDED_MESSAGE };
     }
 
     return { ok: true, matches: verdict.matches, reason: verdict.reason };

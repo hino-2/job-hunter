@@ -111,6 +111,37 @@ function passesPrefilter(
 }
 
 /**
+ * §4.11.4 этап 3.5: те же стоп-слова, что и этап 0, но теперь по полному тексту
+ * описания — единственному месту, где это описание вообще существует (страница
+ * вакансии уже загружена этапом 3). Проверка стоит СТРОГО перед вызовом ИИ по
+ * описанию: запрос к модели — это ~6 КБ чата и таймаут до 120 с, а стоп-слово в
+ * описании отбраковывает вакансию бесплатно, без единого токена.
+ *
+ * Именно это расположение и делает безопасной ветку !aiResult.ok ниже (фолбэк на
+ * ключевые слова): если бы стоп-слова проверялись только по названию, вакансия,
+ * где слово всплывает лишь в описании, при недоступной модели проскочила бы в фолбэк
+ * непровереной. Возвращает СПИСОК совпавших слов (matchKeywords, а не hasExcluded) —
+ * вызывающему нужны сами слова для лога, а не факт совпадения.
+ *
+ * Требование этапа 'full' по включающим словам сюда намеренно НЕ расширено: решить,
+ * действительно ли перечисленные в профиле технологии нужны вакансии как основные, —
+ * работа модели (§4.11.4), а не детерминированного совпадения подстроки. На тексте
+ * описания (тысячи символов) такое совпадение матчило бы почти всё подряд и обесценило
+ * бы саму идею этапа 4.
+ */
+function findExcludedInDescription(
+  description: string,
+  settings: VacancySearchSettingsSnapshot,
+  mode: VacancyPrefilterMode,
+): string[] {
+  if (mode === 'off') {
+    return [];
+  }
+
+  return matchKeywords(description, settings.excludeKeywords);
+}
+
+/**
  * §4.11: конвейер отбора «стоп-слова → дедупликация → ИИ по названию → загрузка
  * страницы → ИИ по описанию» (§4.11.4). Публичные входы — start(mode, source) и
  * requestStop() (§4.11.12). Источник прогона резолвится в провайдера через
@@ -539,6 +570,24 @@ export class VacancyScanService {
       return;
     }
 
+    const excludedInDescription = findExcludedInDescription(
+      descriptionResult.description,
+      settings,
+      this.prefilterMode,
+    );
+
+    if (excludedInDescription.length > 0) {
+      // §4.11.4 этап 3.5: тот же счётчик, что у этапа 0 (§4.11.11 — «отсеян стоп-словами»,
+      // без разницы, по названию или по описанию); rejectedDescription означает отказ
+      // МОДЕЛИ, а не детерминированный фильтр, поэтому не подходит.
+      handle.increment('skippedExcluded');
+      this.logger.log(
+        `Вакансия ${decision.item.externalId}: стоп-слова в описании — ${excludedInDescription.join(', ')}`,
+      );
+
+      return;
+    }
+
     const aiResult = await this.aiService.judgeDescription({
       descriptionPrompt: settings.descriptionPrompt,
       keywords: settings.keywords,
@@ -549,7 +598,9 @@ export class VacancyScanService {
 
     if (!aiResult.ok) {
       // §4.12.3: тот же принцип фолбэка, что на этапе названия — решение по описанию
-      // принимают ключевые слова, matchSource переключается на KEYWORDS.
+      // принимают ключевые слова, matchSource переключается на KEYWORDS. Стоп-слова
+      // описания уже отсеяны выше, поэтому этот фолбэк не может пропустить вакансию,
+      // которую полагалось исключить.
       handle.increment('aiFallbacks');
       this.logger.warn(
         `Фолбэк на ключевые слова (описание вакансии ${decision.item.externalId}): ${aiResult.reason}`,

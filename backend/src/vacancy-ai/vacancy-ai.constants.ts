@@ -79,6 +79,7 @@ export const VACANCY_AI_VERDICT_FIELD = {
   INDEX: 'index',
   MATCHES: 'matches',
   REASON: 'reason',
+  EVIDENCE: 'evidence',
 } as const;
 
 /**
@@ -115,7 +116,13 @@ export const VACANCY_AI_TITLE_JSON_SCHEMA: AiJsonSchema = {
   },
 };
 
-/** §4.12.3: схема этапа 4 — один объект { matches, reason }. */
+/**
+ * §4.12.3: схема этапа 4 — один объект { matches, reason, evidence }. evidence — то,
+ * что провоцировало галлюцинацию модели («Node.js (в названии вакансии)…» — реального
+ * совпадения в описании не было): требуем дословную цитату отдельным полем, чтобы
+ * vacancy-ai.service.ts мог проверить её вхождение в реальный текст описания
+ * (isEvidenceGrounded, vacancy-ai.helpers.ts) до того, как reason уйдёт в БД.
+ */
 export const VACANCY_AI_DESCRIPTION_JSON_SCHEMA: AiJsonSchema = {
   name: 'description_verdict',
   schema: {
@@ -123,8 +130,13 @@ export const VACANCY_AI_DESCRIPTION_JSON_SCHEMA: AiJsonSchema = {
     properties: {
       [VACANCY_AI_VERDICT_FIELD.MATCHES]: { type: 'boolean' },
       [VACANCY_AI_VERDICT_FIELD.REASON]: { type: 'string' },
+      [VACANCY_AI_VERDICT_FIELD.EVIDENCE]: { type: 'string' },
     },
-    required: [VACANCY_AI_VERDICT_FIELD.MATCHES, VACANCY_AI_VERDICT_FIELD.REASON],
+    required: [
+      VACANCY_AI_VERDICT_FIELD.MATCHES,
+      VACANCY_AI_VERDICT_FIELD.REASON,
+      VACANCY_AI_VERDICT_FIELD.EVIDENCE,
+    ],
     additionalProperties: false,
   },
 };
@@ -135,3 +147,38 @@ export const VACANCY_AI_TRANSPORT_ERROR_MESSAGE = 'Запрос к провай�
 export const VACANCY_AI_MISSING_CONTENT_MESSAGE = 'В ответе провайдера ИИ нет текста сообщения';
 export const VACANCY_AI_MODELS_LIST_FAILED_MESSAGE =
   'Не удалось получить список моделей у провайдера ИИ';
+
+/**
+ * §4.12.3: нормализация evidence и description ПЕРЕД сравнением подстрокой
+ * (isEvidenceGrounded, vacancy-ai.helpers.ts) — таблица применяется к ОБЕИМ сторонам
+ * сравнения одинаково, это и делает каждую подстановку безопасной (не нужно гадать,
+ * какая сторона «канонична»). Порядок важен, схлопывание пробельных серий — обязательно
+ * последний шаг: класс пробельных символов регулярного выражения в JS уже покрывает
+ * неразрывные пробелы (U+00A0, U+202F) и BOM (U+FEFF), отдельное правило для них не нужно.
+ *
+ * По той же причине, что normalizeText в vacancy-search/vacancy-keywords.helpers.ts не
+ * реэкспортируется сюда: модуль vacancy-ai не должен зависеть от vacancy-search
+ * (обратная зависимость конвейера отбора), правило ё → е продублировано локально.
+ */
+export const VACANCY_AI_EVIDENCE_NORMALIZATION_REPLACEMENTS: ReadonlyArray<
+  readonly [RegExp, string]
+> = [
+  [/[«»„“”‘’'`]/g, '"'],
+  [/[–—‒−]/g, '-'],
+  [/…/g, '...'],
+  [/ё/g, 'е'],
+  [/\s+/g, ' '],
+];
+
+/**
+ * §4.12.3: убивает вырожденные цитаты («», «.», «-»), которые тривиально совпали бы
+ * подстрокой почти с любым описанием. Порог намеренно низкий — легитимный короткий
+ * токен профиля («node.js», «java») не должен превращаться в фолбэк.
+ */
+export const VACANCY_AI_EVIDENCE_MIN_NORMALIZED_LENGTH = 3;
+
+/** §4.12.3: полная цитата в лог не идёт — только обрезанный фрагмент (та же причина, что у description). */
+export const VACANCY_AI_EVIDENCE_LOG_MAX_CHARS = 120;
+
+export const VACANCY_AI_EVIDENCE_UNGROUNDED_MESSAGE =
+  'Цитата модели не найдена в описании вакансии';

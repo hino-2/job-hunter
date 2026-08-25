@@ -7,6 +7,29 @@ history only. Newest first.
 
 ---
 
+**44. Description-stage stop-words and evidence grounding for AI screening.** _(backend + frontend)_
+A Java/Spring vacancy titled "Middle backend Developer" survived §4.11 screening with a hallucinated
+`ai_description_reason` ("Node.js (в названии вакансии), TypeScript…") — neither word appears anywhere in
+the title or description. Three fixes: (1) a new pipeline stage 3.5 (§4.11.4) runs the same
+`exclude_keywords` check as stage 0, now over the fetched description, right before the description AI
+call — cheap and it makes the keyword-fallback branch of stage 4 safe against a stop-word that only
+appears in the description. It reuses the `skippedExcluded` counter rather than adding a new one — §4.11.11
+already defines that counter as "cut off by exclude keywords", exactly what this is, and `rejectedDescription`
+means the model rejected it while `aiFallbacks` means the model was unusable, neither of which fits. (2)
+The description AI response gained a required `evidence` field (§4.12.3): `VacancyAiService.judgeDescription`
+verifies, only when `matches === true`, that `evidence` is a normalized substring of the exact (clamped)
+description text sent to the model (`isEvidenceGrounded`, `vacancy-ai.helpers.ts`) — case-insensitive,
+whitespace-collapsed, quote/dash/ellipsis/`ё` folded, minimum 3 normalized characters. An ungrounded quote
+is the same failure class as invalid JSON (`aiFallbacks`, `warn`), never a silent `rejectedDescription`.
+`evidence` is never persisted. (3) The default `description_prompt` is now block-delimited
+(`<keywords>`/`<title>`/`<company>`/`<description>`) with an explicit instruction that the `<keywords>`
+block is the candidate's profile, not vacancy text — migration `BlockDelimitVacancyDescriptionPrompt`
+rewrites it in the DB, guarded by the previous-text `WHERE` the same way `SharpenVacancyTitlePrompt` is, so
+a hand-edited prompt is left alone; `down()` is guarded the same way for the `RepairGetmatchVacancySource`
+reason (an unguarded revert could glue an unrelated edit to the wrong text). The prompt text now exists as
+two verbatim copies by necessity (migration + `frontend/src/constants/vacancy-search.constants.ts`
+`DEFAULT_DESCRIPTION_PROMPT`, no shared package, §3.4). No schema/DTO/API change.
+
 **43. Specification split into `spec/`, one file per section.** _(documentation)_
 `SPECIFICATION.md` (158 KB, 2015 lines) was a single file, so every lookup either grepped it or
 pulled far more text than the question needed — and §4 alone was 36% of it. It is now `spec/`, 71

@@ -45,6 +45,17 @@ export interface AiTitleVerdict {
   reason: string;
 }
 
+/**
+ * §4.12.3 этап 4: вердикт модели по описанию. evidence — вход проверки на
+ * галлюцинацию (isEvidenceGrounded, vacancy-ai.helpers.ts) и НИКОГДА не сохраняется
+ * в БД (§4.12.3) — в отличие от reason, который уходит в ai_description_reason.
+ */
+export interface AiDescriptionVerdict {
+  matches: boolean;
+  reason: string;
+  evidence: string;
+}
+
 /** §4.11.4 этап 1 / §4.12.2: вход judgeTitles — уже готовый снимок настроек и батч названий. */
 export interface AiTitleBatchRequest {
   titlePrompt: string;

@@ -1,4 +1,6 @@
 import {
+  VACANCY_AI_EVIDENCE_MIN_NORMALIZED_LENGTH,
+  VACANCY_AI_EVIDENCE_NORMALIZATION_REPLACEMENTS,
   VACANCY_AI_TITLE_LINE_DIVIDER,
   VACANCY_AI_TITLES_LINE_SEPARATOR,
 } from './vacancy-ai.constants';
@@ -28,4 +30,35 @@ export function formatTitlesBlock(items: readonly AiTitleBatchItem[]): string {
       (item, index) => `${index + 1}. ${item.title}${VACANCY_AI_TITLE_LINE_DIVIDER}${item.company}`,
     )
     .join(VACANCY_AI_TITLES_LINE_SEPARATOR);
+}
+
+/**
+ * §4.12.3: приводит текст к виду, пригодному для сравнения подстрокой — применяется
+ * ОДИНАКОВО к цитате модели и к описанию (isEvidenceGrounded), поэтому различие
+ * кавычек/тире/ё между ними не превращается в ложное «цитата не найдена».
+ */
+export function normalizeForEvidenceMatch(value: string): string {
+  const normalized = VACANCY_AI_EVIDENCE_NORMALIZATION_REPLACEMENTS.reduce(
+    (text, [pattern, replacement]) => text.replace(pattern, replacement),
+    value,
+  );
+
+  return normalized.trim().toLowerCase();
+}
+
+/**
+ * §4.12.3: только нормализованное вхождение подстрокой — никакого fuzzy/similarity
+ * сравнения. description здесь — тот же обрезанный (clampText) текст, что реально
+ * ушёл модели в промпте, иначе проверка была бы не о том, что модель видела.
+ * Регулярки таблицы замен используются исключительно через String.replace, а не
+ * .test()/.exec(), поэтому проблемы lastIndex у /g-паттернов здесь не возникает.
+ */
+export function isEvidenceGrounded(evidence: string, description: string): boolean {
+  const normalizedEvidence = normalizeForEvidenceMatch(evidence);
+
+  if (normalizedEvidence.length < VACANCY_AI_EVIDENCE_MIN_NORMALIZED_LENGTH) {
+    return false;
+  }
+
+  return normalizeForEvidenceMatch(description).includes(normalizedEvidence);
 }
