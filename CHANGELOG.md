@@ -7,6 +7,22 @@ history only. Newest first.
 
 ---
 
+**49. Green «Отклик» button.** _(frontend)_
+`color="success"` on the §7.9.1 apply button did nothing on its own: the step 46
+`MuiButton.styleOverrides.contained` rule hardcodes `ACCENT_COLOR` for every contained button
+regardless of its `color` prop, so the button stayed turquoise. The obvious fix — a sibling
+`containedSuccess` slot — does not exist in this MUI version: Button's `overridesResolver` resolves
+only `root`, `styles[variant]`, `size*`, `colorInherit`, `disableElevation`, `fullWidth` and
+`loading`, and the unknown key failed both typecheck and lint. Instead the `contained` slot gained a
+nested `&.${buttonClasses.colorSuccess}` selector painting `palette.success.main` / `.contrastText`
+with a `.dark` hover; two classes outrank the bare `contained` declarations. It is declared
+**before** the existing `&.Mui-disabled` block on purpose — both compile to two-class selectors of
+equal specificity, so source order alone keeps a disabled «Отклик» muted instead of green.
+`palette.success.main` is `#078d0b`. `color="success"` is used at exactly one call site, so no other
+button is affected. Purely visual.
+
+---
+
 **48. Gray off-state for the «Скрытые» toggle.** _(frontend)_
 The standalone `ToggleButton` of §7.9.1 sat outside any `ToggleButtonGroup`, so it was the one
 control still taking MUI's stock unselected colors (`action.active` text, `divider` border) instead

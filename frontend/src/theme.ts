@@ -1,3 +1,4 @@
+import { buttonClasses } from '@mui/material/Button';
 import { alpha, createTheme } from '@mui/material/styles';
 
 import {
@@ -31,7 +32,12 @@ export const theme = createTheme({
     secondary: {
       main: '#DD9755',
     },
+
+    success: {
+      main: '#078d0b',
+    },
   },
+
   shape: {
     borderRadius: BORDER_RADIUS_PX,
   },
@@ -143,8 +149,24 @@ export const theme = createTheme({
             backgroundColor: ACCENT_HOVER_COLOR,
           },
 
+          // Исключение из правила выше — зелёная кнопка «Отклик» (§7.9.1). Одного
+          // color="success" мало: свой слот containedSuccess у Button'а этой версии MUI
+          // отсутствует (overridesResolver знает только root / contained / size* /
+          // colorInherit), так что ACCENT_COLOR красил бы кнопку поверх палитры. Селектор
+          // по классу цвета специфичнее голого contained и перебивает его.
+          [`&.${buttonClasses.colorSuccess}`]: {
+            backgroundColor: theme.palette.success.main,
+            color: theme.palette.success.contrastText,
+
+            '&:hover': {
+              backgroundColor: theme.palette.success.dark,
+            },
+          },
+
           // Дизейбл — той же штатной палитрой, что и по умолчанию у MUI: страховка на
-          // случай, если фон/текст выше разойдутся с палитрой action.
+          // случай, если фон/текст выше разойдутся с палитрой action. Объявлен строго
+          // после блока colorSuccess: специфичность у них одинаковая (два класса), решает
+          // порядок — иначе выключенная кнопка «Отклик» осталась бы зелёной.
           '&.Mui-disabled': {
             backgroundColor: theme.palette.action.disabledBackground,
             color: theme.palette.action.disabled,
@@ -169,10 +191,7 @@ export const theme = createTheme({
             borderColor: alpha(theme.palette.primary.main, OUTLINED_BORDER_OPACITY),
 
             '&:hover': {
-              backgroundColor: alpha(
-                theme.palette.primary.main,
-                theme.palette.action.hoverOpacity,
-              ),
+              backgroundColor: alpha(theme.palette.primary.main, theme.palette.action.hoverOpacity),
             },
           },
         }),

@@ -152,6 +152,7 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
         <Button
           fullWidth
           variant="contained"
+          color="success"
           disabled={lead.hasApplication || isApplying}
           onClick={handleApply}
         >
