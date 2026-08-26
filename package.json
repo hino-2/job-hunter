@@ -1,6 +1,11 @@
 {
   "name": "job-hunter",
   "version": "1.0.0",
+  "author": {
+    "email": "i.am@igor-ushakov.ru",
+    "name": "Igor Ushakov",
+    "url": "https://t.me/hino_2"
+  },
   "private": true,
   "description": "Personal job application tracker with hh.ru status sync",
   "license": "UNLICENSED",
