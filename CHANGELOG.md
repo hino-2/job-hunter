@@ -7,6 +7,18 @@ history only. Newest first.
 
 ---
 
+**50. Three Ollama slots instead of one.** _(infrastructure)_
+`OLLAMA_NUM_PARALLEL=3` on the `ollama` service (§4.12.4, §9.1). The default of `1` makes the
+container serve one request at a time, which caps the §4.11.4 selection pipeline no matter what the
+backend does. No code change: `vacancy-scan.service.ts` still awaits every `chat()` in turn, so the
+running application behaves exactly as before — what changes today is the container's own reservation,
+a KV cache for three slots (measured 448 MiB each) rather than one. Per-slot `n_ctx` is unchanged at
+`4096`: the slots do not divide a single context between them (`n_slots = 3, n_ctx_slot = 4096` in the
+server log). Preparation for running title batches and description verdicts through
+`mapWithConcurrency`. Lower it to `1` on a CPU-only or low-VRAM machine, like the `deploy` section.
+
+---
+
 **49. Green «Отклик» button.** _(frontend)_
 `color="success"` on the §7.9.1 apply button did nothing on its own: the step 46
 `MuiButton.styleOverrides.contained` rule hardcodes `ACCENT_COLOR` for every contained button
