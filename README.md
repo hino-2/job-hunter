@@ -1,117 +1,146 @@
 # Job Hunter
 
-Персональный трекер откликов на вакансии с автообновлением статуса по странице вакансии
-источника — hh.ru или getmatch.ru. Запускается локально в Docker, пользователь один.
+A personal tracker of submitted job applications that refreshes their status from the public
+vacancy page of the source — hh.ru, getmatch.ru or it-vacancies.ru. Runs locally in Docker, for a
+single user.
 
-Возможности:
+Features:
 
-- список откликов в виде раскрывающихся аккордеонов, а не таблицы;
-- inline-редактирование полей с автосейвом — кнопки «Сохранить» нет;
-- автоподстановка компании и должности по вставленной ссылке на вакансию hh.ru или getmatch.ru;
-- ручное обновление статуса — по одной записи (🔄) и разом по всем открытым, для обоих источников;
-- фильтры «Все / Открытые / Закрытые», поиск по компании/должности/заметкам и сортировка;
-- локальный запуск в Docker, рассчитан на одного пользователя за Basic Auth.
+- applications shown as expandable accordions, not as a table;
+- inline field editing with autosave — there is no «Сохранить» button;
+- company and position auto-filled from a pasted vacancy link (hh.ru, getmatch.ru,
+  it-vacancies.ru);
+- manual status refresh — per record (🔄) and for all open records at once, across all sources;
+- a scheduled background refresh of all open records, running inside the `api` process;
+- «Все / Открытые / Закрытые» filters, search by company/position/notes, and sorting;
+- a second screen, «Вакансии»: searching for new vacancies on hh.ru and it-vacancies.ru, screening
+  them by keywords and, optionally, by a local LLM in Ollama, then creating an application from a
+  found lead in one click;
+- local Docker deployment behind Basic Auth, sized for one user.
 
-Требования и полное описание функциональности — в каталоге [spec/](./spec/), по файлу на раздел;
-оглавление со ссылками — в [spec/README.md](./spec/README.md).
-
----
-
-## Требования
-
-- Docker Desktop или Docker Engine с плагином Compose v2 (команда `docker compose`).
-- Node.js ≥ 22.13 — нужен только для разработки и e2e-тестов без Docker, для обычного
-  запуска приложения не требуется.
-- ОС любая, где есть Docker; сама разработка велась на Windows 11.
+The requirements and the full description of the behaviour live in [spec/](./spec/), one file per
+section; the index with links is [spec/README.md](./spec/README.md). Development history is in
+[CHANGELOG.md](./CHANGELOG.md).
 
 ---
 
-## Быстрый старт
+## Requirements
+
+- Docker Desktop or Docker Engine with the Compose v2 plugin (the `docker compose` command).
+- Node.js ≥ 22.13 — needed only for development and for the e2e tests outside Docker; running the
+  application does not require it.
+- Any OS with Docker; development itself was done on Windows 11.
+- Optional, for AI screening only: an NVIDIA GPU exposed to Docker. Ollama also works CPU-only —
+  see [Vacancy search and AI screening](#vacancy-search-and-ai-screening-ollama).
+
+---
+
+## Quick start
 
 ```bash
 cp .env.example .env
 docker compose up -d --build
 ```
 
-В `.env` стоит поменять как минимум:
+In `.env` you should change at least:
 
-- `AUTH_USER` / `AUTH_PASSWORD` — логин и пароль Basic Auth (по умолчанию `admin` / `admin`);
-- `POSTGRES_PASSWORD` — пароль базы;
-- `HH_USER_AGENT` — hh.ru отвечает `400` на запросы без осмысленного User-Agent, впиши свой
-  реальный контакт. `GETMATCH_USER_AGENT` менять не обязательно — у getmatch.ru есть
-  безопасный дефолт (`403` на обычный User-Agent не наблюдался).
+- `AUTH_USER` / `AUTH_PASSWORD` — the Basic Auth credentials (defaults `admin` / `admin`);
+- `POSTGRES_PASSWORD` — the database password;
+- `HH_USER_AGENT` — hh.ru answers `400` to requests without a meaningful User-Agent, so put your
+  own real contact there. `GETMATCH_USER_AGENT` and `IT_VACANCIES_USER_AGENT` need no change — both
+  sources have a safe default (no `403` on an ordinary User-Agent has been observed).
 
-> **Переименование env-ключей.** `HH_SYNC_CONCURRENCY` и `HH_SYNC_MIN_DELAY_MS` переименованы
-> в `SYNC_CONCURRENCY` и `SYNC_MIN_DELAY_MS` — параметр массового прогона общий для всех
-> источников вакансий, а не только для hh.ru. Если в твоём `.env` остались старые имена,
-> **перенеси значения на новые ключи вручную**: старые больше не читаются и молча заменяются
-> дефолтами (`3` и `200` мс соответственно) — прецедент такого переименования без обратной
-> совместимости уже был у `HH_API_BASE_URL` → `HH_SITE_BASE_URL`.
+> **Renamed env keys.** `HH_SYNC_CONCURRENCY` and `HH_SYNC_MIN_DELAY_MS` were renamed to
+> `SYNC_CONCURRENCY` and `SYNC_MIN_DELAY_MS` — the bulk-run parameters are shared by all vacancy
+> sources, not specific to hh.ru. If your `.env` still carries the old names, **move the values to
+> the new keys by hand**: the old ones are no longer read and are silently replaced by the defaults
+> (`3` and `200` ms). The same kind of rename without backward compatibility already happened with
+> `HH_API_BASE_URL` → `HH_SITE_BASE_URL`, and with `HH_SEARCH_URL_TEMPLATE`, which is now a setting
+> edited in the UI rather than an env variable.
 
-Первый запуск собирает образы с нуля — около минуты плюс скачивание базовых образов;
-повторный `docker compose up -d` с уже собранными образами — около 15–20 секунд.
+The first run builds the images from scratch — about a minute plus the base-image download; a
+repeat `docker compose up -d` with images already built takes about 15–20 seconds.
 
-Результат проверяется так:
+Verify the result:
 
 ```bash
-docker compose ps   # три сервиса, api — healthy
+docker compose ps   # three services, api is healthy
 ```
 
-- <http://127.0.0.1:8080> открывается и показывает «Пока нет ни одной записи»;
-- на первом же запросе к `/api/*` браузер показывает нативный диалог Basic Auth — логин
-  и пароль это `AUTH_USER` / `AUTH_PASSWORD` из `.env`;
-- `GET /api/health` отвечает без авторизации — его же опрашивает healthcheck контейнера.
+- <http://127.0.0.1:8080> opens and shows «Пока нет ни одной записи»;
+- on the first request to `/api/*` the browser shows its native Basic Auth dialog — the credentials
+  are `AUTH_USER` / `AUTH_PASSWORD` from `.env`;
+- `GET /api/health` answers without authorization — the container healthcheck polls the same
+  endpoint.
 
-Полезное:
+Handy:
 
 ```bash
 npm run up      # docker compose up -d --build
-npm run down    # docker compose down (данные остаются в volume)
+npm run down    # docker compose down (data stays in the volume)
 npm run logs    # docker compose logs -f
-npm run ps      # статус сервисов
+npm run ps      # service status
 ```
 
 ---
 
-## Работа с приложением
+## Using the app
 
-- «+ Добавить» → вставь ссылку на вакансию hh.ru или getmatch.ru — компания и должность
-  подставятся сами, уже введённые вручную значения не перетираются.
-- Поля сохраняются сами: по уходу с поля и через паузу после ввода. Кнопки «Сохранить» нет,
-  ошибка автосейва откатывает значение и показывает уведомление.
-- 🔄 в шапке записи — обновить статус одной вакансии по данным источника (hh.ru или
-  getmatch.ru — определяется по вставленной ссылке автоматически); источник виден
-  в подсказке при наведении на иконку синхронизации.
-- «Обновить все открытые» — прогон по всем записям в статусе «Открыта» со сводкой по итогам,
-  независимо от источника каждой записи.
-- «Отказ компании» в шапке записи — один клик ставит результат «Отказ компании». Кнопки
-  удаления записи в интерфейсе нет.
-- Результаты «Отказ компании», «Отказался сам» и «Вакансия снята» закрывают отклик: статус
-  сам становится «Закрыта», запись уходит из фильтра «Открытые», из счётчика «Открытых»
-  и из прогона «Обновить все открытые». «Нет ответа» отклик не закрывает. Записи, созданные
-  до этого правила, статус меняют при следующем сохранении результата.
-- Фильтры «Все / Открытые / Закрытые», поиск по компании, должности и заметкам, сортировка
-  по четырём полям.
+### The «Отклики» screen
+
+- «+ Добавить» → paste a vacancy link from hh.ru, getmatch.ru or it-vacancies.ru — the company and
+  position are filled in automatically, and values you already typed by hand are not overwritten.
+- Fields save themselves: on blur and after a pause in typing. There is no «Сохранить» button; a
+  failed autosave rolls the value back and shows a notification.
+- «Статус» and «Результат» are selects in the collapsed record header, so both can be changed
+  without expanding the record.
+- 🔄 in the record header refreshes the status of one vacancy from its source (hh.ru, getmatch.ru
+  or it-vacancies.ru — resolved automatically from the pasted link); the source is shown in the
+  tooltip of the sync icon.
+- «Обновить все открытые» runs the refresh over every record in status «Открыта», regardless of the
+  source of each one, and reports a summary afterwards.
+- «Отказ компании» in the record header sets that result in one click. There is no delete button in
+  the UI.
+- The results «Отказ компании», «Отказался сам» and «Вакансия снята» close the application: the
+  status becomes «Закрыта» on its own, the record leaves the «Открытые» filter, the «Открытых»
+  counter and the «Обновить все открытые» run. «Нет ответа» does not close it. Records created
+  before this rule get their status fixed on the next save of the result.
+- «Все / Открытые / Закрытые» filters, search by company, position and notes, sorting by four
+  fields.
+
+### The «Вакансии» screen
+
+- Pick the search source (hh.ru or it-vacancies.ru) in the first control of the filter bar, then
+  «Начать поиск» to run a fresh sweep from the first page, «Продолжить» to resume from the saved
+  position of the previous run, «Остановить» to stop the current one. The run is asynchronous: the
+  request returns immediately and the screen polls its status every 2 s, showing progress and then
+  the final summary.
+- «⚙ Настройки поиска» opens a dialog with the keywords, the stop-words, one results-page link per
+  search source, the two model prompts and the «Использовать ИИ-отбор» switch.
+- Each found vacancy is an accordion. A click on the collapsed row opens the vacancy in a new tab;
+  expansion lives on the arrow at the right. «Отклик» creates an application from the lead in one
+  click, «Скрыть» removes the lead from the list, and the «Скрытые» toggle switches to the hidden
+  ones, where «Вернуть» brings a lead back.
 
 ---
 
-## Остановка, обновление, данные
+## Stopping, updating, data
 
 ```bash
-docker compose down      # данные остаются в volume pgdata
-docker compose down -v   # данные удаляются безвозвратно
+docker compose down      # data stays in the pgdata volume
+docker compose down -v   # data is deleted irreversibly
 ```
 
-Обновление после `git pull`:
+Updating after `git pull`:
 
 ```bash
 docker compose up -d --build
 ```
 
-Миграции накатываются автоматически при старте `api`.
+Migrations are applied automatically when `api` starts.
 
-Бэкап и восстановление БД (подставь свои `POSTGRES_USER` и `POSTGRES_DB` из `.env`,
-по умолчанию оба — `jobhunter`):
+Database backup and restore (substitute your own `POSTGRES_USER` and `POSTGRES_DB` from `.env`,
+both default to `jobhunter`):
 
 ```bash
 docker compose exec -T db pg_dump -U jobhunter jobhunter > backup.sql
@@ -120,280 +149,294 @@ docker compose exec -T db psql -U jobhunter jobhunter < backup.sql
 
 ---
 
-## Архитектура
+## Architecture
 
 ```
-браузер → web (nginx :8080) → api (NestJS :3000) → db (PostgreSQL :5432)
+browser → web (nginx :8080) → api (NestJS :3000) → db (PostgreSQL :5432)
                 ↓                      ↓
-          статика React        страница вакансии источника
-                                (hh.ru или getmatch.ru)
+          React static files    public vacancy pages
+                                (hh.ru, getmatch.ru, it-vacancies.ru)
+                                       ↓
+                            ollama :11434 (optional, profile `ai`)
 ```
 
-Наружу опубликован **только** порт `web`, и только на `127.0.0.1` — приложение не видно
-в локальной сети. `api` и `db` доступны лишь внутри compose-сети.
+**Only** the `web` port is published, and only on `127.0.0.1` — the application is not visible on
+the local network. `api`, `db` and `ollama` are reachable inside the compose network only.
 
-## Структура
+## Repository layout
 
 ```
 job-hunter/
-├─ spec/                 требования (источник истины), по файлу на раздел; оглавление — spec/README.md
-├─ docker-compose.yml    db + api + web
-├─ .env.example          шаблон конфигурации
-├─ eslint.shared.mjs     общее правило пустых строк для обоих воркспейсов
+├─ spec/                 requirements (source of truth), one file per section; index — spec/README.md
+├─ CHANGELOG.md          development history, newest first
+├─ docker-compose.yml    db + api + web (+ ollama under the `ai` profile)
+├─ .env.example          configuration template
+├─ eslint.shared.mjs     the shared blank-line rule for both workspaces
 ├─ backend/              NestJS + TypeORM
 └─ frontend/             React + MUI + Vite
 ```
 
-Монорепо на **npm workspaces** — без turbo/nx/lerna. Один `package-lock.json` в корне,
-общий тулинг (TypeScript, ESLint, Prettier) поднят в корневые devDependencies,
-чтобы версии не разъезжались между воркспейсами.
+A monorepo on **npm workspaces** — no turbo/nx/lerna. One `package-lock.json` at the root, shared
+tooling (TypeScript, ESLint, Prettier) hoisted into the root devDependencies so versions cannot
+drift between workspaces.
 
 ---
 
-## Разработка без Docker
+## Development without Docker
 
-Нужен только Postgres — его удобно поднять из compose:
+Only Postgres is needed, and it is convenient to start it from compose:
 
 ```bash
 docker compose up -d db
 ```
 
-Порт базы публикуется на `127.0.0.1:${DATABASE_PORT_HOST:-5432}` — в локальной сети
-она не видна, но доступна с хоста для e2e-тестов и TypeORM CLI.
+The database port is published on `127.0.0.1:${DATABASE_PORT_HOST:-5432}` — invisible on the local
+network, but reachable from the host for the e2e tests and the TypeORM CLI.
 
-Для запуска бэкенда вне Docker укажи в `.env` `DATABASE_HOST=127.0.0.1`. Дальше:
+To run the backend outside Docker, set `DATABASE_HOST=127.0.0.1` in `.env`. Then:
 
 ```bash
 npm install
-npm run dev:api    # http://127.0.0.1:3000/api  (watch-режим)
-npm run dev:web    # http://127.0.0.1:5173      (проксирует /api на 3000)
+npm run dev:api    # http://127.0.0.1:3000/api  (watch mode)
+npm run dev:web    # http://127.0.0.1:5173      (proxies /api to 3000)
 ```
 
-Vite-сервер сам проксирует `/api` на бэкенд, поэтому фронт всегда обращается к
-относительному пути `/api` — и в дев-режиме, и в Docker (там проксирует nginx).
+The Vite server proxies `/api` to the backend itself, which is why the frontend always calls the
+relative path `/api` — in dev mode and in Docker alike (nginx proxies it there).
 
-### Проверки
+If AI screening is enabled, also set `VACANCY_AI_BASE_URL=http://127.0.0.1:11434`: `npm run dev:api`
+runs on the host and does not resolve the compose-network name `ollama`.
+
+### Checks
 
 ```bash
-npm run lint        # ESLint в обоих воркспейсах
-npm run typecheck   # tsc --noEmit в обоих воркспейсах
+npm run lint        # ESLint in both workspaces (lint:fix — with autofix)
+npm run typecheck   # tsc --noEmit in both workspaces
 npm run test        # jest (backend) + vitest (frontend)
-npm run build       # сборка обоих воркспейсов
+npm run build       # build both workspaces
 npm run format      # prettier --write
 ```
 
-Часть тестов отложена решением владельца проекта (новые spec-файлы не заводятся): unit-тесты
-`vacancy-sync.service` (как для hh.ru, так и для getmatch.ru), e2e синхронизации
-(`POST /:id/sync`, `POST /sync-open`) и фронтовые компонентные тесты — см. §13.20
-спецификации и записи 6, 15 в CHANGELOG.md.
+Part of the test suite is deferred by the project owner's decision (no new spec files are created):
+unit tests for `vacancy-sync.service` (for all sources), the sync e2e tests (`POST /:id/sync`,
+`POST /sync-open`) and the frontend component tests — see §13.20 of the specification and entries 6
+and 15 in CHANGELOG.md.
 
-### e2e-тесты бэкенда
+### Backend e2e tests
 
-Нужен поднятый Postgres — тесты работают против настоящей базы, а не против мока:
+A running Postgres is required — the tests work against a real database, not a mock:
 
 ```bash
 docker compose up -d db
 npm run test:e2e --workspace=backend
 ```
 
-Тесты используют **отдельную** базу `jobhunter_test` (имя настраивается через
-`TEST_DATABASE_NAME`), которая при каждом прогоне удаляется и создаётся заново,
-после чего на неё накатываются миграции. Рабочая база из `POSTGRES_DB` не затрагивается:
-прогон падает с ошибкой, если имя тестовой базы совпадает с рабочей или не оканчивается
-на `_test`. Между тестами таблицы чистятся `TRUNCATE`, поэтому спеки идут в один поток
-(`maxWorkers: 1`).
+The tests use a **separate** database, `jobhunter_test` (configurable via `TEST_DATABASE_NAME`),
+which is dropped and recreated on every run and then migrated. The working database from
+`POSTGRES_DB` is never touched: the run fails if the test database name matches the working one or
+does not end in `_test`. Tables are cleaned with `TRUNCATE` between tests, so the specs run in a
+single thread (`maxWorkers: 1`).
 
-Подключение берётся из корневого `.env`: хост — `TEST_DATABASE_HOST` (по умолчанию
-`127.0.0.1`), порт — `DATABASE_PORT_HOST`. Креды Basic Auth на время тестов подменяются
-фиксированными значениями, поэтому в `.env` для них ничего настраивать не нужно. Если порт
-базы занят локально установленным Postgres — см. «Диагностика» ниже.
+The connection comes from the root `.env`: host from `TEST_DATABASE_HOST` (default `127.0.0.1`),
+port from `DATABASE_PORT_HOST`. Basic Auth credentials are replaced with fixed values for the
+duration of the tests, so nothing has to be configured for them in `.env`. No e2e test reaches the
+internet — vacancy sources are replaced by a local stub. If the database port is taken by a locally
+installed Postgres, see «Troubleshooting» below.
 
-### Миграции
+### Migrations
 
-Схема БД создаётся **только** миграциями, `synchronize` выключен навсегда.
+The schema is created by migrations **only**; `synchronize` is off forever.
 
 ```bash
-# сгенерировать миграцию по изменениям в сущностях (имя обязательно)
+# generate a migration from entity changes (the name is mandatory)
 npm run migration:generate --workspace=backend -- src/database/migrations/InitialSchema
 
-# применить / откатить / посмотреть статус
+# apply / revert / show status
 npm run migration:run --workspace=backend
 npm run migration:revert --workspace=backend
 npm run migration:show --workspace=backend
 ```
 
-В Docker миграции применяются автоматически при старте контейнера `api`
-(`migration:run:dist` перед `node dist/main.js`) и идемпотентны.
+In Docker the migrations are applied automatically when the `api` container starts
+(`migration:run:dist` before `node dist/main.js`) and are idempotent.
 
 ---
 
-## Диагностика
+## Troubleshooting
 
-- **Порт `8080` занят.** Задай в `.env` свободный `WEB_PORT` и подними стек заново.
-- **Порт `5432` занят** локально установленным Postgres (при `docker compose up -d db` —
-  «port is already allocated»). Задай в `.env` свободный `DATABASE_PORT_HOST`, например
-  `55432`, и подними стек заново — тесты и TypeORM CLI подхватят его автоматически.
-- **`api` не становится `healthy`.** Смотри `docker compose logs api`. Типовые причины —
-  пустой `AUTH_PASSWORD` или `HH_USER_AGENT` (падение при старте — это fail-fast по замыслу,
-  см. §6 спецификации) либо недоступная база `db`.
-- **Браузер не спрашивает пароль заново после смены `AUTH_PASSWORD`.** Basic Auth кэшируется
-  браузером на сессию — открой приватное окно или перезапусти браузер.
-- **Синхронизация записей hh.ru возвращает ошибку на всех записях.** Проверь `HH_USER_AGENT`
-  в `.env` и доступность `hh.ru` с машины, где запущен контейнер `api`.
-- **Синхронизация hh.ru массово отдаёт `403`.** hh.ru заблокировал запросы с этого User-Agent
-  или IP — смени `HH_USER_AGENT` на осмысленное значение с реальным контактом; повтором
-  это не лечится (ретраев на `403` нет).
-- **Синхронизация отдаёт «страница вакансии hh.ru не распознана».** hh.ru изменил вёрстку
-  страницы (нет ожидаемых токенов `archived`) — актуализируй `hh-page.parser.ts` под новую
-  разметку; данные вакансии до тех пор не обновляются, а не падают всем приложением.
-- **Синхронизация записей getmatch.ru отдаёт `403`.** Разведка не наблюдала блокировку
-  getmatch.ru по User-Agent, но если это изменилось — проверь `GETMATCH_USER_AGENT` в `.env`
-  и доступность `getmatch.ru` с машины, где запущен контейнер `api`; повтором это не лечится
-  (ретраев на `403` нет, как и у hh.ru).
-- **Синхронизация отдаёт «страница вакансии getmatch.ru не распознана».** getmatch.ru изменил
-  вёрстку или формат flight-payload (`self.__next_f.push(...)`) — не находится ключ
-  `initialVacancy`, либо чанки не склеиваются в валидный JSON. Актуализируй
-  `getmatch-page.parser.ts` под новый формат; данные вакансии до тех пор не обновляются,
-  а не падают всем приложением — тот же принцип, что и у `hh-page.parser.ts`.
+- **Port `8080` is taken.** Set a free `WEB_PORT` in `.env` and bring the stack up again.
+- **Port `5432` is taken** by a locally installed Postgres (on `docker compose up -d db` — "port is
+  already allocated"). Set a free `DATABASE_PORT_HOST` in `.env`, e.g. `55432`, and bring the stack
+  up again — the tests and the TypeORM CLI pick it up automatically.
+- **`api` never becomes `healthy`.** Check `docker compose logs api`. Typical causes: an empty
+  `AUTH_PASSWORD` or `HH_USER_AGENT` (a startup crash there is fail-fast by design, see §6 of the
+  specification), or an unreachable `db`.
+- **The browser does not ask for the password again after `AUTH_PASSWORD` changed.** Basic Auth is
+  cached by the browser for the session — open a private window or restart the browser.
+- **Syncing hh.ru records fails on every record.** Check `HH_USER_AGENT` in `.env` and that `hh.ru`
+  is reachable from the machine running the `api` container.
+- **hh.ru sync returns `403` en masse.** hh.ru blocked requests from this User-Agent or IP — change
+  `HH_USER_AGENT` to a meaningful value with a real contact; retrying does not help (there are no
+  retries on `403`).
+- **Sync returns «страница вакансии hh.ru не распознана».** hh.ru changed the page markup (the
+  expected `archived` tokens are gone) — update `hh-page.parser.ts` for the new layout. Until then
+  the vacancy data is simply not refreshed; the whole application does not fall over.
+- **Syncing getmatch.ru or it-vacancies.ru returns `403`.** Neither source was observed to block by
+  User-Agent, but if that changed — check `GETMATCH_USER_AGENT` / `IT_VACANCIES_USER_AGENT` in
+  `.env` and that the site is reachable from the machine running the `api` container; retrying does
+  not help here either (no retries on `403`, same as hh.ru).
+- **Sync returns «страница вакансии getmatch.ru не распознана».** getmatch.ru changed its markup or
+  the format of the flight payload (`self.__next_f.push(...)`) — the `initialVacancy` key is not
+  found, or the chunks do not concatenate into valid JSON. Update `getmatch-page.parser.ts` for the
+  new format; the same principle as `hh-page.parser.ts` applies — the vacancy data stops updating,
+  the application keeps working.
+- **Sync returns «страница вакансии it-vacancies.ru не распознана».** The
+  `application/ld+json` `JobPosting` block is missing from the page — update
+  `it-vacancies-page.parser.ts`. Same fail-soft principle.
+- **The AI screening counter `aiFallbacks` keeps growing with no other errors in the log.**
+  `VACANCY_AI_TIMEOUT_MS` (default `30000`) is too low for this machine — the default is measured on
+  a GPU, and on CPU-only Ollama a cold model load plus a full stage-1 batch can exceed 30 s. Raise
+  the value.
 
-Если в старом `.env` остался `HH_API_BASE_URL` — его можно удалить: приложение использует
-`HH_SITE_BASE_URL` с дефолтом `https://hh.ru`, и старая переменная просто не читается.
-Аналогично можно удалить `HH_SYNC_CONCURRENCY`/`HH_SYNC_MIN_DELAY_MS`, если оставил их
-от старой версии `.env` — их заменяют `SYNC_CONCURRENCY`/`SYNC_MIN_DELAY_MS` (см.
-предупреждение в «Быстром старте» выше); значения, если ты их когда-то настраивал под себя,
-перенеси на новые ключи вручную — старые молча не читаются и не роняют старт.
-
----
-
-## Тех. стек
-
-| Слой     | Что используется                                                                  |
-| -------- | --------------------------------------------------------------------------------- |
-| Frontend | React 19, MUI 9, `@mui/x-date-pickers` 9 + dayjs, TanStack Query 5, axios, Vite 8 |
-| Backend  | NestJS 11, TypeORM 1.1, PostgreSQL 16, class-validator, `@nestjs/axios`           |
-| Общее    | TypeScript 5.9, ESLint 10 (flat config) + `@stylistic`, Prettier 3                |
-| Тесты    | Jest 30 + ts-jest (backend), Vitest 4 + Testing Library (frontend)                |
-
-Почему **TypeScript 5.9**, а не 7: `typescript-eslint` поддерживает `typescript <6.1.0`,
-`ts-jest` — `<7`. На TS 7 проект остался бы без линтера и без тестов на бэкенде.
-Ровно 5.9.3 к тому же тянет внутри себя NestJS 11, то есть это протестированная им версия.
-
-Почему `@stylistic/padding-line-between-statements`, а не ядровое правило ESLint:
-ядровое помечено deprecated с 8.53 и будет удалено в ESLint 11 (`availableUntil: 11.0.0`).
-Набор опций и поведение идентичны, конфигурация — в `eslint.shared.mjs`.
-
-Почему нет `@nestjs/cli`: он тянет ~400 dev-пакетов (webpack и прочее), а нужны от него
-только `build` и `watch`. Их закрывают `tsc -p tsconfig.build.json` и
-`node --watch --require ts-node/register`. `ts-node` всё равно нужен для TypeORM CLI.
+If an old `.env` still has `HH_API_BASE_URL`, it can be deleted: the application uses
+`HH_SITE_BASE_URL` with the default `https://hh.ru`, and the old variable is simply not read. The
+same goes for `HH_SYNC_CONCURRENCY` / `HH_SYNC_MIN_DELAY_MS` (replaced by `SYNC_CONCURRENCY` /
+`SYNC_MIN_DELAY_MS`, see the warning in «Quick start» above) and for `HH_SEARCH_URL_TEMPLATE` (now
+edited in the «Настройки поиска» dialog). If you had tuned any of those values, move them to the new
+places by hand — the old keys are silently ignored and do not break startup.
 
 ---
 
-## Конфигурация
+## Tech stack
 
-Все переменные и их значения по умолчанию описаны в [`.env.example`](./.env.example).
-Схема валидируется при старте (`backend/src/config/environment.validation.ts`):
-если обязательная переменная отсутствует или значение вне допустимого диапазона,
-процесс падает с понятным сообщением. В частности, **без `AUTH_PASSWORD` приложение
-не стартует** — это защита от случайного запуска инстанса без авторизации.
+| Layer    | What is used                                                                       |
+| -------- | ---------------------------------------------------------------------------------- |
+| Frontend | React 19, MUI 9, `@mui/x-date-pickers` 9 + dayjs, TanStack Query 5, axios, Vite 8  |
+| Backend  | NestJS 11, TypeORM 1.1, PostgreSQL 16, class-validator, `@nestjs/axios`            |
+| Shared   | TypeScript 5.9, ESLint 10 (flat config) + `@stylistic`, Prettier 3                 |
+| Tests    | Jest 30 + ts-jest (backend), Vitest 4 + Testing Library (frontend)                 |
+| AI       | Ollama + `qwen3:4b-instruct` (optional), or any OpenAI-compatible cloud provider   |
 
-Переменные интеграции с источниками вакансий — две симметричные группы, `HH_*` и
-`GETMATCH_*` (базовый URL, User-Agent, таймаут запроса, число ретраев), плюс общие
-для обоих источников `SYNC_CONCURRENCY`/`SYNC_MIN_DELAY_MS` (конкурентность и пауза
-массового прогона, §4.6 спецификации). Единственная переменная, обязательная без
-дефолта, — `HH_USER_AGENT` (hh.ru отвечает `400` без осмысленного User-Agent);
-все четыре `GETMATCH_*`-переменные опциональны.
+Why **TypeScript 5.9** and not 7: `typescript-eslint` supports `typescript <6.1.0`, `ts-jest`
+supports `<7`. On TS 7 the project would be left with no linter and no backend tests. Exactly 5.9.3
+is also what NestJS 11 pulls in itself, i.e. the version it has been tested against.
 
-Приложение само запускает прогон по всем открытым записям — тот же, что кнопка
-«Обновить все открытые» — по расписанию (§4.7 спецификации): `SCHEDULED_SYNC_ENABLED`
-(`true`/`false`, дефолт `true`) и `SCHEDULED_SYNC_INTERVAL_MS` (дефолт `1800000` —
-30 минут, допустимо `60000`…`86400000`). Первый прогон — не при старте, а через
-интервал. Чтобы отключить фоновые запросы к hh.ru и getmatch.ru — `SCHEDULED_SYNC_ENABLED=false`
-и `docker compose up -d --force-recreate api`; факт запуска планировщика виден в логе
-`api` строкой «Плановая синхронизация включена, интервал N мин» при старте.
+Why `@stylistic/padding-line-between-statements` and not the core ESLint rule: the core one has
+been deprecated since 8.53 and will be removed in ESLint 11 (`availableUntil: 11.0.0`). The option
+set and the behaviour are identical; the configuration is in `eslint.shared.mjs`.
 
-`docker compose` читает переменные из корневого `.env` только при старте контейнеров:
-после правки `.env` нужно применить их командой `docker compose up -d --force-recreate api`.
-
-Логотипы компаний (§4.10 спецификации) скачиваются при синхронизации в каталог
-`COMPANY_LOGO_DIR` с таймаутом `COMPANY_LOGO_REQUEST_TIMEOUT_MS` (дефолт `5000`).
-В Docker это `/var/lib/job-hunter/logos` на именованном томе `logos` — файлы переживают
-пересоздание контейнера; дефолт `os.tmpdir()/job-hunter-logos` рассчитан на дев-режим,
-где приложение работает прямо на хосте. Меняя `COMPANY_LOGO_DIR` в `.env`, поменяй и
-точку монтирования тома в `docker-compose.yml`.
+Why no `@nestjs/cli`: it drags in ~400 dev packages (webpack and friends) while only `build` and
+`watch` are ever needed from it. Those are covered by `tsc -p tsconfig.build.json` and
+`node --watch --require ts-node/register`. `ts-node` is needed for the TypeORM CLI anyway.
 
 ---
 
-## Ограничения
+## Configuration
 
-Осознанно не реализовано: очереди, воркеры, системный cron и отдельный
-контейнер-планировщик (плановая синхронизация есть, но живёт внутри процесса `api`
-на `@nestjs/schedule`, см. «Конфигурация» выше), уведомления, экспорт/импорт,
-мобильная вёрстка, тёмная тема, многопользовательность. Полный список — §12 спецификации.
+Every variable and its default is described in [`.env.example`](./.env.example). The schema is
+validated at startup (`backend/src/config/environment.validation.ts`): if a required variable is
+missing or a value falls outside the allowed range, the process dies with a clear message. In
+particular, **the application does not start without `AUTH_PASSWORD`** — a guard against
+accidentally bringing up an instance with no authorization.
 
-Каталог логотипов компаний лежит на именованном томе `logos` и переживает
-пересоздание контейнера `api`. Если файл всё же пропал (`docker compose down -v`,
-ручная чистка тома, переезд на другую машину), запись в БД остаётся, шапка показывает
-букву-фолбэк, а логотип возвращается сам собой при следующей синхронизации записи.
-Логотип появляется в интерфейсе только после **первой** синхронизации записи (🔄,
-«Обновить все открытые» или плановый прогон) — у только что созданной записи его
-нет. На момент реализации статическая страница вакансии hh.ru не отдаёт `src` в
-блоке логотипа компании (подгружается клиентским JS уже после серверного рендера),
-поэтому логотип реально подтягивается только у записей с getmatch.ru — подробности
-см. §4.10 спецификации.
+The vacancy-source integration variables are three symmetric groups, `HH_*`, `GETMATCH_*` and
+`IT_VACANCIES_*` (base URL, User-Agent, request timeout, retry count), plus `SYNC_CONCURRENCY` /
+`SYNC_MIN_DELAY_MS` shared by all sources (bulk-run concurrency and pause, §4.6 of the
+specification). The only variable that is mandatory and has no default is `HH_USER_AGENT` (hh.ru
+answers `400` without a meaningful User-Agent); all `GETMATCH_*` and `IT_VACANCIES_*` variables are
+optional.
+
+The application runs the same sweep as the «Обновить все открытые» button on a schedule of its own
+(§4.7): `SCHEDULED_SYNC_ENABLED` (`true`/`false`, default `true`) and `SCHEDULED_SYNC_INTERVAL_MS`
+(default `1800000` — 30 minutes, allowed range `60000`…`86400000`). The first sweep happens after
+one interval, not at startup. To switch background requests to the vacancy sources off, set
+`SCHEDULED_SYNC_ENABLED=false` and run `docker compose up -d --force-recreate api`; whether the
+scheduler is running is visible in the `api` log as the line «Плановая синхронизация включена,
+интервал N мин» at startup.
+
+`docker compose` reads the variables from the root `.env` only when containers start: after editing
+`.env`, apply the changes with `docker compose up -d --force-recreate api`.
+
+Company logos (§4.10) are downloaded during sync into the `COMPANY_LOGO_DIR` directory with a
+`COMPANY_LOGO_REQUEST_TIMEOUT_MS` timeout (default `5000`). In Docker that is
+`/var/lib/job-hunter/logos` on the named volume `logos` — the files survive container recreation;
+the default `os.tmpdir()/job-hunter-logos` targets dev mode, where the application runs directly on
+the host. When changing `COMPANY_LOGO_DIR` in `.env`, change the volume mount point in
+`docker-compose.yml` too.
+
+`HH_MAX_REQUESTS_PER_SECOND` is a shared throttle for **all** hh.ru requests, not just search: the
+vacancy page during sync and preview, the results page and the vacancy page during search, and the
+logos from hhcdn.ru all go through the same rate limit. it-vacancies.ru has its own independent
+`IT_VACANCIES_MAX_REQUESTS_PER_SECOND` — a sweep of one source must not eat the other's request
+budget.
 
 ---
 
-## Поиск вакансий и ИИ-отбор (Ollama)
+## Vacancy search and AI screening (Ollama)
 
-Вкладка «Вакансии» (§4.11, §4.12 спецификации) ищет новые вакансии на hh.ru по кнопке
-и раскладывает их по ключевым словам, а опционально — по локальной модели в Ollama.
-Без ИИ вкладка работает сразу: детерминированный отбор по ключевым словам не требует
-никакого дополнительного контейнера.
+The «Вакансии» tab (§4.11, §4.12) searches for new vacancies on hh.ru and it-vacancies.ru on a
+button press and sorts them by keywords, and optionally by a local model in Ollama. The tab works
+out of the box without AI: the deterministic keyword screening needs no extra container.
 
-Чтобы включить ИИ-отбор:
+To enable AI screening:
 
 ```bash
 docker compose --profile ai up -d ollama
 docker compose exec ollama ollama pull qwen3:4b-instruct
 ```
 
-Дальше включи `ai_enabled` в настройках поиска на фронте — бэкенд начнёт стучаться
-в `VACANCY_AI_BASE_URL` (дефолт `http://ollama:11434`, внутри compose-сети). Модель
-качается один раз вручную командой выше — автоскачивание при старте `api` не делаем:
-это несколько гигабайт трафика по неявной команде.
+Then turn «Использовать ИИ-отбор» on in the search settings dialog on the frontend — the backend
+starts calling `VACANCY_AI_BASE_URL` (default `http://ollama:11434`, inside the compose network).
+The model is pulled once, by hand, with the command above: auto-pulling on `api` startup is not
+done, as that would be several gigabytes of traffic from an implicit command.
 
-Особенности:
+Details:
 
-- сервис `ollama` живёт под compose-профилем `ai`: без флага `--profile ai` он не
-  поднимается, и инфраструктура без ИИ остаётся прежней (три сервиса, как раньше);
-- порт `ollama` наружу не публикуется — модель доступна только внутри compose-сети;
-- модели переживают `docker compose down` (именованный volume `ollama-models`)
-  и теряются только при `docker compose down -v`;
-- `OLLAMA_KEEP_ALIVE=5m` выгружает модель из RAM через 5 минут простоя — прогон
-  поиска запускается только вручную (§4.11.10), большую часть времени модель не нужна;
-- `OLLAMA_NUM_PARALLEL=3` и `VACANCY_AI_CONCURRENCY=3` — сколько обращений к модели
-  идёт одновременно, и их надо менять вместе. Первая переменная задаёт число слотов в
-  самом Ollama (KV-кеш растёт линейно: по замеру 448 МиБ на слот при `n_ctx=4096`),
-  вторая — сколько параллельных запросов посылает конвейер отбора. Если вторая больше
-  первой, лишние запросы просто стоят в очереди внутри Ollama и съедают
-  `VACANCY_AI_TIMEOUT_MS`; если меньше — оплаченные слоты простаивают. На машине без
-  GPU или с малым объёмом VRAM ставь обе в `1`;
-- без контейнера `ollama` или при `ai_enabled = false` конвейер отбора не ломается —
-  он вырождается в детерминированный отбор по ключевым словам (`VACANCY_MATCH_MODE`),
-  а бэкенд при старте с `ai_enabled = true` лишь пишет `warn` в лог, если модель
-  недоступна;
-- переключение на облачный OpenAI-совместимый провайдер — `VACANCY_AI_PROVIDER=openai`
-  плюс `VACANCY_AI_BASE_URL`/`VACANCY_AI_MODEL`/`VACANCY_AI_API_KEY`, без контейнера
-  `ollama` и без изменений кода.
+- the `ollama` service lives under the compose profile `ai`: without the `--profile ai` flag it does
+  not come up, and the AI-less infrastructure stays exactly as it was (three services);
+- the `ollama` port is published on `127.0.0.1` only (`OLLAMA_PORT_HOST`, default `11434`) — it is
+  needed by dev mode and by manual `curl` diagnostics, not by the containers, which reach it by
+  compose-network name;
+- the `ollama` service reserves an NVIDIA GPU in `docker-compose.yml`. On a machine without the
+  NVIDIA driver in Docker, **delete that `deploy:` section** — otherwise the container will not
+  start; on CPU it works with no other changes, only slower;
+- models survive `docker compose down` (the named volume `ollama-models`) and are lost only on
+  `docker compose down -v`;
+- `OLLAMA_KEEP_ALIVE=5m` unloads the model from RAM after 5 minutes of idling — a search run is
+  started only manually (§4.11.10), so the model is not needed most of the time;
+- `OLLAMA_NUM_PARALLEL=3` and `VACANCY_AI_CONCURRENCY=3` set how many calls hit the model at once,
+  and they must be changed together. The first sets the slot count inside Ollama itself (the KV
+  cache grows linearly: 448 MiB per slot measured at `n_ctx=4096`), the second sets how many
+  concurrent requests the screening pipeline sends. If the second is larger, the extra requests just
+  queue up inside Ollama and burn `VACANCY_AI_TIMEOUT_MS`; if it is smaller, slots that are already
+  paid for sit idle. On a machine with no GPU or little VRAM set both to `1`;
+- without the `ollama` container, or with AI screening off, the pipeline does not break — it
+  degrades to deterministic keyword screening (`VACANCY_MATCH_MODE`), and the backend only writes a
+  `warn` to the log when the model is unavailable while AI screening is on;
+- switching to a cloud OpenAI-compatible provider is `VACANCY_AI_PROVIDER=openai` plus
+  `VACANCY_AI_BASE_URL` / `VACANCY_AI_MODEL` / `VACANCY_AI_API_KEY`, with no `ollama` container and
+  no code changes.
 
-Прочие переменные поиска (бюджеты прогона, режимы отбора) — в
-[`.env.example`](./.env.example), раздел «Поиск, отбор и отображение вакансий с hh.ru».
-Шаблон ссылки на выдачу hh.ru больше не переменная окружения — он правится прямо в
-диалоге «Настройки поиска» на фронтенде и проверяется при сохранении (`https://`,
-хост из allow-list hh.ru, плейсхолдер `{page}`). Поисковый запрос — часть самой
-ссылки (свой `text=…` пользователя), отдельного поля для него больше нет. Кто раньше
-задавал `HH_SEARCH_URL_TEMPLATE` в `.env` — после обновления перенесите то же значение
-в диалог настроек один раз, старую переменную можно удалить.
-`HH_MAX_REQUESTS_PER_SECOND` — общий троттл **всех** запросов к hh.ru (не только
-поиска): страница вакансии при синхронизации и preview, страница выдачи и вакансии
-при поиске, логотипы с hhcdn.ru — все идут через один и тот же лимит частоты.
+The remaining search variables (run budgets, screening modes) are in
+[`.env.example`](./.env.example), section «Поиск, отбор и отображение вакансий с hh.ru». The
+results-page links are no longer env variables — they are edited directly in the «Настройки поиска»
+dialog on the frontend, one per search source, and are validated on save (`https://`, a host from
+that source's allow-list, the `{page}` placeholder). The search query is part of the link itself
+(your own `text=…`); there is no separate field for it.
+
+---
+
+## Limitations
+
+Deliberately not implemented: queues, workers, system cron and a separate scheduler container
+(scheduled sync exists, but lives inside the `api` process on `@nestjs/schedule`, see
+«Configuration» above), WebSocket/SSE, notifications, export/import, mobile layout, dark theme,
+multi-user support. The full list is §12 of the specification.
+
+The company logo directory sits on the named volume `logos` and survives recreation of the `api`
+container. If a file does go missing anyway (`docker compose down -v`, manual volume cleanup, a move
+to another machine), the DB row stays, the record header shows the letter fallback, and the logo
+comes back by itself on the next sync of that record. A record created with a vacancy link gets its
+logo right away, on create; a record with no link gets one at the first sync after a link is added
+(🔄, «Обновить все открытые» or the scheduled sweep). Vacancy leads selected by keywords only,
+without AI, never get a logo, and no backfill is done — see §4.10 of the specification.

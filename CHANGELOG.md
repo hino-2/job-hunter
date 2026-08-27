@@ -7,6 +7,26 @@ history only. Newest first.
 
 ---
 
+**53. README revised and translated to English.** _(documentation)_
+README.md had drifted behind the code: it never mentioned the third vacancy source it-vacancies.ru
+(step 42) — not in the feature list, not in the architecture diagram, not among the `*_USER_AGENT`
+env groups and not in troubleshooting; the «Вакансии» screen was described as hh.ru-only, with no
+resume/stop controls (step 31), no «Отклик» button (step 35) and one results-page link instead of
+one per source; the status/result selects in the collapsed header (steps 40, 41) were missing; the
+logo section still claimed hh.ru logos never load (fixed once the page **state** started being
+parsed, §4.10) and that a logo appears only after the first sync (step 30 downloads it on create).
+Added: `IT_VACANCIES_*` with its own `IT_VACANCIES_MAX_REQUESTS_PER_SECOND`, the `ollama` GPU
+`deploy:` section that must be deleted on a machine with no NVIDIA driver in Docker,
+`OLLAMA_PORT_HOST` and the dev-mode `VACANCY_AI_BASE_URL=http://127.0.0.1:11434`, the
+`VACANCY_AI_TIMEOUT_MS` / `aiFallbacks` symptom, and a link to this file.
+
+The whole file is now English, like the rest of the documentation — quoted Russian UI labels
+(«Обновить все открытые») and quoted error strings stay verbatim, since they name what is on screen
+and in the log. The CLAUDE.md rule "README.md stays Russian" is replaced by "all documentation is
+English". No code, schema, API or behaviour change.
+
+---
+
 **52. AI calls run concurrently instead of one at a time.** _(backend)_
 Step 50 gave `ollama` three parallel slots (`OLLAMA_NUM_PARALLEL=3`) but nothing in the pipeline ever used
 more than one: title batches and description stage-3–4 calls were both plain sequential loops, so two of

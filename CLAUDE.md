@@ -28,9 +28,9 @@ Every edit that changes application behaviour must add an entry there.
 §12 lists what must **not** be built (cron beyond the existing scheduler, pagination, dark
 theme, JWT, export, …) — do not add any of it on your own initiative.
 
-**Agent-facing documentation is English**: this file, everything under `spec/`, CHANGELOG.md. README.md
-stays Russian — it is written for the project owner. Code comments, log messages and error
-strings stay Russian per §10.
+**All documentation is English**: this file, everything under `spec/`, CHANGELOG.md and README.md.
+Russian UI labels quoted inside those files («Обновить все открытые») and quoted error strings stay
+verbatim. Code comments, log messages and error strings stay Russian per §10.
 
 ## Development pipeline
 
