@@ -7,6 +7,53 @@ history only. Newest first.
 
 ---
 
+**52. AI calls run concurrently instead of one at a time.** _(backend)_
+Step 50 gave `ollama` three parallel slots (`OLLAMA_NUM_PARALLEL=3`) but nothing in the pipeline ever used
+more than one: title batches and description stage-3–4 calls were both plain sequential loops, so two of
+the three slots sat idle on every run. Both stages now go through the existing `mapWithConcurrency`
+(`common/async.helpers.ts`) instead of a second pool — a single `ConcurrencyOptions` built once in the
+constructor from the new `VACANCY_AI_CONCURRENCY` (default `3`, range 1…10, must equal `OLLAMA_NUM_PARALLEL`,
+§4.12.4) serves both, since the two stages never run at the same time within one page. `minStartDelayMs` is
+`0` — the per-source `VacancyRequestThrottle` already spaces the hh.ru requests and Ollama has no rate
+limit of its own, so a second spacing mechanism here would be a hidden, undocumented throttle. Results
+pages themselves are unaffected — still fetched strictly sequentially, concurrency 1 (§4.11.2).
+
+Title batching (`decideTitleMatches`) now builds all chunks up front and runs them through the pool; the
+per-chunk body moved unchanged into a new `decideTitleChunk`, wrapped in `try/catch` so a rejected worker
+cannot leave `mapWithConcurrency`'s orphaned survivors mutating `handle` after the caller has already moved
+on — the same isolation principle as `syncOneSafely` (§4.6). `mapWithConcurrency` preserves result order by
+item index, so the flattened decision list stays byte-identical to the old sequential output; the flatten
+is an explicit nested `for…of`, not `.flat()`, so the ordering guarantee is visible at the call site.
+
+`processPage`'s per-candidate loop is split into a synchronous planning pass (`planPageWork`, new
+`VacancyScanPagePlan` in `vacancy-search.interfaces.ts`) and a concurrent detail pool. `planPageWork` walks
+matched candidates with **no `await` anywhere in it**, in exactly the old order (stop check first, then
+keyword leads bypass AI, then deadline, then the `MAX_DETAILS` budget) — reserving a detail budget slot
+synchronously before any AI/HTTP call is the same "reserve before the first `await`" trick
+`VacancyRequestThrottle`/`mapWithConcurrency` already use for time slots, taken one step further for a
+counter: it is what makes a `MAX_DETAILS` overshoot impossible by construction, not just unlikely. Keyword
+leads (no AI, no HTTP) still insert sequentially (`insertKeywordLeads`) — a pool buys nothing there. Detail
+candidates run through the pool via a new `processDetailSafely`, checking stop and deadline at the start of
+each worker's own candidate (so stop latency stays roughly one in-flight fetch plus one AI call, not the
+whole pool) and never letting an exception escape — the catch increments `descriptionsFailed`, not `failed`
+(`insertLead` already owns that one), since anything escaping `processDetail` means the vacancy never made
+it through stages 3–4 at all (fail-closed, §4.11.7/§4.11.8). When a page ends with more than one termination
+condition true across its workers, the reported `stoppedReason` follows a fixed precedence table,
+`STOPPED > DEADLINE > MAX_DETAILS` (`SCAN_PAGE_STOP_PRECEDENCE`, new `resolvePageStop` in
+`vacancy-scan-stop.helpers.ts`) — the same order the old single-candidate loop tested them in, so a run that
+would have hit two conditions still reports the reason it always did; all three still save the resume
+position exactly as before (§4.11.12), only the reported reason can change. One new `log` line per page
+(candidate count, elapsed ms) is the only added observability — the cheap way to confirm afterwards that the
+pool did not silently degrade back to serial.
+
+New env `VACANCY_AI_CONCURRENCY` (`config.constants.ts`, `environment.validation.ts`, `.env.example`,
+`docker-compose.yml`, §4.11.2/§4.11.4/§4.11.8/§4.11.12/§4.12.4/§8) — its own bound
+(`VACANCY_AI_CONCURRENCY_MAX = 10`), deliberately not a reuse of `SYNC_CONCURRENCY_MAX`: the two limits
+bound unrelated resources (hh.ru request slots vs. Ollama model slots), and sharing a constant would couple
+them by accident. No API/DTO/data-model change.
+
+---
+
 **51. Bounded, faster AI calls.** _(backend)_
 An incident traced to a prompt/schema mismatch made the model generate until context exhaustion —
 120 s on every call, with nothing in the code bounding output length (§4.12.3). Every

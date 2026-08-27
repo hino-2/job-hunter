@@ -1,6 +1,8 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import type { ConcurrencyOptions } from '../common/common.interfaces';
+import { mapWithConcurrency } from '../common/async.helpers';
 import type {
   VacancyLeadSearchProvider,
   VacancySearchItem,
@@ -10,7 +12,10 @@ import type {
   VacancyLeadSearchSource,
 } from '../vacancies/vacancies.type';
 import { CompanyLogoService } from '../logos/company-logo.service';
-import { VACANCY_AI_BATCH_SIZE_ENV_KEY } from '../vacancy-ai/vacancy-ai.constants';
+import {
+  VACANCY_AI_BATCH_SIZE_ENV_KEY,
+  VACANCY_AI_CONCURRENCY_ENV_KEY,
+} from '../vacancy-ai/vacancy-ai.constants';
 import { VacancyAiService } from '../vacancy-ai/vacancy-ai.service';
 import { buildDedupKey, derivePublishedOn, serializeDedupKey } from './vacancy-lead-key.helpers';
 import { VacancyLeadSearchRegistry } from './vacancy-lead-search.registry';
@@ -19,6 +24,7 @@ import { VacancyLeadsService } from './vacancy-leads.service';
 import { hasExcluded, isKeywordMatch, matchKeywords } from './vacancy-keywords.helpers';
 import { resolveLastPageIndex, resolveTotalPages } from './vacancy-scan-progress.helpers';
 import { isExhaustedStop, isResumablePosition } from './vacancy-scan-position.helpers';
+import { resolvePageStop } from './vacancy-scan-stop.helpers';
 import { VacancyScanPositionService } from './vacancy-scan-position.service';
 import { VacancyScanStateService } from './vacancy-scan-state.service';
 import { VacancySearchSettingsService } from './vacancy-search-settings.service';
@@ -29,6 +35,7 @@ import {
   VACANCY_MATCH_MODE_ENV_KEY,
   VACANCY_PREFILTER_MODE_ENV_KEY,
   VACANCY_SCAN_ALREADY_RUNNING_MESSAGE,
+  VACANCY_SCAN_AI_MIN_START_DELAY_MS,
   VACANCY_SCAN_FINISHED_MESSAGE,
   VACANCY_SCAN_INITIAL_PAGE,
   VACANCY_SCAN_MAX_AGE_DAYS_ENV_KEY,
@@ -44,6 +51,7 @@ import type {
   ScanRunHandle,
   VacancyLeadLogoSource,
   VacancyScanDetailsBudget,
+  VacancyScanPagePlan,
   VacancyScanSurvivor,
   VacancySearchSettingsSnapshot,
   VacancyTitleDecision,
@@ -165,6 +173,14 @@ export class VacancyScanService {
   private readonly prefilterMode: VacancyPrefilterMode;
   private readonly matchMode: VacancyMatchMode;
   private readonly aiBatchSize: number;
+  /**
+   * §4.11.4/§4.12.4: общий на оба конкурентных пула страницы (батчи названий,
+   * детали) — они никогда не выполняются одновременно в рамках одной страницы
+   * (processPage ждёт весь пул названий до старта пула деталей), поэтому один
+   * объект опций безопасен для обоих. minStartDelayMs = 0 намеренно
+   * (VACANCY_SCAN_AI_MIN_START_DELAY_MS, vacancy-search.constants.ts).
+   */
+  private readonly aiConcurrency: ConcurrencyOptions;
 
   constructor(
     private readonly state: VacancyScanStateService,
@@ -185,6 +201,10 @@ export class VacancyScanService {
     );
     this.matchMode = configService.getOrThrow<VacancyMatchMode>(VACANCY_MATCH_MODE_ENV_KEY);
     this.aiBatchSize = configService.getOrThrow<number>(VACANCY_AI_BATCH_SIZE_ENV_KEY);
+    this.aiConcurrency = {
+      concurrency: configService.getOrThrow<number>(VACANCY_AI_CONCURRENCY_ENV_KEY),
+      minStartDelayMs: VACANCY_SCAN_AI_MIN_START_DELAY_MS,
+    };
   }
 
   /**
@@ -432,6 +452,17 @@ export class VacancyScanService {
       return null;
     }
 
+    // §4.11.12: чекпойнт ПЕРЕД этапом названий — прежний цикл проверял остановку
+    // первым делом на КАЖДОМ кандидате, здесь же кандидаты уходят в пул сразу все,
+    // так что единственная синхронная точка перед его стартом отвечает строго
+    // отзывчивее прежнего (не позже, а раньше). Внутри самого пула названий
+    // чекпойнта намеренно нет: воркер, увидевший остановку, обязан был бы что-то
+    // вернуть, а оба дешёвых варианта плохи — решение по ключевым словам вставило бы
+    // лид во время остановки, а matches: false испортило бы rejectedTitle.
+    if (handle.isStopRequested()) {
+      return SCAN_STOPPED_REASON.STOPPED;
+    }
+
     const decisions = await this.decideTitleMatches(fresh, settings, handle);
     const matched: VacancyTitleDecision[] = [];
 
@@ -447,37 +478,157 @@ export class VacancyScanService {
       return null;
     }
 
+    const startedAt = Date.now();
+    const plan = this.planPageWork(matched, handle, deadlineAt, detailsBudget);
+    const keywordStop = await this.insertKeywordLeads(plan.keywordLeads, handle, provider);
+
+    if (keywordStop !== null) {
+      return keywordStop;
+    }
+
+    const detailStops = await mapWithConcurrency(plan.detailTasks, this.aiConcurrency, (decision) =>
+      this.processDetailSafely(decision, settings, provider, handle, deadlineAt),
+    );
+
+    // §4.11.2: единственная строка лога на страницу — дешёвый способ убедиться
+    // впоследствии, что пул деталей не выродился в последовательный проход.
+    this.logger.log(
+      `Этап деталей страницы: кандидатов ${plan.detailTasks.length}, ${Date.now() - startedAt} мс`,
+    );
+
+    return resolvePageStop([plan.stop, ...detailStops]);
+  }
+
+  /**
+   * §4.11.4/§4.11.8: синхронный планирующий проход по кандидатам, переживший этап
+   * названия — БЕЗ единого await. Именно это делает переполнение MAX_DETAILS
+   * невозможным ПО ПОСТРОЕНИЮ: каждое решение о резервировании слота бюджета
+   * происходит в одном непрерывном синхронном проходе, поэтому detailsBudget.opened
+   * не может быть прочитан устаревшим конкурентным воркером — тот же приём «слот
+   * резервируется синхронно, ДО первого await», что и в VacancyRequestThrottle /
+   * mapWithConcurrency (common/async.helpers.ts), доведённый на шаг дальше: там он
+   * защищает временной слот, здесь — счётчик бюджета.
+   *
+   * Слот, зарезервированный здесь и затем пропущенный воркером пула из-за стопа/
+   * дедлайна (processDetailSafely), — безобидный перерасход ВЕРХНЕЙ границы: оба
+   * условия останавливают прогон целиком, так что к бюджету больше никто не
+   * обратится.
+   */
+  private planPageWork(
+    matched: readonly VacancyTitleDecision[],
+    handle: ScanRunHandle,
+    deadlineAt: number,
+    detailsBudget: VacancyScanDetailsBudget,
+  ): VacancyScanPagePlan {
+    const keywordLeads: VacancyTitleDecision[] = [];
+    const detailTasks: VacancyTitleDecision[] = [];
+    let stop: ScanStoppedReason | null = null;
+
     for (const decision of matched) {
       // §4.11.12: проверка ПЕРВОЙ — покрывает и ветку без ИИ (KEYWORDS) ниже, иначе
       // остановка не срабатывала бы, пока отбор идёт целиком по ключевым словам.
       if (handle.isStopRequested()) {
-        return SCAN_STOPPED_REASON.STOPPED;
+        stop = SCAN_STOPPED_REASON.STOPPED;
+        break;
       }
 
       if (decision.matchSource === MATCH_SOURCE.KEYWORDS) {
         // §4.11.4: без ИИ (выключен или батч не ответил) описание не грузим —
-        // этапы 3–4 пропускаются целиком, вакансия сразу идёт на вставку. Страница
-        // вакансии не открывалась вовсе, поэтому логотипа взять неоткуда (§4.10).
-        await this.insertLead(decision, handle, provider, null, null);
+        // этапы 3–4 пропускаются целиком, вакансия сразу идёт на вставку.
+        keywordLeads.push(decision);
         continue;
       }
 
       if (Date.now() >= deadlineAt) {
-        return SCAN_STOPPED_REASON.DEADLINE;
+        stop = SCAN_STOPPED_REASON.DEADLINE;
+        break;
       }
 
       if (detailsBudget.opened >= this.maxDetails) {
-        return SCAN_STOPPED_REASON.MAX_DETAILS;
+        stop = SCAN_STOPPED_REASON.MAX_DETAILS;
+        break;
       }
 
       detailsBudget.opened += 1;
-      await this.processDetail(decision, settings, provider, handle);
+      detailTasks.push(decision);
+    }
+
+    return { keywordLeads, detailTasks, stop };
+  }
+
+  /**
+   * §4.11.4 этап 5 (ветка KEYWORDS): последовательно — эта ветка не делает ни одного
+   * запроса к ИИ или HTTP, только INSERT, так что конкурентный пул здесь не даёт
+   * ничего, кроме лишней сложности. Чекпойнт остановки — перед КАЖДОЙ вставкой, тот
+   * же принцип отзывчивости, что был у прежнего единого цикла.
+   */
+  private async insertKeywordLeads(
+    leads: readonly VacancyTitleDecision[],
+    handle: ScanRunHandle,
+    provider: VacancyLeadSearchProvider,
+  ): Promise<ScanStoppedReason | null> {
+    for (const decision of leads) {
+      if (handle.isStopRequested()) {
+        return SCAN_STOPPED_REASON.STOPPED;
+      }
+
+      // Страница вакансии не открывалась вовсе, поэтому логотипа взять неоткуда (§4.10).
+      await this.insertLead(decision, handle, provider, null, null);
     }
 
     return null;
   }
 
-  /** §4.11.4 этап 2: ИИ батчами до VACANCY_AI_BATCH_SIZE либо (ИИ выключен/недоступен) ключевые слова. */
+  /**
+   * Unit of work конкурентного пула деталей (§4.11.4 этапы 3–4). Не бросает
+   * исключений наружу по той же причине, что decideTitleChunk выше: осиротевший
+   * воркер mapWithConcurrency не должен мутировать handle уже после того, как
+   * вызывающий поймал бы реджект.
+   *
+   * catch инкрементирует descriptionsFailed, а не failed: у insertLead уже есть
+   * собственный try/catch, отображающий сбой вставки в failed (§4.6), так что
+   * исключение, долетевшее досюда, означает, что вакансия вообще не прошла этапы
+   * 3–4 — fail-closed, следующий прогон встретит её снова (§4.11.7, §4.11.8).
+   */
+  private async processDetailSafely(
+    decision: VacancyTitleDecision,
+    settings: VacancySearchSettingsSnapshot,
+    provider: VacancyLeadSearchProvider,
+    handle: ScanRunHandle,
+    deadlineAt: number,
+  ): Promise<ScanStoppedReason | null> {
+    // §4.11.12: чекпойнт на старте обработки кандидата — при конкурентном пуле это
+    // стартовая точка КАЖДОГО воркера, а не единственная точка цикла, поэтому задержка
+    // остановки не растёт по сравнению с прежним последовательным циклом.
+    if (handle.isStopRequested()) {
+      return SCAN_STOPPED_REASON.STOPPED;
+    }
+
+    if (Date.now() >= deadlineAt) {
+      return SCAN_STOPPED_REASON.DEADLINE;
+    }
+
+    try {
+      await this.processDetail(decision, settings, provider, handle);
+
+      return null;
+    } catch (error) {
+      handle.increment('descriptionsFailed');
+      this.logger.warn(`Вакансия ${decision.item.externalId}: ${describeError(error)}`);
+
+      return null;
+    }
+  }
+
+  /**
+   * §4.11.4 этап 2: ИИ батчами до VACANCY_AI_BATCH_SIZE либо (ИИ выключен/недоступен)
+   * ключевые слова. Батчи гонятся через mapWithConcurrency (до VACANCY_AI_CONCURRENCY
+   * штук одновременно, §4.12.4) — единственное, что раньше держало три слота Ollama
+   * (OLLAMA_NUM_PARALLEL, шаг №50 §14) простаивающими, был этот последовательный цикл.
+   * mapWithConcurrency гарантирует порядок результатов по порядку items, поэтому
+   * плоский массив ниже собирается явным вложенным for…of, а не .flat() — гарантия
+   * порядка видна в месте вызова, а не спрятана внутри метода массива.
+   */
   private async decideTitleMatches(
     survivors: readonly VacancyScanSurvivor[],
     settings: VacancySearchSettingsSnapshot,
@@ -487,11 +638,40 @@ export class VacancyScanService {
       return survivors.map((survivor) => this.decideByKeywordsOnly(survivor, settings));
     }
 
-    const decisions: VacancyTitleDecision[] = [];
+    const chunks: VacancyScanSurvivor[][] = [];
 
     for (let start = 0; start < survivors.length; start += this.aiBatchSize) {
-      const chunk = survivors.slice(start, start + this.aiBatchSize);
+      chunks.push(survivors.slice(start, start + this.aiBatchSize));
+    }
 
+    const chunkDecisions = await mapWithConcurrency(chunks, this.aiConcurrency, (chunk) =>
+      this.decideTitleChunk(chunk, settings, handle),
+    );
+    const decisions: VacancyTitleDecision[] = [];
+
+    for (const chunk of chunkDecisions) {
+      for (const decision of chunk) {
+        decisions.push(decision);
+      }
+    }
+
+    return decisions;
+  }
+
+  /**
+   * Тело одной итерации прежнего последовательного цикла decideTitleMatches — теперь
+   * unit of work пула mapWithConcurrency. ОБЯЗАН не бросать исключений наружу:
+   * mapWithConcurrency реджектит весь вызов при реджекте одного воркера и НЕ отменяет
+   * остальных (см. комментарий самого хелпера) — осиротевшие воркеры продолжили бы
+   * мутировать handle уже после того, как вызывающий поймал бы исключение и пошёл
+   * дальше. Тот же принцип изоляции, что у syncOneSafely (§4.6).
+   */
+  private async decideTitleChunk(
+    chunk: readonly VacancyScanSurvivor[],
+    settings: VacancySearchSettingsSnapshot,
+    handle: ScanRunHandle,
+  ): Promise<VacancyTitleDecision[]> {
+    try {
       const aiResult = await this.aiService.judgeTitles({
         titlePrompt: settings.titlePrompt,
         keywords: settings.keywords,
@@ -505,12 +685,10 @@ export class VacancyScanService {
         handle.increment('aiFallbacks');
         this.logger.warn(`Фолбэк на ключевые слова (батч названий): ${aiResult.reason}`);
 
-        for (const survivor of chunk) {
-          decisions.push(this.decideByKeywordsOnly(survivor, settings));
-        }
-
-        continue;
+        return chunk.map((survivor) => this.decideByKeywordsOnly(survivor, settings));
       }
+
+      const decisions: VacancyTitleDecision[] = [];
 
       for (let index = 0; index < chunk.length; index += 1) {
         const survivor = chunk[index];
@@ -531,9 +709,16 @@ export class VacancyScanService {
           aiTitleReason: verdict.reason,
         });
       }
-    }
 
-    return decisions;
+      return decisions;
+    } catch (error) {
+      // Та же ветка, что и !aiResult.ok выше — вызов judgeTitles сам не бросает
+      // (§4.12.3), поэтому сюда попадает только по-настоящему неожиданный сбой.
+      handle.increment('aiFallbacks');
+      this.logger.warn(`Фолбэк на ключевые слова (батч названий): ${describeError(error)}`);
+
+      return chunk.map((survivor) => this.decideByKeywordsOnly(survivor, settings));
+    }
   }
 
   private decideByKeywordsOnly(

@@ -7,6 +7,7 @@
  */
 
 import { VACANCY_SOURCE } from '../applications/applications.constants';
+import type { ScanStoppedReason } from './vacancy-search.type';
 
 export const VACANCY_LEADS_TABLE = 'vacancy_leads';
 
@@ -281,6 +282,30 @@ export const SCAN_EXHAUSTED_STOPPED_REASONS = [
   SCAN_STOPPED_REASON.MAX_PAGES,
   SCAN_STOPPED_REASON.AGE_LIMIT,
 ] as const;
+
+/**
+ * §4.11.2: детали страницы (стадия 3–4) теперь идут пулом mapWithConcurrency, а не
+ * последовательным циклом — здесь ставить второй, скрытый троттл не нужно: троттл
+ * конкретного источника (VacancyRequestThrottle) уже разносит запросы к hh.ru по
+ * времени, а у Ollama лимита частоты нет вовсе. 0 — намеренное значение, а не
+ * временный дефолт.
+ */
+export const VACANCY_SCAN_AI_MIN_START_DELAY_MS = 0;
+
+/**
+ * §4.11.12: порядок, в котором сегодняшний последовательный цикл проверяет условия
+ * для ОДНОГО кандидата (см. planPageWork в vacancy-scan.service.ts) — resolvePageStop
+ * (vacancy-scan-stop.helpers.ts) воспроизводит его для набора причин, собранных с
+ * конкурентных воркеров пула деталей, чтобы прогон, который раньше упёрся бы сразу в
+ * два условия, отдавал ту же причину, что и раньше. Все три причины сохраняют позицию
+ * возобновления (§4.11.12) одинаково — порядок влияет только на отображаемый
+ * stoppedReason, никогда на возобновляемость.
+ */
+export const SCAN_PAGE_STOP_PRECEDENCE: readonly ScanStoppedReason[] = [
+  SCAN_STOPPED_REASON.STOPPED,
+  SCAN_STOPPED_REASON.DEADLINE,
+  SCAN_STOPPED_REASON.MAX_DETAILS,
+];
 
 /** §4.11.12: режим старта прогона — с нуля либо с сохранённой позиции. */
 export const SCAN_MODES = ['FRESH', 'RESUME'] as const;

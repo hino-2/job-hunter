@@ -207,3 +207,15 @@ export const VACANCY_AI_BATCH_SIZE_MAX = 30;
 export const DEFAULT_VACANCY_AI_TIMEOUT_MS = 30_000;
 
 export const DEFAULT_VACANCY_AI_DESCRIPTION_MAX_CHARS = 6_000;
+
+/**
+ * §4.12.4: значение обязано совпадать с OLLAMA_NUM_PARALLEL сервиса ollama
+ * (docker-compose.yml) — это два конца одного и того же ресурса, слотов модели.
+ * Выше него лишние запросы не ускоряются, а просто встают в очередь внутри Ollama
+ * и съедают VACANCY_AI_TIMEOUT_MS; ниже — уже оплаченные слоты KV-кеша простаивают.
+ * Меняются оба значения только вместе. Не переиспользует SYNC_CONCURRENCY_MAX:
+ * тот ограничивает слоты запросов к hh.ru, этот — слоты модели Ollama, разные
+ * ресурсы, и совместная константа случайно связала бы их лимиты.
+ */
+export const DEFAULT_VACANCY_AI_CONCURRENCY = 3;
+export const VACANCY_AI_CONCURRENCY_MAX = 10;

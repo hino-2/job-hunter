@@ -184,3 +184,16 @@ export interface VacancyTitleDecision {
 export interface VacancyScanDetailsBudget {
   opened: number;
 }
+
+/**
+ * §4.11.4/§4.11.8: итог синхронного планирующего прохода по одной странице выдачи
+ * (planPageWork, vacancy-scan.service.ts) — решения, не требующие ИИ и не
+ * открывающие страницу вакансии; кандидаты, под которых бюджет MAX_DETAILS уже
+ * зарезервирован; и причина, на которой планирование прервалось, либо null, если
+ * дошло до конца списка.
+ */
+export interface VacancyScanPagePlan {
+  keywordLeads: VacancyTitleDecision[];
+  detailTasks: VacancyTitleDecision[];
+  stop: ScanStoppedReason | null;
+}
