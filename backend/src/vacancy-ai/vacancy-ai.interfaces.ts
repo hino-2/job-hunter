@@ -19,6 +19,8 @@ export interface AiChatRequest {
   prompt: string;
   jsonSchema: AiJsonSchema;
   timeoutMs: number;
+  /** §4.12.3: жёсткий потолок генерации (num_predict у Ollama, max_tokens у OpenAI). */
+  maxOutputTokens: number;
 }
 
 /**

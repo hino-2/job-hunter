@@ -2,6 +2,8 @@ import {
   VACANCY_AI_EVIDENCE_MIN_NORMALIZED_LENGTH,
   VACANCY_AI_EVIDENCE_NORMALIZATION_REPLACEMENTS,
   VACANCY_AI_TITLE_LINE_DIVIDER,
+  VACANCY_AI_TITLE_OUTPUT_TOKENS_OVERHEAD,
+  VACANCY_AI_TITLE_OUTPUT_TOKENS_PER_ITEM,
   VACANCY_AI_TITLES_LINE_SEPARATOR,
 } from './vacancy-ai.constants';
 import type { AiTitleBatchItem } from './vacancy-ai.interfaces';
@@ -61,4 +63,16 @@ export function isEvidenceGrounded(evidence: string, description: string): boole
   }
 
   return normalizeForEvidenceMatch(description).includes(normalizedEvidence);
+}
+
+/**
+ * §4.12.3: потолок генерации этапа 1 растёт вместе с батчем — иначе большой батч
+ * (VACANCY_AI_BATCH_SIZE до VACANCY_AI_BATCH_SIZE_MAX = 30, §8) обрезался бы тем же
+ * фиксированным потолком, что и батч из одного названия, и вердикты для хвоста батча
+ * ушли бы в фолбэк по ключевым словам ещё до всякого сбоя модели.
+ */
+export function resolveTitleMaxOutputTokens(itemCount: number): number {
+  return (
+    VACANCY_AI_TITLE_OUTPUT_TOKENS_OVERHEAD + VACANCY_AI_TITLE_OUTPUT_TOKENS_PER_ITEM * itemCount
+  );
 }

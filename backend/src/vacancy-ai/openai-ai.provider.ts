@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { OK_STATUS } from '../common/common.constants';
 import { describeTransportError } from '../vacancies/vacancy-retry.helpers';
+import { stripUnsupportedSchemaKeywords } from './openai-schema.helpers';
 import {
   OPENAI_AUTHORIZATION_HEADER,
   OPENAI_BEARER_PREFIX,
@@ -107,11 +108,16 @@ export class OpenAiAiProvider implements AiProvider {
               type: OPENAI_RESPONSE_FORMAT_TYPE,
               json_schema: {
                 name: request.jsonSchema.name,
-                schema: request.jsonSchema.schema,
+                // strict: true у OpenAI отвергает maxLength и подобные ключи схемы 400-й (§4.12.3).
+                schema: stripUnsupportedSchemaKeywords(request.jsonSchema.schema),
                 strict: true,
               },
             },
             temperature: VACANCY_AI_TEMPERATURE,
+            // Поле, которое принимают все OpenAI-совместимые сервера (llama.cpp, groq, бесплатные
+            // тиры); собственные новейшие reasoning-модели OpenAI хотят max_completion_tokens,
+            // но именно они не являются целью §4.12.1.
+            max_tokens: request.maxOutputTokens,
           },
           { timeout: request.timeoutMs, headers: this.buildAuthHeader() },
         ),

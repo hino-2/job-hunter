@@ -6,6 +6,7 @@ import {
   VACANCY_AI_COMPANY_PLACEHOLDER,
   VACANCY_AI_DESCRIPTION_JSON_SCHEMA,
   VACANCY_AI_DESCRIPTION_MAX_CHARS_ENV_KEY,
+  VACANCY_AI_DESCRIPTION_MAX_OUTPUT_TOKENS,
   VACANCY_AI_DESCRIPTION_PLACEHOLDER,
   VACANCY_AI_EVIDENCE_LOG_MAX_CHARS,
   VACANCY_AI_EVIDENCE_UNGROUNDED_MESSAGE,
@@ -19,7 +20,12 @@ import {
   VACANCY_AI_TITLE_PLACEHOLDER,
   VACANCY_AI_TITLES_PLACEHOLDER,
 } from './vacancy-ai.constants';
-import { formatTitlesBlock, isEvidenceGrounded, renderPrompt } from './vacancy-ai.helpers';
+import {
+  formatTitlesBlock,
+  isEvidenceGrounded,
+  renderPrompt,
+  resolveTitleMaxOutputTokens,
+} from './vacancy-ai.helpers';
 import type {
   AiDescriptionRequest,
   AiJsonSchema,
@@ -49,6 +55,19 @@ function describeChatFailure(error: unknown): string {
  *
  * ai_title_reason/ai_description_reason НЕ обрезаются здесь по ширине колонки (500) —
  * это делает vacancy-lead.builder.ts, единственное место среза значений перед записью (§10).
+ *
+ * §4.12.3: каждый запрос к модели идёт с потолком генерации (maxOutputTokens —
+ * AiChatRequest, num_predict/max_tokens у адаптеров). Генерация, оборванная этим
+ * потолком, даёт невалидный/неполный JSON — то есть намеренно тот же класс сбоя, что
+ * и невалидный ответ модели: { ok: false }, фолбэк на ключевые слова, счётчик
+ * aiFallbacks и warn в лог, никакого отдельного пути обработки не заводится. Потолок —
+ * это ГРАНИЦА, а не резервирование: недогенерированные токены ничего не стоят, поэтому
+ * щедрый потолок бесплатен в обычном случае, а его единственная задача — остановить
+ * убежавшую генерацию. Отсюда правило выбора значений (vacancy-ai.constants.ts): каждый
+ * потолок обязан лежать заметно выше точки насыщения JSON Schema, которую он ограничивает,
+ * иначе он режет легитимный многословный, но валидный по схеме ответ раньше, чем модель
+ * успевает закрыть JSON. Рост aiFallbacks после смены этих значений — сигнал, что потолок
+ * всё ещё занижен относительно схемы, а не что модель стала хуже отвечать.
  */
 @Injectable()
 export class VacancyAiService {
@@ -78,7 +97,11 @@ export class VacancyAiService {
       [VACANCY_AI_TITLES_PLACEHOLDER]: formatTitlesBlock(request.items),
     });
 
-    const chatResult = await this.chat(prompt, VACANCY_AI_TITLE_JSON_SCHEMA);
+    const chatResult = await this.chat(
+      prompt,
+      VACANCY_AI_TITLE_JSON_SCHEMA,
+      resolveTitleMaxOutputTokens(request.items.length),
+    );
 
     if (!chatResult.ok) {
       this.logger.warn(`ИИ по названию недоступен: ${chatResult.reason}`);
@@ -109,7 +132,11 @@ export class VacancyAiService {
       [VACANCY_AI_DESCRIPTION_PLACEHOLDER]: description,
     });
 
-    const chatResult = await this.chat(prompt, VACANCY_AI_DESCRIPTION_JSON_SCHEMA);
+    const chatResult = await this.chat(
+      prompt,
+      VACANCY_AI_DESCRIPTION_JSON_SCHEMA,
+      VACANCY_AI_DESCRIPTION_MAX_OUTPUT_TOKENS,
+    );
 
     if (!chatResult.ok) {
       this.logger.warn(`ИИ по описанию недоступен: ${chatResult.reason}`);
@@ -150,13 +177,18 @@ export class VacancyAiService {
   }
 
   /** try/catch — защита в глубину: оба адаптера уже не бросают, но контракт AiProvider этого не гарантирует извне. */
-  private async chat(prompt: string, jsonSchema: AiJsonSchema): Promise<AiChatResult> {
+  private async chat(
+    prompt: string,
+    jsonSchema: AiJsonSchema,
+    maxOutputTokens: number,
+  ): Promise<AiChatResult> {
     try {
       return await this.provider.chat({
         model: this.model,
         prompt,
         jsonSchema,
         timeoutMs: this.timeoutMs,
+        maxOutputTokens,
       });
     } catch (error) {
       return { ok: false, reason: describeChatFailure(error) };

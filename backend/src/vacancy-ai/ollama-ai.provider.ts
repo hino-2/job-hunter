@@ -80,7 +80,7 @@ export class OllamaAiProvider implements AiProvider {
             format: request.jsonSchema.schema,
             stream: false,
             think: VACANCY_AI_THINK,
-            options: { temperature: VACANCY_AI_TEMPERATURE },
+            options: { temperature: VACANCY_AI_TEMPERATURE, num_predict: request.maxOutputTokens },
           },
           { timeout: request.timeoutMs },
         ),

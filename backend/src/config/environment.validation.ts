@@ -63,6 +63,7 @@ import {
   SYNC_MIN_DELAY_MAX_MS,
   TCP_PORT_MAX,
   TCP_PORT_MIN,
+  VACANCY_AI_BATCH_SIZE_MAX,
   VACANCY_AI_PROVIDERS,
   VACANCY_MATCH_MODES,
   VACANCY_PREFILTER_MODES,
@@ -343,6 +344,7 @@ export class EnvironmentVariables {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(VACANCY_AI_BATCH_SIZE_MAX)
   VACANCY_AI_BATCH_SIZE: number = DEFAULT_VACANCY_AI_BATCH_SIZE;
 
   @IsOptional()

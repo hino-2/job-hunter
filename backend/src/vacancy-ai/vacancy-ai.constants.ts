@@ -83,6 +83,41 @@ export const VACANCY_AI_VERDICT_FIELD = {
 } as const;
 
 /**
+ * §4.12.3: жёсткая граница длины reason в самой JSON Schema, а не только позже в
+ * vacancy-lead.builder.ts (clampOrNull, VACANCY_LEAD_AI_REASON_LENGTH = 500,
+ * vacancy-search/vacancy-search.constants.ts) — грамматика структурированного вывода
+ * (GBNF у Ollama, structured outputs у OpenAI) заставляет модель закрыть строку раньше
+ * и тем самым реально сократить генерацию, чего срез уже полученного текста не может.
+ * Держим значение заметно меньше 500 (константа не импортируется: vacancy-ai не должен
+ * знать про vacancy-search, см. комментарий выше про normalizeText) — билдер остаётся
+ * последним рубежом на случай более длинного reason у другого провайдера/модели.
+ *
+ * Используется ТОЛЬКО схемой этапа 4 (описание) — там reason один на вакансию, и модель
+ * объясняет более тонкое решение (сопоставление с реальным текстом описания, включая
+ * цитату evidence), поэтому граница шире, чем у этапа 1 (см. VACANCY_AI_TITLE_REASON_MAX_LENGTH
+ * ниже).
+ */
+export const VACANCY_AI_REASON_MAX_LENGTH = 200;
+
+/**
+ * §4.12.3: отдельная, более узкая граница reason для схемы этапа 1 (названия). На этом
+ * этапе модель обосновывает только грубый отсев по названию («не разработчик»,
+ * «Java-стек») — обоснование короче, чем на этапе описания. Граница важна вдвойне: одно
+ * поле reason умножается на до 30 вердиктов батча (VACANCY_AI_BATCH_SIZE_MAX) под ОДНИМ
+ * общим потолком генерации (resolveTitleMaxOutputTokens, vacancy-ai.helpers.ts) — растянутый
+ * reason в одном вердикте отъедает потолок у всех остальных вердиктов батча.
+ */
+export const VACANCY_AI_TITLE_REASON_MAX_LENGTH = 100;
+
+/**
+ * §4.12.3: то же самое для evidence, но здесь длина ограничивает ещё и корректность
+ * проверки isEvidenceGrounded — если грамматика заставляет модель оборвать цитату
+ * раньше срока, evidence остаётся ПРЕФИКСОМ исходной дословной цитаты и поэтому
+ * по-прежнему нормализованной подстрокой описания; сама проверка не меняется.
+ */
+export const VACANCY_AI_EVIDENCE_MAX_LENGTH = 300;
+
+/**
  * §4.12.3: схема оборачивает массив вердиктов в объект { verdicts: [...] } — root-схема
  * OpenAI structured outputs обязана быть объектом, а не массивом. parseTitleVerdicts
  * (vacancy-ai.parsers.ts) на входе принимает и голый массив, и эту обёртку — Ollama
@@ -100,7 +135,10 @@ export const VACANCY_AI_TITLE_JSON_SCHEMA: AiJsonSchema = {
           properties: {
             [VACANCY_AI_VERDICT_FIELD.INDEX]: { type: 'integer' },
             [VACANCY_AI_VERDICT_FIELD.MATCHES]: { type: 'boolean' },
-            [VACANCY_AI_VERDICT_FIELD.REASON]: { type: 'string' },
+            [VACANCY_AI_VERDICT_FIELD.REASON]: {
+              type: 'string',
+              maxLength: VACANCY_AI_TITLE_REASON_MAX_LENGTH,
+            },
           },
           required: [
             VACANCY_AI_VERDICT_FIELD.INDEX,
@@ -129,8 +167,14 @@ export const VACANCY_AI_DESCRIPTION_JSON_SCHEMA: AiJsonSchema = {
     type: 'object',
     properties: {
       [VACANCY_AI_VERDICT_FIELD.MATCHES]: { type: 'boolean' },
-      [VACANCY_AI_VERDICT_FIELD.REASON]: { type: 'string' },
-      [VACANCY_AI_VERDICT_FIELD.EVIDENCE]: { type: 'string' },
+      [VACANCY_AI_VERDICT_FIELD.REASON]: {
+        type: 'string',
+        maxLength: VACANCY_AI_REASON_MAX_LENGTH,
+      },
+      [VACANCY_AI_VERDICT_FIELD.EVIDENCE]: {
+        type: 'string',
+        maxLength: VACANCY_AI_EVIDENCE_MAX_LENGTH,
+      },
     },
     required: [
       VACANCY_AI_VERDICT_FIELD.MATCHES,
@@ -182,3 +226,51 @@ export const VACANCY_AI_EVIDENCE_LOG_MAX_CHARS = 120;
 
 export const VACANCY_AI_EVIDENCE_UNGROUNDED_MESSAGE =
   'Цитата модели не найдена в описании вакансии';
+
+/**
+ * §4.12.3: потолок генерации этапа 4 (num_predict у Ollama, max_tokens у OpenAI). Это
+ * ПОТОЛОК, а не резервирование — недогенерированные токены ничего не стоят, поэтому
+ * щедрый потолок в обычном случае бесплатен, а его единственная задача — остановить
+ * убежавшую генерацию. Отсюда правило: потолок обязан лежать заметно ВЫШЕ точки
+ * насыщения самой схемы, иначе он режет легитимный многословный ответ раньше, чем
+ * модель успевает закрыть JSON, и превращает его в тот же { ok: false } / фолбэк по
+ * ключевым словам, что и настоящий сбой модели.
+ *
+ * Число измерено на живом Ollama (qwen3:4b-instruct — другая модель имеет свой
+ * токенизатор, числа сдвинутся), а не оценено на глаз: реалистичные reason (200
+ * символов) + evidence (300 символов) + структура JSON дают 163–182 токена (три
+ * разных реалистичных текста), сквозной прогон с описанием, специально подобранным
+ * так, чтобы вынудить модель процитировать абзац вплоть до обрезки по maxLength, дал
+ * 175 токенов вывода. 280 оставляет запас ≈ 54% сверху измеренного максимума (182).
+ */
+export const VACANCY_AI_DESCRIPTION_MAX_OUTPUT_TOKENS = 280;
+
+/**
+ * §4.12.3: потолок этапа 1 растёт с размером батча — resolveTitleMaxOutputTokens
+ * (vacancy-ai.helpers.ts). Тот же принцип, что у VACANCY_AI_DESCRIPTION_MAX_OUTPUT_TOKENS
+ * (потолок, не резервирование, должен лежать выше насыщения схемы, а не вплотную к
+ * ней) — и та же методология измерения на живом Ollama (qwen3:4b-instruct).
+ *
+ * Реалистичный reason ровно на VACANCY_AI_TITLE_REASON_MAX_LENGTH = 100 символов даёт
+ * 28–39 токенов (четыре разных реалистичных текста) + структура одного элемента
+ * массива без reason (`{"index":12,"matches":false,"reason":""},`) — 13 токенов →
+ * худший измеренный вердикт ≈ 52 токена. PER_ITEM = 72 — запас ≈ 38% сверху этого
+ * максимума, того же порядка, что у DESCRIPTION_MAX_OUTPUT_TOKENS выше. Сквозные
+ * прогоны с батчами 20 и 30 названий и намеренно многословными вердиктами дали 48.7 и
+ * 49.8 токена на вердикт в среднем — заметно ниже потолка, генерация останавливалась
+ * сама (done_reason: stop), не по обрезке.
+ *
+ * OVERHEAD — обёртка `{"verdicts":[…]}` вокруг всего массива: пустой массив даёт 6
+ * токенов сверх служебных токенов чат-шаблона, 16 оставляет запас на реальное
+ * форматирование (Ollama возвращает вывод с отступами, а не компактным JSON).
+ */
+export const VACANCY_AI_TITLE_OUTPUT_TOKENS_PER_ITEM = 72;
+export const VACANCY_AI_TITLE_OUTPUT_TOKENS_OVERHEAD = 16;
+
+/**
+ * §4.12.3: OpenAI structured outputs со strict: true отвечает 400 на неподдерживаемые
+ * ключевые слова валидации JSON Schema внутри schema — maxLength в их число входит.
+ * Список специфичен для протокола OpenAI, поэтому живёт здесь, а не в самой схеме
+ * (openai-schema.helpers.ts — stripUnsupportedSchemaKeywords).
+ */
+export const OPENAI_STRICT_UNSUPPORTED_SCHEMA_KEYWORDS: readonly string[] = ['maxLength'];

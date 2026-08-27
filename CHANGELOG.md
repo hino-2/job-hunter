@@ -7,6 +7,55 @@ history only. Newest first.
 
 ---
 
+**51. Bounded, faster AI calls.** _(backend)_
+An incident traced to a prompt/schema mismatch made the model generate until context exhaustion —
+120 s on every call, with nothing in the code bounding output length (§4.12.3). Every
+`AiChatRequest` now carries a required `maxOutputTokens`, translated by each adapter into the field
+its protocol accepts: `num_predict` for Ollama, `max_tokens` for OpenAI-compatible providers. Stage 4
+(description) uses a flat `VACANCY_AI_DESCRIPTION_MAX_OUTPUT_TOKENS` (280); stage 1 (titles) scales
+with batch size via `resolveTitleMaxOutputTokens` (`vacancy-ai.helpers.ts`, 16 overhead + 72 per item).
+The two JSON Schemas also gained `maxLength` on `reason` — 100 for stage 1
+(`VACANCY_AI_TITLE_REASON_MAX_LENGTH`, one field shared by up to 30 verdicts under one generation cap,
+so bounded tighter) and 200 for stage 4 (`VACANCY_AI_REASON_MAX_LENGTH`) — and, for stage 4, `maxLength`
+on `evidence` (300) — a grammar-enforced bound shortens generation itself, which clamping an
+already-received string cannot do; `vacancy-lead.builder.ts` still clamps to the column width (500) as
+the last line of defence, and a `maxLength`-truncated `evidence` stays a prefix of the intended quote,
+so `isEvidenceGrounded` keeps working unchanged. Every `maxOutputTokens` ceiling is set comfortably
+above the point where its own schema saturates — it costs nothing to be generous, since unspent tokens
+are never generated, and its only job is to stop a runaway generation, not to save tokens on the normal
+case. OpenAI's `strict: true` structured outputs reject `maxLength` in the schema with a `400`, so the
+new `openai-schema.helpers.ts` (`stripUnsupportedSchemaKeywords`) strips such keywords in the OpenAI
+adapter only — the shared schema stays single-sourced. A generation truncated by the new cap yields
+unparsable JSON, which is deliberately routed through the existing invalid-JSON fallback path
+(`{ ok: false }`, keyword fallback, `aiFallbacks`, `warn`) rather than a new one — a rise in
+`aiFallbacks` after this change is the signal that a cap is still too low relative to its schema.
+
+`VACANCY_AI_TIMEOUT_MS` default drops from 120 000 to 30 000: with output now bounded, a call can no
+longer run away by generating, so the timeout only needs to catch a hung or queued connection. The
+default is measured on a GPU (RTX 5070); §4.12.4 also supports CPU-only Ollama, where a cold model load
+plus a full stage-1 batch can exceed 30 s, so a CPU-only operator should raise it — a growing
+`aiFallbacks` counter with no other errors is the symptom, documented next to the variable in
+`.env.example` and in spec §4.12.3/§8.
+`VACANCY_AI_BATCH_SIZE` default rises from 10 to 20 (measured comfortably inside `n_ctx = 4096`,
+§4.12.4), with a new `VACANCY_AI_BATCH_SIZE_MAX = 30` ceiling — above it llama.cpp silently
+truncates/shifts an over-long context instead of erroring, which would otherwise show up only as a
+verdict-count mismatch. The `ollama` service itself is untouched: `num_ctx` stays at the default 4096.
+
+A second review round measured the real numbers on a live Ollama (`qwen3:4b-instruct`) instead of
+estimating them: the real `title_prompt` (from `vacancy_search_settings`) plus a realistic titles block
+costs ≈ 415 fixed tokens + ≈ 20 tokens per title — far below an earlier unmeasured guess of ~67 tokens
+per title — while a saturated stage-1 verdict (`reason` at the 100-char cap) costs ≈ 45–52 tokens
+against a `PER_ITEM` ceiling of 72 (≈ 38% margin) and a saturated stage-4 verdict (`reason` 200 chars +
+`evidence` 300 chars) costs ≈ 163–182 tokens against the now-lower `VACANCY_AI_DESCRIPTION_MAX_OUTPUT_TOKENS
+= 280` (≈ 54% margin, down from 384) — both margins now of the same order, where before stage 1's
+computed margin had shrunk to almost nothing. `VACANCY_AI_TITLE_OUTPUT_TOKENS_OVERHEAD` drops from 48 to
+16 (measured wrapper cost ≈ 6 tokens). At the new `VACANCY_AI_BATCH_SIZE_MAX = 30`, prompt + output
+ceiling together use ≈ 78% of `n_ctx = 4096` (≥ 15% headroom, confirmed by an end-to-end run: 1024 prompt
+tokens + 1493 output tokens, well under the ceiling); the previous `= 50` would have put the output
+ceiling alone at 88% of `n_ctx` before counting the prompt at all.
+
+---
+
 **50. Three Ollama slots instead of one.** _(infrastructure)_
 `OLLAMA_NUM_PARALLEL=3` on the `ollama` service (§4.12.4, §9.1). The default of `1` makes the
 container serve one request at a time, which caps the §4.11.4 selection pipeline no matter what the
