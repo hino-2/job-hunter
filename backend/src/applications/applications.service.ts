@@ -114,7 +114,7 @@ export class ApplicationsService {
    *
    * Выборка без параметров, а не tuple-IN по конкретным ключам лидов страницы: таблица
    * откликов — сотни строк (§1.2), а лидов на экране может быть до VACANCY_LEADS_LIST_LIMIT
-   * (по умолчанию 500) — цельный SELECT дешевле, чем IN с полутысячей троек параметров.
+   * (по умолчанию 3000) — цельный SELECT дешевле, чем IN с тысячами троек параметров.
    *
    * filter типы не сузит (`vacancySource`/`vacancyExternalId` остаются `VacancySource | null`
    * и `string | null` в типе Application), поэтому сборка VacancyRef[] — обычный цикл

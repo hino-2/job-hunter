@@ -153,7 +153,7 @@ export const VACANCY_MATCH_MODES = ['any', 'all'] as const;
 export const DEFAULT_VACANCY_MATCH_MODE = 'any';
 
 /** §5.7: предохранитель, а не пагинация. */
-export const DEFAULT_VACANCY_LEADS_LIST_LIMIT = 500;
+export const DEFAULT_VACANCY_LEADS_LIST_LIMIT = 3000;
 
 /** §4.12.1: протокол общения с моделью — либо Ollama, либо OpenAI-совместимый API. */
 export const VACANCY_AI_PROVIDERS = ['ollama', 'openai'] as const;

@@ -7,6 +7,13 @@ history only. Newest first.
 
 ---
 
+**54. Lead list ceiling raised to 3000.** _(backend)_
+`VACANCY_LEADS_LIST_LIMIT` default went from 500 to 3000: the §5.7 response is a safety valve, not
+pagination, and 500 was cutting off found leads on a large scan. Changed in one place —
+`DEFAULT_VACANCY_LEADS_LIST_LIMIT` — plus `.env.example`, the `docker-compose.yml` passthrough
+default and the §5.7 / §8 documentation. An explicit `VACANCY_LEADS_LIST_LIMIT` in an existing `.env`
+still wins.
+
 **53. README revised and translated to English.** _(documentation)_
 README.md had drifted behind the code: it never mentioned the third vacancy source it-vacancies.ru
 (step 42) — not in the feature list, not in the architecture diagram, not among the `*_USER_AGENT`
