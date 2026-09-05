@@ -21,14 +21,13 @@ in `spec/` without a row in the index does not exist as far as the next session 
 
 `SPECIFICATION.md` at the root is a pointer to `spec/README.md` and holds no requirements.
 
-**[CHANGELOG.md](./CHANGELOG.md)** holds the development history (formerly §14), numbered by
-step. Steps 1–27 are done; further work is targeted edits on top of a finished application.
-Every edit that changes application behaviour must add an entry there.
+CHANGELOG.md was removed (formerly §14) and is no longer maintained — steps 1–27 were done there;
+further work is targeted edits on top of a finished application, with no development log kept.
 
 §12 lists what must **not** be built (cron beyond the existing scheduler, pagination, dark
 theme, JWT, export, …) — do not add any of it on your own initiative.
 
-**All documentation is English**: this file, everything under `spec/`, CHANGELOG.md and README.md.
+**All documentation is English**: this file, everything under `spec/` and README.md.
 Russian UI labels quoted inside those files («Обновить все открытые») and quoted error strings stay
 verbatim. Code comments, log messages and error strings stay Russian per §10.
 
@@ -42,8 +41,8 @@ once in the user-level `~/.claude/CLAUDE.md` and is not repeated here. Project s
 - The public contracts whose change makes a task **not small** are §3 (data model) and §5
   (REST API).
 - Both reviewers check §10 conventions in addition to the blueprint.
-- **Gates:** `npm run lint` / `typecheck` / `test` / `build` must pass, and an entry must be
-  added to CHANGELOG.md when application behaviour changes. Only then — commit the step.
+- **Gates:** `npm run lint` / `typecheck` / `test` / `build` must pass. Only then — commit the
+  step.
 
 ## Commands
 

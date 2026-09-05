@@ -20,8 +20,7 @@ Features:
 - local Docker deployment behind Basic Auth, sized for one user.
 
 The requirements and the full description of the behaviour live in [spec/](./spec/), one file per
-section; the index with links is [spec/README.md](./spec/README.md). Development history is in
-[CHANGELOG.md](./CHANGELOG.md).
+section; the index with links is [spec/README.md](./spec/README.md).
 
 ---
 
@@ -170,7 +169,6 @@ the local network. `api`, `db` and `ollama` are reachable inside the compose net
 ```
 job-hunter/
 ├─ spec/                 requirements (source of truth), one file per section; index — spec/README.md
-├─ CHANGELOG.md          development history, newest first
 ├─ docker-compose.yml    db + api + web (+ ollama under the `ai` profile)
 ├─ .env.example          configuration template
 ├─ eslint.shared.mjs     the shared blank-line rule for both workspaces
@@ -221,8 +219,7 @@ npm run format      # prettier --write
 
 Part of the test suite is deferred by the project owner's decision (no new spec files are created):
 unit tests for `vacancy-sync.service` (for all sources), the sync e2e tests (`POST /:id/sync`,
-`POST /sync-open`) and the frontend component tests — see §13.20 of the specification and entries 6
-and 15 in CHANGELOG.md.
+`POST /sync-open`) and the frontend component tests — see §13.20 of the specification.
 
 ### Backend e2e tests
 

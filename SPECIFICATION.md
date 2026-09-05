@@ -8,4 +8,4 @@ Read **only** the file for the `§` you need; never the whole directory. A `§N.
 comments across `backend/` and `frontend/` cite it.
 
 This file is an entry point only. It holds no requirements and nothing is appended here.
-Development history lives in [CHANGELOG.md](./CHANGELOG.md).
+Development history is no longer tracked (see spec §14).

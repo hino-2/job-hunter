@@ -5,8 +5,8 @@
 **Status:** approved for development
 
 This specification is the single source of truth for requirements. Anything not described here is
-**out of scope** (see [§12](12.0-out-of-scope-do-not-build.md)). Development history lives in
-[CHANGELOG.md](../CHANGELOG.md).
+**out of scope** (see [§12](12.0-out-of-scope-do-not-build.md)). Development history is no longer
+tracked (see [§14](14.0-development-history.md)).
 
 ## How to read this directory
 
@@ -95,4 +95,4 @@ its subsections (§1, §3, §7, §9, §4.12) has no file of its own, only the ro
 | 11.0    | [11.0-repository-structure.md](11.0-repository-structure.md)                                                                     | The monorepo layout, directory by directory                                       |
 | 12.0    | [12.0-out-of-scope-do-not-build.md](12.0-out-of-scope-do-not-build.md)                                                           | What must **not** be built                                                        |
 | 13.0    | [13.0-acceptance-criteria.md](13.0-acceptance-criteria.md)                                                                       | Acceptance criteria                                                               |
-| 14.0    | [14.0-development-history.md](14.0-development-history.md)                                                                       | Anchor for `§14` citations — the history itself is in CHANGELOG.md                |
+| 14.0    | [14.0-development-history.md](14.0-development-history.md)                                                                       | Anchor for `§14` citations — history no longer tracked                            |
