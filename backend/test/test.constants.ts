@@ -87,7 +87,7 @@ export const ISO_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
  * Если список значений поменяется, тест упадёт и заставит обновить обе стороны.
  */
 export const EXPECTED_STATUS_VALUES_MESSAGE =
-  'status must be one of the following values: OPEN, CLOSED';
+  'status must be one of the following values: OPEN, HR_INTERVIEW, TECH_INTERVIEW, CLOSED';
 
 export const EXPECTED_RESULT_VALUES_MESSAGE =
   'result must be one of the following values: IN_PROGRESS, OFFER, REJECTED_BY_COMPANY,' +

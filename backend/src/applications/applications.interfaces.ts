@@ -27,6 +27,17 @@ export interface ApplicationWritableFields {
 }
 
 /**
+ * Вход чистой функции deriveInterviewStatus (§3.2): статус выводится из дат собеседований,
+ * но эффективный status на входе (уже с учётом терминального result/явного CLOSED в теле
+ * запроса) решает, можно ли его вообще перебивать.
+ */
+export interface InterviewStatusInput {
+  hrInterviewAt: Date | null;
+  techInterviewAt: Date | null;
+  status: ApplicationStatus;
+}
+
+/**
  * Поля, которые бэкенд вычисляет сам и которые пользователь прислать не может (§4.2):
  * источник и внешний ID выводятся из vacancy_url при каждой его записи.
  *

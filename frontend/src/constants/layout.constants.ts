@@ -90,8 +90,10 @@ export const FIELD_FLEX = {
   position: '1 1 240px',
   vacancyUrl: '1 1 280px',
   resumeUrl: '1 1 280px',
-  hrInterviewAt: '0 0 210px',
-  techInterviewAt: '0 0 210px',
+  // 248px, не 210px: clearable DateTimePicker показывает два IconButton (очистить + открыть
+  // календарь) рядом с текстом DD.MM.YYYY HH:mm, и на 210px обрезались минуты.
+  hrInterviewAt: '0 0 248px',
+  techInterviewAt: '0 0 248px',
   employerContact: '1 1 320px',
   interviewUrl: '1 1 280px',
   notes: '2 1 480px',

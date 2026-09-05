@@ -69,7 +69,8 @@ export class ApplicationsController {
   }
 
   /**
-   * POST /api/applications/sync-open (§5.2) — прогон по всем записям со status = OPEN.
+   * POST /api/applications/sync-open (§5.2) — прогон по всем записям с «активным»
+   * статусом (§3.2 — OPEN, HR_INTERVIEW, TECH_INTERVIEW), CLOSED не трогаем.
    *
    * @HttpCode(OK): по умолчанию Nest отвечает на POST 201, а ресурс здесь не создаётся.
    */

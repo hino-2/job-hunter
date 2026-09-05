@@ -7,6 +7,53 @@ history only. Newest first.
 
 ---
 
+**55. Two interview stages split out of `status = OPEN`.** _(backend + frontend)_
+§3.2's `ApplicationStatus` gained `HR_INTERVIEW`/`TECH_INTERVIEW` between `OPEN` and `CLOSED`.
+Both are derived, not user-settable directly: the backend recomputes them on **every**
+`POST`/`PATCH`, unconditionally, from the resulting effective `hrInterviewAt`/`techInterviewAt`
+(`application-status.helpers.ts`, `deriveInterviewStatus`) — a non-`null` `techInterviewAt` always
+wins (`TECH_INTERVIEW`, regardless of `hrInterviewAt`), otherwise a non-`null` `hrInterviewAt`
+gives `HR_INTERVIEW`, clearing both returns a record that was on one of the two stages to `OPEN`.
+Derivation is not gated on an interview-date field being present in the request body — a bare
+`status: "HR_INTERVIEW"`/`"TECH_INTERVIEW"` with no dates would otherwise bypass it and persist an
+inconsistent row (`status=HR_INTERVIEW`, `hrInterviewAt=null`); such a literal is recomputed from
+the actual dates instead (falling back to `OPEN` when neither is set) rather than trusted verbatim.
+`status: OPEN`/`status: CLOSED` are still honored as sent. The derivation never overrides an
+effective `CLOSED` — a terminal `result` (§3.3) or an explicit `status: CLOSED` in the same body
+always wins, checked through the already-applied patch (`patch.status ?? current.status` on
+`PATCH`), not through the raw DTO field. `ApplicationsService.buildUpdatePatch` gained a second
+`current: Application` parameter for this — the effective dates going into the derivation start
+from the current row and are overwritten only inside the existing `dto.field !== undefined`
+branches (never via `??`, which would have erased the "clear to `null`" meaning of an explicit
+`null`). A one-off data migration (`BackfillInterviewApplicationStatuses`, data-only, no schema
+change — the `varchar(16)` `status` column already fits `TECH_INTERVIEW`) backfills existing
+`OPEN` rows that already carry an interview date, in the same priority order as
+`deriveInterviewStatus`; its `down()` returns them to `OPEN`.
+
+"Active" (§3.2) now means `OPEN`, `HR_INTERVIEW` or `TECH_INTERVIEW` — everywhere `OPEN` used to
+mean "not finished": `sync-open` selection (`status In ACTIVE_APPLICATION_STATUSES`, replacing
+`status = 'OPEN'`), the `wasOpen`/`closed` bookkeeping in `VacancySyncService.syncOne`
+(`isActiveApplicationStatus`, renamed to `wasActive`), the §5.1 `status=OPEN` list filter, and the
+frontend header counter/`STATUS_FILTER`. The §5.1 `status=CLOSED` filter was rewritten from two
+top-level `orWhere` calls into a single bracketed `(status = :closedStatus OR result IN
+(:...closedResults))` `andWhere` group — the old two-`orWhere` form was a latent precedence bug:
+`WHERE a AND b OR c OR d` matches any row satisfying `c` or `d` alone, so a closed-result row
+matched the `status=CLOSED` filter even when it also failed an unrelated `search`/`result` filter
+combined in the same query, since those arrived via `andWhere` and OR binds looser than AND.
+
+Frontend: two new shell tabs, «HR-собес» and «Тех-собес», sit next to «Отклики» — not separate
+screens but `ApplicationsScreen` remounted (`key={tab}`) with a fixed `APP_TAB_FILTERS` preset
+(status filter plus ascending sort by the matching interview date, so the nearest interview shows
+first). The status `Select` and the «Все / Открытые / …» filter chips gained the two values with
+labels «HR-собес»/«Тех-собес». `withInterviewStatus` (`utils/application.utils.ts`) mirrors the
+backend derivation for the optimistic cache patch on autosave, applied after
+`withTerminalResultStatus` so a terminal result already written into the patch is not
+re-overridden. The `hrInterviewAt`/`techInterviewAt` field width grew from 210px to 248px — a
+clearable `DateTimePicker` shows two icon buttons (clear + open calendar) next to `DD.MM.YYYY
+HH:mm`, and 210px was clipping the minutes.
+
+---
+
 **54. Lead list ceiling raised to 3000.** _(backend)_
 `VACANCY_LEADS_LIST_LIMIT` default went from 500 to 3000: the §5.7 response is a safety valve, not
 pagination, and 500 was cutting off found leads on a large scan. Changed in one place —

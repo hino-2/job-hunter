@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 
 import {
+  ACTIVE_APPLICATION_STATUSES,
   APPLICATION_FIELD_PICKERS,
   APPLICATION_STATUS,
   EDITABLE_FIELDS,
@@ -22,6 +23,7 @@ import type {
   UpcomingInterview,
 } from '../types/application.interfaces';
 import type {
+  ApplicationStatus,
   EditableField,
   EditableTextField,
   PendingTextValues,
@@ -30,9 +32,15 @@ import type {
 import type { SyncResult } from '../types/sync.interfaces';
 import { isSavableUrl } from './url.utils';
 
-/** Счётчик шапки «Открытых: N / M» (§7.8). Передаётся в select React Query по ссылке. */
+/**
+ * Счётчик шапки «Открытых: N / M» (§7.8). N считает не только status === OPEN, но и оба
+ * этапа собеседования (ACTIVE_APPLICATION_STATUSES) — закрыт только CLOSED. Передаётся
+ * в select React Query по ссылке.
+ */
 export function countApplications(items: readonly Application[]): ApplicationCounts {
-  const open = items.filter((item) => item.status === APPLICATION_STATUS.OPEN).length;
+  const open = items.filter((item) =>
+    ACTIVE_APPLICATION_STATUSES.some((status) => status === item.status),
+  ).length;
 
   return { open, total: items.length };
 }
@@ -217,6 +225,63 @@ export function withTerminalResultStatus(patch: ApplicationUpdate): ApplicationU
   }
 
   return { ...patch, status: APPLICATION_STATUS.CLOSED };
+}
+
+/**
+ * §3.2: статус, авто-производный от hrInterviewAt/techInterviewAt, — ручное зеркало
+ * той же деривации, что делает бэкенд на каждой записи одной из этих дат (тем же приёмом,
+ * что и withTerminalResultStatus). Нужно ровно для оптимистичного кэша: без status
+ * в патче шапка показывала бы старый статус до следующей загрузки списка, а счётчик
+ * «Открытых: N / M» (он же следит за собесами) не обновился бы.
+ *
+ * Правила: непустой techInterviewAt всегда даёт TECH_INTERVIEW; непустой hrInterviewAt при
+ * пустом techInterviewAt — HR_INTERVIEW; статус CLOSED никогда не переопределяется —
+ * закрытый отклик не открывается назначением/переносом собеса; очистка обеих дат откатывает
+ * в OPEN, но только если текущий статус был одним из этапов собеседования (запись, закрытая
+ * или открытая вручную без всякой связи с датами, так не трогается).
+ *
+ * Вызывается после withTerminalResultStatus и видит уже его результат (patch.status может
+ * быть CLOSED) — если patch пришёл от него, эта функция обязана его не перезаписать.
+ *
+ * Ссылка сохраняется, когда патч не трогает ни одну из дат собеса и когда производный
+ * статус совпадает с уже действующим, — тем же контрактом, что и у withTerminalResultStatus.
+ */
+export function withInterviewStatus(
+  patch: ApplicationUpdate,
+  cached: Application | undefined,
+): ApplicationUpdate {
+  if (patch.hrInterviewAt === undefined && patch.techInterviewAt === undefined) {
+    return patch;
+  }
+
+  const status = patch.status ?? cached?.status;
+
+  if (status === APPLICATION_STATUS.CLOSED) {
+    return patch;
+  }
+
+  const hr = patch.hrInterviewAt !== undefined ? patch.hrInterviewAt : (cached?.hrInterviewAt ?? null);
+  const tech =
+    patch.techInterviewAt !== undefined ? patch.techInterviewAt : (cached?.techInterviewAt ?? null);
+
+  let derived: ApplicationStatus | undefined;
+
+  if (tech !== null) {
+    derived = APPLICATION_STATUS.TECH_INTERVIEW;
+  } else if (hr !== null) {
+    derived = APPLICATION_STATUS.HR_INTERVIEW;
+  } else if (
+    status === APPLICATION_STATUS.HR_INTERVIEW ||
+    status === APPLICATION_STATUS.TECH_INTERVIEW
+  ) {
+    derived = APPLICATION_STATUS.OPEN;
+  }
+
+  if (derived === undefined || derived === status) {
+    return patch;
+  }
+
+  return { ...patch, status: derived };
 }
 
 /** Патч ничего не меняет — такой PATCH не отправляем (§7.3: «только если изменилось»). */

@@ -38,6 +38,8 @@ import type {
 /** §3.2 */
 export const APPLICATION_STATUS = {
   OPEN: 'OPEN',
+  HR_INTERVIEW: 'HR_INTERVIEW',
+  TECH_INTERVIEW: 'TECH_INTERVIEW',
   CLOSED: 'CLOSED',
 } as const;
 
@@ -79,9 +81,23 @@ export const TERMINAL_APPLICATION_RESULTS = [
   APPLICATION_RESULT.VACANCY_WITHDRAWN,
 ] as const;
 
+/**
+ * §3.2: «активные», то есть не завершённые статусы — ручная копия
+ * backend/src/applications/applications.constants.ts (§3.4, тем же приёмом, что и
+ * TERMINAL_APPLICATION_RESULTS). Используется счётчиком шапки «Открытых: N / M» (§7.8):
+ * счётчик N считает не только OPEN, но и оба этапа собеседования, — закрыт только CLOSED.
+ */
+export const ACTIVE_APPLICATION_STATUSES = [
+  APPLICATION_STATUS.OPEN,
+  APPLICATION_STATUS.HR_INTERVIEW,
+  APPLICATION_STATUS.TECH_INTERVIEW,
+] as const;
+
 /** Порядок пунктов Select'а «Статус» (§7.2.2, ряд 1). */
 export const APPLICATION_STATUS_ORDER = [
   APPLICATION_STATUS.OPEN,
+  APPLICATION_STATUS.HR_INTERVIEW,
+  APPLICATION_STATUS.TECH_INTERVIEW,
   APPLICATION_STATUS.CLOSED,
 ] as const;
 
@@ -211,6 +227,8 @@ export const NOTES_MAX_LENGTH = 10_000;
 /** Подписи §3.2. */
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   OPEN: 'Открыта',
+  HR_INTERVIEW: 'HR-собес',
+  TECH_INTERVIEW: 'Тех-собес',
   CLOSED: 'Закрыта',
 };
 
@@ -283,6 +301,8 @@ export const EMPTY_APPLICATIONS: readonly Application[] = [];
 export const STATUS_FILTER = {
   ALL: 'ALL',
   OPEN: 'OPEN',
+  HR_INTERVIEW: 'HR_INTERVIEW',
+  TECH_INTERVIEW: 'TECH_INTERVIEW',
   CLOSED: 'CLOSED',
 } as const;
 
@@ -290,12 +310,16 @@ export const STATUS_FILTER = {
 export const STATUS_FILTER_ORDER = [
   STATUS_FILTER.ALL,
   STATUS_FILTER.OPEN,
+  STATUS_FILTER.HR_INTERVIEW,
+  STATUS_FILTER.TECH_INTERVIEW,
   STATUS_FILTER.CLOSED,
 ] as const;
 
 export const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
   ALL: 'Все',
   OPEN: 'Открытые',
+  HR_INTERVIEW: 'HR-собес',
+  TECH_INTERVIEW: 'Тех-собес',
   CLOSED: 'Закрытые',
 };
 

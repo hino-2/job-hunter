@@ -9,10 +9,14 @@ import { VacancyProviderRegistry } from '../vacancies/vacancy-provider.registry'
 import type { VacancyRef } from '../vacancies/vacancies.interfaces';
 import { Application } from './application.entity';
 import { isTerminalApplicationResult } from './application-result.helpers';
+import { deriveInterviewStatus } from './application-status.helpers';
 import {
+  ACTIVE_APPLICATION_STATUSES,
+  APPLICATION_ACTIVE_STATUS_CONDITION,
+  APPLICATION_CLOSED_CONDITION,
   APPLICATION_NOT_FOUND_MESSAGE,
+  APPLICATION_OPEN_RESULT_CONDITION,
   APPLICATION_ORDER_DIRECTIONS,
-  APPLICATION_RESULT,
   APPLICATION_RESULT_CONDITION,
   APPLICATION_SEARCH_CONDITION,
   APPLICATION_SORT_NULLS,
@@ -21,11 +25,13 @@ import {
   APPLICATION_STATUS_CONDITION,
   APPLICATION_TIEBREAK_PROPERTY,
   APPLICATIONS_ALIAS,
+  CLOSED_APPLICATION_RESULTS,
   DEFAULT_APPLICATION_ORDER,
   DEFAULT_APPLICATION_RESULT,
   DEFAULT_APPLICATION_SORT,
   DEFAULT_APPLICATION_STATUS,
   INVALID_DATE_MESSAGE,
+  OPEN_APPLICATION_RESULTS,
 } from './applications.constants';
 import type { ApplicationDerivedFields } from './applications.interfaces';
 import type { ApplicationCreatePayload, ApplicationPatch } from './applications.type';
@@ -155,7 +161,7 @@ export class ApplicationsService {
   async update(id: string, dto: UpdateApplicationDto): Promise<Application> {
     const entity = await this.findOneOrFail(id);
 
-    Object.assign(entity, this.buildUpdatePatch(dto));
+    Object.assign(entity, this.buildUpdatePatch(dto, entity));
     await this.applications.save(entity);
 
     return this.findOneOrFail(id);
@@ -176,31 +182,24 @@ export class ApplicationsService {
     const sort = query.sort ?? DEFAULT_APPLICATION_SORT;
     const order = query.order ?? DEFAULT_APPLICATION_ORDER;
 
-    if (query.status !== undefined && query.status !== APPLICATION_STATUS.OPEN) {
+    // §5.1: три взаимоисключающих случая query.status — OPEN («активные» статусы плюс
+    // страховка по result), CLOSED (одна скобочная OR-группа, иначе она утекла бы мимо
+    // andWhere search/result ниже — precedence-баг прежней версии, см. CHANGELOG) и любой
+    // другой конкретный статус (HR_INTERVIEW/TECH_INTERVIEW/CLOSED как есть, без доп. условий).
+    if (query.status === APPLICATION_STATUS.OPEN) {
+      builder.andWhere(APPLICATION_ACTIVE_STATUS_CONDITION, {
+        activeStatuses: ACTIVE_APPLICATION_STATUSES,
+      });
+      builder.andWhere(APPLICATION_OPEN_RESULT_CONDITION, {
+        openResults: OPEN_APPLICATION_RESULTS,
+      });
+    } else if (query.status === APPLICATION_STATUS.CLOSED) {
+      builder.andWhere(APPLICATION_CLOSED_CONDITION, {
+        closedStatus: APPLICATION_STATUS.CLOSED,
+        closedResults: CLOSED_APPLICATION_RESULTS,
+      });
+    } else if (query.status !== undefined) {
       builder.andWhere(APPLICATION_STATUS_CONDITION, { status: query.status });
-    }
-
-    if (query.status !== undefined && query.status === APPLICATION_STATUS.OPEN) {
-      builder.andWhere(APPLICATION_STATUS_CONDITION, {
-        status: APPLICATION_STATUS.OPEN,
-      });
-      builder.andWhere('result IN (:...results)', {
-        results: [APPLICATION_RESULT.IN_PROGRESS, APPLICATION_RESULT.OFFER],
-      });
-    }
-
-    if (query.status !== undefined && query.status === APPLICATION_STATUS.CLOSED) {
-      builder.orWhere(APPLICATION_STATUS_CONDITION, {
-        status: APPLICATION_STATUS.CLOSED,
-      });
-      builder.orWhere('result IN (:...results)', {
-        results: [
-          APPLICATION_RESULT.DECLINED_BY_ME,
-          APPLICATION_RESULT.REJECTED_BY_COMPANY,
-          APPLICATION_RESULT.NO_RESPONSE,
-          APPLICATION_RESULT.VACANCY_WITHDRAWN,
-        ],
-      });
     }
 
     if (query.result !== undefined) {
@@ -236,9 +235,22 @@ export class ApplicationsService {
     const result = dto.result ?? DEFAULT_APPLICATION_RESULT;
     // §3.3: терминальный результат закрывает отклик сразу на создании — даже если
     // в теле пришёл status: OPEN. Правило одно на оба пути записи (см. buildUpdatePatch).
-    const status = isTerminalApplicationResult(result)
+    let status = isTerminalApplicationResult(result)
       ? APPLICATION_STATUS.CLOSED
       : (dto.status ?? DEFAULT_APPLICATION_STATUS);
+    const hrInterviewAt = toDateOrNull(dto.hrInterviewAt);
+    const techInterviewAt = toDateOrNull(dto.techInterviewAt);
+
+    // §3.2: status не «пользовательское поле» — это derived-значение. Пересчитываем его
+    // безусловно по датам собеседований, а не только когда даты пришли в теле: иначе
+    // status: "HR_INTERVIEW" без hrInterviewAt проходил бы мимо derivation и записывал
+    // несогласованную строку (status=HR_INTERVIEW, hrInterviewAt=null). deriveInterviewStatus
+    // сам не трогает status при уже терминальном CLOSED, решённом блоком выше.
+    const derived = deriveInterviewStatus({ hrInterviewAt, techInterviewAt, status });
+
+    if (derived !== null) {
+      status = derived;
+    }
 
     return {
       company: dto.company,
@@ -250,8 +262,8 @@ export class ApplicationsService {
       status,
       result,
       employerContact: dto.employerContact ?? null,
-      hrInterviewAt: toDateOrNull(dto.hrInterviewAt),
-      techInterviewAt: toDateOrNull(dto.techInterviewAt),
+      hrInterviewAt,
+      techInterviewAt,
       notes: dto.notes ?? null,
     };
   }
@@ -261,8 +273,13 @@ export class ApplicationsService {
    * JSON не умеет undefined, поэтому «ключа нет» ⇒ undefined ⇒ поле не трогаем,
    * а явный null ⇒ пишем null в колонку.
    */
-  private buildUpdatePatch(dto: UpdateApplicationDto): ApplicationPatch {
+  private buildUpdatePatch(dto: UpdateApplicationDto, current: Application): ApplicationPatch {
     const patch: ApplicationPatch = {};
+    // §3.2: значения дат «как они будут после патча» — стартуют от текущих, а не от
+    // ?? undefined, потому что deriveInterviewStatus ниже должен видеть уже сохранённую
+    // дату для поля, которое в этом теле вообще не присылали.
+    let effectiveHrInterviewAt = current.hrInterviewAt;
+    let effectiveTechInterviewAt = current.techInterviewAt;
 
     if (dto.company !== undefined) {
       patch.company = dto.company;
@@ -307,15 +324,34 @@ export class ApplicationsService {
     }
 
     if (dto.hrInterviewAt !== undefined) {
-      patch.hrInterviewAt = toDateOrNull(dto.hrInterviewAt);
+      effectiveHrInterviewAt = toDateOrNull(dto.hrInterviewAt);
+      patch.hrInterviewAt = effectiveHrInterviewAt;
     }
 
     if (dto.techInterviewAt !== undefined) {
-      patch.techInterviewAt = toDateOrNull(dto.techInterviewAt);
+      effectiveTechInterviewAt = toDateOrNull(dto.techInterviewAt);
+      patch.techInterviewAt = effectiveTechInterviewAt;
     }
 
     if (dto.notes !== undefined) {
       patch.notes = dto.notes;
+    }
+
+    // §3.2: status не «пользовательское поле» — это derived-значение. Пересчитываем его
+    // безусловно по effective*-датам (текущим из entity либо перезаписанным выше), а не
+    // только когда interview-поле реально пришло в теле — иначе status: "HR_INTERVIEW",
+    // присланный отдельно от дат, проходил бы мимо derivation и записывал несогласованную
+    // строку (status=HR_INTERVIEW, hrInterviewAt=null у уже существующей записи).
+    // status: patch.status ?? current.status — эффективный статус ПОСЛЕ терминального
+    // result/явного CLOSED из блоков выше, но ДО перезаписи производным ниже.
+    const derived = deriveInterviewStatus({
+      hrInterviewAt: effectiveHrInterviewAt,
+      techInterviewAt: effectiveTechInterviewAt,
+      status: patch.status ?? current.status,
+    });
+
+    if (derived !== null) {
+      patch.status = derived;
     }
 
     return patch;

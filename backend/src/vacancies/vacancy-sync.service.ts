@@ -1,10 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { Application } from '../applications/application.entity';
+import { isActiveApplicationStatus } from '../applications/application-status.helpers';
 import {
+  ACTIVE_APPLICATION_STATUSES,
   APPLICATION_NOT_FOUND_MESSAGE,
   APPLICATION_ORDER_DIRECTIONS,
   APPLICATION_STATUS,
@@ -222,10 +224,13 @@ export class VacancySyncService {
     return this.syncOne(application);
   }
 
-  /** §5.2 POST /api/applications/sync-open: все записи со status = OPEN, прочие не трогаем. */
+  /**
+   * §5.2 POST /api/applications/sync-open: все записи с «активным» статусом (§3.2 —
+   * OPEN, HR_INTERVIEW, TECH_INTERVIEW), прочие (CLOSED) не трогаем.
+   */
   async syncOpen(): Promise<ApplicationsSyncSummary> {
     const applications = await this.applications.find({
-      where: { status: APPLICATION_STATUS.OPEN },
+      where: { status: In([...ACTIVE_APPLICATION_STATUSES]) },
       order: {
         createdAt: APPLICATION_ORDER_DIRECTIONS.asc,
         id: APPLICATION_ORDER_DIRECTIONS.asc,
@@ -285,9 +290,10 @@ export class VacancySyncService {
 
   private async syncOne(application: Application): Promise<ApplicationSyncResult> {
     const decision = await this.decide(application);
-    // Снимаем статус ДО патча: closed в сводке — это именно переход OPEN → CLOSED
-    // в текущем прогоне, а не «запись сейчас закрыта».
-    const wasOpen = application.status === APPLICATION_STATUS.OPEN;
+    // Снимаем статус ДО патча: closed в сводке — это именно переход из «активного»
+    // статуса (§3.2 — OPEN/HR_INTERVIEW/TECH_INTERVIEW) в CLOSED в текущем прогоне,
+    // а не «запись сейчас закрыта».
+    const wasActive = isActiveApplicationStatus(application.status);
     const snapshot = takeSyncSnapshot(application);
 
     Object.assign(application, decision.patch);
@@ -303,7 +309,7 @@ export class VacancySyncService {
       throw error;
     }
 
-    const closed = wasOpen && application.status === APPLICATION_STATUS.CLOSED;
+    const closed = wasActive && application.status === APPLICATION_STATUS.CLOSED;
 
     // Логируем только сбои: OK, NOT_FOUND и SKIPPED_UNSUPPORTED — штатные исходы (§4.5).
     // RATE_LIMITED и ERROR всегда приходят с текстом, но проверка на null нужна ещё и

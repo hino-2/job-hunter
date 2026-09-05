@@ -67,8 +67,20 @@ export const APPLICATION_INDEX = {
 /** §3.2 */
 export const APPLICATION_STATUS = {
   OPEN: 'OPEN',
+  HR_INTERVIEW: 'HR_INTERVIEW',
+  TECH_INTERVIEW: 'TECH_INTERVIEW',
   CLOSED: 'CLOSED',
 } as const;
+
+/**
+ * §3.2: статусы, которые считаются «не завершёнными» — питают выборку sync-open,
+ * фильтр «Открытые» и счётчик в шапке. CLOSED сюда не входит ни при каких условиях.
+ */
+export const ACTIVE_APPLICATION_STATUSES = [
+  APPLICATION_STATUS.OPEN,
+  APPLICATION_STATUS.HR_INTERVIEW,
+  APPLICATION_STATUS.TECH_INTERVIEW,
+] as const;
 
 /** §3.3 */
 export const APPLICATION_RESULT = {
@@ -187,6 +199,40 @@ export const APPLICATION_TIEBREAK_PROPERTY = 'id';
 export const APPLICATION_STATUS_CONDITION = `${APPLICATIONS_ALIAS}.status = :status`;
 
 export const APPLICATION_RESULT_CONDITION = `${APPLICATIONS_ALIAS}.result = :result`;
+
+/**
+ * §5.1 фильтр status=OPEN: «активные» результаты, оставшиеся от статуса OPEN до того,
+ * как он расщепился на OPEN/HR_INTERVIEW/TECH_INTERVIEW (§3.2). Список результатов
+ * не меняется — расщепление затронуло только статус.
+ */
+export const OPEN_APPLICATION_RESULTS = [
+  APPLICATION_RESULT.IN_PROGRESS,
+  APPLICATION_RESULT.OFFER,
+] as const;
+
+/** §5.1 фильтр status=CLOSED: результаты, которые считаются закрытыми независимо от статуса. */
+export const CLOSED_APPLICATION_RESULTS = [
+  APPLICATION_RESULT.DECLINED_BY_ME,
+  APPLICATION_RESULT.REJECTED_BY_COMPANY,
+  APPLICATION_RESULT.NO_RESPONSE,
+  APPLICATION_RESULT.VACANCY_WITHDRAWN,
+] as const;
+
+/**
+ * §5.1 фильтр status=OPEN: статус входит в один из «активных» (§3.2), а не только
+ * буквально OPEN — HR_INTERVIEW/TECH_INTERVIEW тоже считаются открытыми записями.
+ */
+export const APPLICATION_ACTIVE_STATUS_CONDITION = `${APPLICATIONS_ALIAS}.status IN (:...activeStatuses)`;
+
+export const APPLICATION_OPEN_RESULT_CONDITION = `${APPLICATIONS_ALIAS}.result IN (:...openResults)`;
+
+/**
+ * §5.1 фильтр status=CLOSED: одна скобочная OR-группа, а не два верхнеуровневых
+ * orWhere — те утекали мимо andWhere search/result (баг precedence), см. CHANGELOG.
+ */
+export const APPLICATION_CLOSED_CONDITION =
+  `(${APPLICATIONS_ALIAS}.status = :closedStatus` +
+  ` OR ${APPLICATIONS_ALIAS}.result IN (:...closedResults))`;
 
 export const APPLICATION_SEARCH_CONDITION =
   `(${APPLICATIONS_ALIAS}.company ILIKE :search` +

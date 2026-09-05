@@ -22,6 +22,7 @@ import {
   listPatchedFields,
   readTextFieldValue,
   withDraft,
+  withInterviewStatus,
   withoutDraft,
   withTerminalResultStatus,
 } from '../utils/application.utils';
@@ -263,14 +264,16 @@ export function useInlineEdits(options: InlineEditsOptions): InlineEditsControll
   );
 
   // Единственная точка, через которую в PATCH попадает result (Select «Результат» §7.2.2
-  // и кнопка «Отказ компании» §7.2.1), — здесь и живёт §3.3-дописка закрытия отклика.
-  // Патч дополняется ДО проверки на no-op: у записи с терминальным результатом, но
-  // статусом «Открыта» (данные, созданные до правила) повторное сохранение обязано уйти
-  // на сервер и дочинить статус.
+  // и кнопка «Отказ компании» §7.2.1) и даты собеса (DateTimePicker §7.2.2), — здесь и живёт
+  // §3.3-дописка закрытия отклика и §3.2-дописка статуса собеса. Терминальный результат
+  // применяется первым, поэтому withInterviewStatus видит уже CLOSED, если он был выставлен,
+  // и не переопределяет его. Патч дополняется ДО проверки на no-op: у записи с терминальным
+  // результатом, но статусом «Открыта» (данные, созданные до правила) повторное сохранение
+  // обязано уйти на сервер и дочинить статус.
   const commit = useCallback(
     (id: string, patch: ApplicationUpdate) => {
-      const effectivePatch = withTerminalResultStatus(patch);
       const cached = readApplicationFromCaches(client, id);
+      const effectivePatch = withInterviewStatus(withTerminalResultStatus(patch), cached);
 
       if (cached !== undefined && isNoopPatch(cached, effectivePatch)) {
         return;

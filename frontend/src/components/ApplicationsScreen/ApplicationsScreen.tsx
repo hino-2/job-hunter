@@ -9,7 +9,6 @@ import {
   APPLICATION_RESULT,
   CREATE_ERROR_FALLBACK_MESSAGE,
   CREATE_SUCCESS_MESSAGE,
-  DEFAULT_APPLICATION_FILTERS,
   EMPTY_APPLICATIONS,
   PREVIEW_ERROR_FALLBACK_MESSAGE,
   SYNC_OUTCOME_LABELS,
@@ -53,11 +52,12 @@ import type { ApplicationsScreenProps } from './applications-screen.interfaces';
  * разом. Сводка прогона и нотификатор приходят сюда пропами.
  */
 export function ApplicationsScreen({
+  initialFilters,
   syncSummary,
   onSyncSummaryDismiss,
   notification,
 }: ApplicationsScreenProps) {
-  const [filters, setFilters] = useState<ApplicationsFilters>(DEFAULT_APPLICATION_FILTERS);
+  const [filters, setFilters] = useState<ApplicationsFilters>(initialFilters);
   const debouncedSearch = useDebouncedValue(filters.search, SEARCH_DEBOUNCE_MS);
   // Дебаунсится только поиск: переключение статуса и сортировки применяется мгновенно.
   // Опустошение строки поиска — тоже мгновенно, иначе «Сбросить фильтры» успевает сходить
@@ -108,7 +108,7 @@ export function ApplicationsScreen({
   };
 
   const handleResetFilters = () => {
-    setFilters(DEFAULT_APPLICATION_FILTERS);
+    setFilters(initialFilters);
   };
 
   const handleAdd = useCallback(() => {
