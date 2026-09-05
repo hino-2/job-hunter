@@ -182,24 +182,28 @@ export class ApplicationsService {
     const sort = query.sort ?? DEFAULT_APPLICATION_SORT;
     const order = query.order ?? DEFAULT_APPLICATION_ORDER;
 
-    // §5.1: три взаимоисключающих случая query.status — OPEN («активные» статусы плюс
-    // страховка по result), CLOSED (одна скобочная OR-группа, иначе она утекла бы мимо
-    // andWhere search/result ниже — precedence-баг прежней версии, см. CHANGELOG) и любой
-    // другой конкретный статус (HR_INTERVIEW/TECH_INTERVIEW/CLOSED как есть, без доп. условий).
-    if (query.status === APPLICATION_STATUS.OPEN) {
-      builder.andWhere(APPLICATION_ACTIVE_STATUS_CONDITION, {
-        activeStatuses: ACTIVE_APPLICATION_STATUSES,
-      });
-      builder.andWhere(APPLICATION_OPEN_RESULT_CONDITION, {
-        openResults: OPEN_APPLICATION_RESULTS,
-      });
-    } else if (query.status === APPLICATION_STATUS.CLOSED) {
+    // §5.1: CLOSED — отдельная скобочная OR-группа (status=CLOSED OR result из закрытых),
+    // иначе она утекла бы мимо andWhere search/result ниже — precedence-баг прежней версии,
+    // см. CHANGELOG. Любой другой активный статус (§3.2: OPEN/HR_INTERVIEW/TECH_INTERVIEW)
+    // всегда несёт страховку по result — иначе фильтры «HR-собес»/«Тех-собес» показывали бы
+    // запись, результат которой уже закрыл отклик (например NO_RESPONSE).
+    if (query.status === APPLICATION_STATUS.CLOSED) {
       builder.andWhere(APPLICATION_CLOSED_CONDITION, {
         closedStatus: APPLICATION_STATUS.CLOSED,
         closedResults: CLOSED_APPLICATION_RESULTS,
       });
     } else if (query.status !== undefined) {
-      builder.andWhere(APPLICATION_STATUS_CONDITION, { status: query.status });
+      if (query.status === APPLICATION_STATUS.OPEN) {
+        builder.andWhere(APPLICATION_ACTIVE_STATUS_CONDITION, {
+          activeStatuses: ACTIVE_APPLICATION_STATUSES,
+        });
+      } else {
+        builder.andWhere(APPLICATION_STATUS_CONDITION, { status: query.status });
+      }
+
+      builder.andWhere(APPLICATION_OPEN_RESULT_CONDITION, {
+        openResults: OPEN_APPLICATION_RESULTS,
+      });
     }
 
     if (query.result !== undefined) {

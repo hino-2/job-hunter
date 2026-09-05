@@ -1,5 +1,4 @@
 import type { NotificationController } from '../../hooks/use-notification.interfaces';
-import type { ApplicationsFilters } from '../../types/application.interfaces';
 import type { SyncSummary } from '../../types/sync.interfaces';
 
 /**
@@ -13,12 +12,6 @@ import type { SyncSummary } from '../../types/sync.interfaces';
  * в колбэки аккордеонов, а нестабильная ссылка пробила бы их memo.
  */
 export interface ApplicationsScreenProps {
-  /**
-   * Фильтры, с которых начинает вкладка (§7.9, APP_TAB_FILTERS). Читаются только один раз,
-   * в useState — App.tsx монтирует экран с key={tab}, поэтому смена вкладки размонтирует
-   * прежний экран целиком, а не подсовывает новый initialFilters уже смонтированному.
-   */
-  initialFilters: ApplicationsFilters;
   syncSummary: SyncSummary | null;
   onSyncSummaryDismiss: () => void;
   notification: NotificationController;

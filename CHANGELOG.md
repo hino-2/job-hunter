@@ -7,6 +7,23 @@ history only. Newest first.
 
 ---
 
+**56. Interview-stage filters moved off dedicated shell tabs, onto the existing status filter.**
+_(backend + frontend)_
+The two shell tabs added in step 55 («HR-собес», «Тех-собес») are removed — the shell is back to
+its original two tabs, «Отклики» and «Вакансии». `HR_INTERVIEW`/`TECH_INTERVIEW` stay reachable
+only through the §7.1 status filter chip row (`STATUS_FILTER` values kept from step 55), same
+`ApplicationsScreen`, no remount. The forced ascending sort by interview date that the step-55
+tabs applied is dropped along with the tabs — the screen's own sort control already covers that
+case. `ApplicationsService.buildFindQuery` (§5.1) is restructured so the open-`result` guard
+(`IN_PROGRESS`/`OFFER`, previously applied only to `status=OPEN`) now applies to every active
+status alike: an `HR_INTERVIEW`/`TECH_INTERVIEW` filter selection no longer surfaces a record
+whose `result` already closed it (e.g. `NO_RESPONSE`) while its `status` column still reads one of
+the two interview stages. The `CLOSED` branch and the derivation logic
+(`application-status.helpers.ts`, `deriveInterviewStatus`) are untouched — only the filter query
+changed, not what gets written.
+
+---
+
 **55. Two interview stages split out of `status = OPEN`.** _(backend + frontend)_
 §3.2's `ApplicationStatus` gained `HR_INTERVIEW`/`TECH_INTERVIEW` between `OPEN` and `CLOSED`.
 Both are derived, not user-settable directly: the backend recomputes them on **every**

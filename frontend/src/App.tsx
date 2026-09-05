@@ -8,7 +8,6 @@ import { NotificationSnackbar } from './components/NotificationSnackbar/Notifica
 import { VacanciesScreen } from './components/VacanciesScreen/VacanciesScreen';
 import {
   APP_TAB,
-  APP_TAB_FILTERS,
   APP_TAB_LABELS,
   APP_TAB_ORDER,
   APP_TABS_ARIA_LABEL,
@@ -87,20 +86,14 @@ export function App() {
         ))}
       </Tabs>
 
-      {tab === APP_TAB.VACANCIES ? (
-        <VacanciesScreen notification={notification} />
-      ) : (
-        // key={tab} — обязателен (не оптимизация): useState(initialFilters) внутри
-        // ApplicationsScreen читает свой аргумент только при первом монтировании,
-        // а без смены key при переключении «Отклики» ↔ «HR-собес» ↔ «Тех-собес»
-        // компонент не размонтируется и продолжил бы жить с фильтрами прежней вкладки.
+      {tab === APP_TAB.APPLICATIONS ? (
         <ApplicationsScreen
-          key={tab}
-          initialFilters={APP_TAB_FILTERS[tab]}
           syncSummary={syncSummary}
           onSyncSummaryDismiss={handleSyncSummaryDismiss}
           notification={notification}
         />
+      ) : (
+        <VacanciesScreen notification={notification} />
       )}
 
       <NotificationSnackbar

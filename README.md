@@ -12,7 +12,8 @@ Features:
   it-vacancies.ru);
 - manual status refresh — per record (🔄) and for all open records at once, across all sources;
 - a scheduled background refresh of all open records, running inside the `api` process;
-- «Все / Открытые / Закрытые» filters, search by company/position/notes, and sorting;
+- «Все / Открытые / HR-собес / Тех-собес / Закрытые» filters (the two interview-stage chips list
+  only records still open, §5.1), search by company/position/notes, and sorting;
 - a second screen, «Вакансии»: searching for new vacancies on hh.ru and it-vacancies.ru, screening
   them by keywords and, optionally, by a local LLM in Ollama, then creating an application from a
   found lead in one click;
@@ -105,8 +106,9 @@ npm run ps      # service status
   status becomes «Закрыта» on its own, the record leaves the «Открытые» filter, the «Открытых»
   counter and the «Обновить все открытые» run. «Нет ответа» does not close it. Records created
   before this rule get their status fixed on the next save of the result.
-- «Все / Открытые / Закрытые» filters, search by company, position and notes, sorting by four
-  fields.
+- «Все / Открытые / HR-собес / Тех-собес / Закрытые» filters — the two interview-stage chips list
+  only records still open (an open `result`, not yet a closed one) — search by company, position
+  and notes, sorting by four fields.
 
 ### The «Вакансии» screen
 

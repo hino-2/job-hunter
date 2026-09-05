@@ -201,9 +201,9 @@ export const APPLICATION_STATUS_CONDITION = `${APPLICATIONS_ALIAS}.status = :sta
 export const APPLICATION_RESULT_CONDITION = `${APPLICATIONS_ALIAS}.result = :result`;
 
 /**
- * §5.1 фильтр status=OPEN: «активные» результаты, оставшиеся от статуса OPEN до того,
- * как он расщепился на OPEN/HR_INTERVIEW/TECH_INTERVIEW (§3.2). Список результатов
- * не меняется — расщепление затронуло только статус.
+ * §5.1: фильтр по любому активному статусу (OPEN/HR_INTERVIEW/TECH_INTERVIEW) — «активные»
+ * результаты, оставшиеся от статуса OPEN до того, как он расщепился на три статуса (§3.2).
+ * Список результатов не меняется — расщепление затронуло только статус.
  */
 export const OPEN_APPLICATION_RESULTS = [
   APPLICATION_RESULT.IN_PROGRESS,
@@ -224,6 +224,10 @@ export const CLOSED_APPLICATION_RESULTS = [
  */
 export const APPLICATION_ACTIVE_STATUS_CONDITION = `${APPLICATIONS_ALIAS}.status IN (:...activeStatuses)`;
 
+/**
+ * §5.1: фильтр по любому активному статусу (OPEN/HR_INTERVIEW/TECH_INTERVIEW) — страховка
+ * по result, применяемая к каждому из них одинаково.
+ */
 export const APPLICATION_OPEN_RESULT_CONDITION = `${APPLICATIONS_ALIAS}.result IN (:...openResults)`;
 
 /**
