@@ -204,7 +204,7 @@ export const VACANCY_AI_BATCH_SIZE_MAX = 30;
  * таймаут занижен. Сама холодная загрузка не замерялась: цифры выше сняты на
  * прогретой модели.
  */
-export const DEFAULT_VACANCY_AI_TIMEOUT_MS = 30_000;
+export const DEFAULT_VACANCY_AI_TIMEOUT_MS = 60_000;
 
 export const DEFAULT_VACANCY_AI_DESCRIPTION_MAX_CHARS = 6_000;
 
