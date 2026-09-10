@@ -293,8 +293,8 @@ In Docker the migrations are applied automatically when the `api` container star
   `application/ld+json` `JobPosting` block is missing from the page — update
   `it-vacancies-page.parser.ts`. Same fail-soft principle.
 - **The AI screening counter `aiFallbacks` keeps growing with no other errors in the log.**
-  `VACANCY_AI_TIMEOUT_MS` (default `30000`) is too low for this machine — the default is measured on
-  a GPU, and on CPU-only Ollama a cold model load plus a full stage-1 batch can exceed 30 s. Raise
+  `VACANCY_AI_TIMEOUT_MS` (default `120000`) is too low for this machine — the default is measured on
+  a GPU, and on CPU-only Ollama a cold model load plus a full stage-1 batch can exceed it. Raise
   the value.
 
 If an old `.env` still has `HH_API_BASE_URL`, it can be deleted: the application uses
