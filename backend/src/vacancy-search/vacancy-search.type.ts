@@ -15,8 +15,10 @@ import type { VacancyScanResumeState } from './vacancy-search.interfaces';
 export type MatchSource = (typeof MATCH_SOURCE)[keyof typeof MATCH_SOURCE];
 
 /**
- * §4.11.4: режим отбора по ключевым словам, когда ИИ выключен или недоступен.
- * Тип выведен из VACANCY_MATCH_MODES (config/config.constants.ts) — единственного
+ * §4.11.4: сколько включающих ключевых слов должно совпасть на этапе 0
+ * (passesPrefilter, vacancy-scan.service.ts), когда VACANCY_PREFILTER_MODE=full —
+ * дешёвый детерминированный пре-фильтр перед ИИ, а не режим отбора без ИИ. Тип
+ * выведен из VACANCY_MATCH_MODES (config/config.constants.ts) — единственного
  * места, перечисляющего допустимые значения VACANCY_MATCH_MODE (там же валидируется
  * env при старте), а не продублирован здесь отдельным union.
  */

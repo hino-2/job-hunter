@@ -7,6 +7,7 @@ import { OK_STATUS } from '../common/common.constants';
 import { describeTransportError } from '../vacancies/vacancy-retry.helpers';
 import { stripUnsupportedSchemaKeywords } from './openai-schema.helpers';
 import {
+  AI_FAILURE_KIND,
   OPENAI_AUTHORIZATION_HEADER,
   OPENAI_BEARER_PREFIX,
   OPENAI_CHAT_COMPLETIONS_PATH,
@@ -127,6 +128,7 @@ export class OpenAiAiProvider implements AiProvider {
     } catch (error) {
       return {
         ok: false,
+        kind: AI_FAILURE_KIND.UNAVAILABLE,
         reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error),
       };
     }
@@ -153,13 +155,21 @@ export class OpenAiAiProvider implements AiProvider {
 
   private interpretChatResponse(status: number, payload: unknown): AiChatResult {
     if (status !== OK_STATUS) {
-      return { ok: false, reason: `${VACANCY_AI_UNEXPECTED_STATUS_MESSAGE} ${status}` };
+      return {
+        ok: false,
+        kind: AI_FAILURE_KIND.UNAVAILABLE,
+        reason: `${VACANCY_AI_UNEXPECTED_STATUS_MESSAGE} ${status}`,
+      };
     }
 
     const content = readMessageContent(payload);
 
     if (content === null) {
-      return { ok: false, reason: VACANCY_AI_MISSING_CONTENT_MESSAGE };
+      return {
+        ok: false,
+        kind: AI_FAILURE_KIND.INVALID_RESPONSE,
+        reason: VACANCY_AI_MISSING_CONTENT_MESSAGE,
+      };
     }
 
     return { ok: true, content };

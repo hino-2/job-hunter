@@ -29,7 +29,7 @@ function createEmptyProgress(): VacancyScanProgress {
     rejectedDescription: 0,
     created: 0,
     failed: 0,
-    aiFallbacks: 0,
+    aiSkipped: 0,
   };
 }
 

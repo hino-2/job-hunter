@@ -292,7 +292,7 @@ In Docker the migrations are applied automatically when the `api` container star
 - **Sync returns «страница вакансии it-vacancies.ru не распознана».** The
   `application/ld+json` `JobPosting` block is missing from the page — update
   `it-vacancies-page.parser.ts`. Same fail-soft principle.
-- **The AI screening counter `aiFallbacks` keeps growing with no other errors in the log.**
+- **A run keeps stopping with `stoppedReason = 'AI_UNAVAILABLE'` and no other errors in the log.**
   `VACANCY_AI_TIMEOUT_MS` (default `120000`) is too low for this machine — the default is measured on
   a GPU, and on CPU-only Ollama a cold model load plus a full stage-1 batch can exceed it. Raise
   the value.
@@ -409,9 +409,10 @@ Details:
   concurrent requests the screening pipeline sends. If the second is larger, the extra requests just
   queue up inside Ollama and burn `VACANCY_AI_TIMEOUT_MS`; if it is smaller, slots that are already
   paid for sit idle. On a machine with no GPU or little VRAM set both to `1`;
-- without the `ollama` container, or with AI screening off, the pipeline does not break — it
-  degrades to deterministic keyword screening (`VACANCY_MATCH_MODE`), and the backend only writes a
-  `warn` to the log when the model is unavailable while AI screening is on;
+- screening is AI-only: with `ai_enabled = false` a search run refuses to start (`409`), there is no
+  keyword-only mode. Once a run is going, an unusable model answer skips just that batch/vacancy
+  (`aiSkipped` grows), while an unreachable `ollama` container stops the whole run
+  (`stoppedReason = 'AI_UNAVAILABLE'`, resumable via «Продолжить»);
 - switching to a cloud OpenAI-compatible provider is `VACANCY_AI_PROVIDER=openai` plus
   `VACANCY_AI_BASE_URL` / `VACANCY_AI_MODEL` / `VACANCY_AI_API_KEY`, with no `ollama` container and
   no code changes.

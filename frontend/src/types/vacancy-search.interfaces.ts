@@ -105,7 +105,7 @@ export interface ScanProgress {
   rejectedDescription: number;
   created: number;
   failed: number;
-  aiFallbacks: number;
+  aiSkipped: number;
 }
 
 /** §5.7, §4.11.12: индикатор «страница N из M». currentPage — 0-based индекс, totalPages — количество. */

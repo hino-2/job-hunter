@@ -50,7 +50,8 @@ export interface VacancyScanProgress {
   rejectedDescription: number;
   created: number;
   failed: number;
-  aiFallbacks: number;
+  /** §4.12.3: батчи/вакансии, пропущенные из-за непригодного ответа модели (AI_FAILURE_KIND.INVALID_RESPONSE). */
+  aiSkipped: number;
 }
 
 /**
@@ -166,14 +167,23 @@ export interface VacancyLeadLogoSource {
   allowedHostPattern: RegExp;
 }
 
-/** §4.11.4: итог этапа 2 (ИИ по названию либо детерминированный фолбэк на ключевые слова). */
+/** §4.11.4: итог этапа 2 — вердикт ИИ по названию, всегда matchSource === MATCH_SOURCE.AI. */
 export interface VacancyTitleDecision {
   item: VacancySearchItem;
   dedupKey: VacancyLeadDedupKey;
   matches: boolean;
-  matchSource: MatchSource;
   matchedKeywords: string[];
   aiTitleReason: string | null;
+}
+
+/**
+ * §4.11.4 этап 2: итог обработки одного батча/страницы названий — решения,
+ * собранные из чанков, что успели ответить, и причина остановки (AI_UNAVAILABLE),
+ * если недоступность модели прервала этап, либо null, если все чанки отработали.
+ */
+export interface VacancyTitleStageResult {
+  decisions: VacancyTitleDecision[];
+  stop: ScanStoppedReason | null;
 }
 
 /**
@@ -187,13 +197,11 @@ export interface VacancyScanDetailsBudget {
 
 /**
  * §4.11.4/§4.11.8: итог синхронного планирующего прохода по одной странице выдачи
- * (planPageWork, vacancy-scan.service.ts) — решения, не требующие ИИ и не
- * открывающие страницу вакансии; кандидаты, под которых бюджет MAX_DETAILS уже
- * зарезервирован; и причина, на которой планирование прервалось, либо null, если
- * дошло до конца списка.
+ * (planPageWork, vacancy-scan.service.ts) — кандидаты, под которых бюджет
+ * MAX_DETAILS уже зарезервирован, и причина, на которой планирование прервалось,
+ * либо null, если дошло до конца списка.
  */
 export interface VacancyScanPagePlan {
-  keywordLeads: VacancyTitleDecision[];
   detailTasks: VacancyTitleDecision[];
   stop: ScanStoppedReason | null;
 }

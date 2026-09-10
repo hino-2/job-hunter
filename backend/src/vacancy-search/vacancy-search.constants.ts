@@ -68,7 +68,12 @@ export const VACANCY_LEAD_MATCH_SOURCE_LENGTH = 16;
 export const VACANCY_LEAD_AI_MODEL_LENGTH = 64;
 export const VACANCY_LEAD_AI_REASON_LENGTH = 500;
 
-/** §4.12: кто подтвердил соответствие вакансии профилю. */
+/**
+ * §4.12: кто подтвердил соответствие вакансии профилю. KEYWORDS — исторический
+ * enum-элемент: отбор теперь только ИИ (§5.7 — ai_enabled = false отказывает старту
+ * прогона), новые прогоны никогда не пишут это значение, но старые строки читаются
+ * и рендерятся как раньше.
+ */
 export const MATCH_SOURCE = {
   KEYWORDS: 'KEYWORDS',
   AI: 'AI',
@@ -257,7 +262,12 @@ export const SCAN_STATUS = {
   ERROR: 'ERROR',
 } as const;
 
-/** §4.11.11: причина остановки прогона. STOPPED — кооперативная остановка по запросу пользователя (§4.11.12). */
+/**
+ * §4.11.11: причина остановки прогона. STOPPED — кооперативная остановка по запросу
+ * пользователя (§4.11.12). AI_UNAVAILABLE — модель недоступна (транспорт/таймаут/
+ * не-2xx) на этапе 1 или 4: прогон останавливается, а не продолжает без ИИ, потому
+ * что отбор теперь только ИИ (§5.7).
+ */
 export const SCAN_STOPPED_REASON = {
   COMPLETED: 'COMPLETED',
   LAST_PAGE: 'LAST_PAGE',
@@ -266,6 +276,7 @@ export const SCAN_STOPPED_REASON = {
   DEADLINE: 'DEADLINE',
   AGE_LIMIT: 'AGE_LIMIT',
   STOPPED: 'STOPPED',
+  AI_UNAVAILABLE: 'AI_UNAVAILABLE',
   ERROR: 'ERROR',
 } as const;
 
@@ -273,8 +284,9 @@ export const SCAN_STOPPED_REASON = {
  * §4.11.12: причины, при которых выдача исчерпана целиком (или намеренно обрублена
  * возрастной отсечкой) — позиция прогона в этих случаях очищается (следующий
  * запуск начнётся с страницы 0), а не сохраняется. Остальные причины (STOPPED,
- * DEADLINE, MAX_DETAILS, ERROR) сохраняют позицию — прогон оборвался, не дойдя
- * до конца выдачи.
+ * DEADLINE, MAX_DETAILS, AI_UNAVAILABLE, ERROR) сохраняют позицию — прогон
+ * оборвался, не дойдя до конца выдачи (AI_UNAVAILABLE в их числе: «Продолжить»
+ * обязан оставаться доступным после недоступности модели).
  */
 export const SCAN_EXHAUSTED_STOPPED_REASONS = [
   SCAN_STOPPED_REASON.COMPLETED,
@@ -296,13 +308,16 @@ export const VACANCY_SCAN_AI_MIN_START_DELAY_MS = 0;
  * §4.11.12: порядок, в котором сегодняшний последовательный цикл проверяет условия
  * для ОДНОГО кандидата (см. planPageWork в vacancy-scan.service.ts) — resolvePageStop
  * (vacancy-scan-stop.helpers.ts) воспроизводит его для набора причин, собранных с
- * конкурентных воркеров пула деталей, чтобы прогон, который раньше упёрся бы сразу в
- * два условия, отдавал ту же причину, что и раньше. Все три причины сохраняют позицию
- * возобновления (§4.11.12) одинаково — порядок влияет только на отображаемый
+ * конкурентных воркеров пула деталей и этапа названий, чтобы прогон, который раньше
+ * упёрся бы сразу в два условия, отдавал ту же причину, что и раньше. AI_UNAVAILABLE
+ * стоит сразу за STOPPED: недоступность модели важнее исчерпанных бюджетов страницы,
+ * но кооперативная остановка пользователем важнее всего. Все причины таблицы сохраняют
+ * позицию возобновления (§4.11.12) одинаково — порядок влияет только на отображаемый
  * stoppedReason, никогда на возобновляемость.
  */
 export const SCAN_PAGE_STOP_PRECEDENCE: readonly ScanStoppedReason[] = [
   SCAN_STOPPED_REASON.STOPPED,
+  SCAN_STOPPED_REASON.AI_UNAVAILABLE,
   SCAN_STOPPED_REASON.DEADLINE,
   SCAN_STOPPED_REASON.MAX_DETAILS,
 ];
@@ -373,10 +388,14 @@ export const VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE =
   'Сохранённой позиции прогона нет или она устарела: ссылка на выдачу изменилась';
 export const VACANCY_SCAN_STOP_REQUESTED_MESSAGE = 'Запрошена остановка прогона поиска вакансий';
 
+/** §5.7: старт прогона отказан, потому что отбор теперь только ИИ (VacancyScanService.start()). */
+export const VACANCY_SCAN_AI_DISABLED_MESSAGE =
+  'ИИ-отбор выключен в настройках поиска: прогон не запускается';
+
 /**
  * §4.12.4: предупреждение при старте, если ai_enabled = true, а модели нет
  * у провайдера (VacancyAiCheckService). Старт процесса это не роняет.
  */
 export const VACANCY_AI_MODEL_UNAVAILABLE_MESSAGE =
-  'Модель ИИ недоступна у провайдера: прогон поиска будет работать по ключевым словам';
+  'Модель ИИ недоступна у провайдера: прогон поиска не сможет отобрать вакансии';
 export const VACANCY_AI_CHECK_FAILED_MESSAGE = 'Проверка доступности модели ИИ не выполнена';

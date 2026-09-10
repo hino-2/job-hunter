@@ -62,6 +62,7 @@ export const SCAN_STOPPED_REASON = {
   AGE_LIMIT: 'AGE_LIMIT',
   STOPPED: 'STOPPED',
   ERROR: 'ERROR',
+  AI_UNAVAILABLE: 'AI_UNAVAILABLE',
 } as const;
 
 /** §4.11.12: режим старта прогона — с нуля («Начать поиск») либо с сохранённой позиции («Продолжить»). */
@@ -110,6 +111,7 @@ export const SCAN_STOPPED_REASON_LABELS: Record<ScanStoppedReason, string> = {
   AGE_LIMIT: 'Вакансии дальше по выдаче старше порога',
   STOPPED: 'Прогон остановлен вручную',
   ERROR: 'Прогон прерван ошибкой',
+  AI_UNAVAILABLE: 'Модель ИИ недоступна — прогон остановлен, можно продолжить',
 };
 
 /**
@@ -235,6 +237,7 @@ export const SCAN_PROGRESS_DUPLICATES_LABEL = 'дублей';
 /** §7.9.2, пример из спецификации: «отклонено моделью: 12» — title- и description-отказы вместе. */
 export const SCAN_PROGRESS_REJECTED_LABEL = 'отклонено моделью';
 export const SCAN_PROGRESS_FAILED_LABEL = 'ошибок';
+export const SCAN_PROGRESS_AI_SKIPPED_LABEL = 'пропущено моделью';
 export const SCAN_SUMMARY_SEPARATOR = ' · ';
 export const SCAN_SUMMARY_VALUE_SEPARATOR = ' ';
 
@@ -265,7 +268,7 @@ export const TITLE_PROMPT_LABEL = 'Промпт для оценки назван
 export const DESCRIPTION_PROMPT_LABEL = 'Промпт для оценки описания';
 export const AI_ENABLED_LABEL = 'Использовать ИИ-отбор';
 export const AI_ENABLED_DESCRIPTION =
-  'При выключении работает отбор по ключевым словам, а описания вакансий не загружаются';
+  'Без ИИ-отбора поиск не запускается: прогон отбирает вакансии только моделью';
 export const SEARCH_URL_TEMPLATE_LABEL = 'Ссылка на выдачу hh.ru';
 export const SEARCH_URL_TEMPLATE_HINT =
   'Обязательный плейсхолдер: {page}. Только https и домены hh.ru';

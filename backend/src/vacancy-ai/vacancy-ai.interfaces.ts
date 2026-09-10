@@ -1,4 +1,4 @@
-import type { AiChatResult, AiModelListResult } from './vacancy-ai.type';
+import type { AiChatResult, AiFailureKind, AiModelListResult } from './vacancy-ai.type';
 
 /**
  * Формы данных ИИ-отбора (§4.12), общие для сервиса (vacancy-ai.service.ts) и обоих
@@ -6,6 +6,18 @@ import type { AiChatResult, AiModelListResult } from './vacancy-ai.type';
  * граница между VacancyAiService и конкретным протоколом: сервис не знает, идёт ли
  * запрос в Ollama или в OpenAI-совместимый API.
  */
+
+/**
+ * §4.12.3: сбой ИИ-отбора с классификацией (AI_FAILURE_KIND, vacancy-ai.constants.ts) —
+ * общий discriminant `ok: false` для трёх результатов (AiChatResult/AiTitleBatchResult/
+ * AiDescriptionResult, vacancy-ai.type.ts) сохраняет каждый существующий `if (!result.ok)`
+ * рабочим; только места, обязанные различать класс сбоя, читают ещё и `kind`.
+ */
+export interface AiFailure {
+  ok: false;
+  kind: AiFailureKind;
+  reason: string;
+}
 
 /** §4.12.3: имя схемы для response_format (OpenAI) и сама JSON Schema (общая для обоих провайдеров). */
 export interface AiJsonSchema {

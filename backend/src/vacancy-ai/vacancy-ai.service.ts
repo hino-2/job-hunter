@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { clampText } from '../common/text.helpers';
 import {
+  AI_FAILURE_KIND,
   VACANCY_AI_COMPANY_PLACEHOLDER,
   VACANCY_AI_DESCRIPTION_JSON_SCHEMA,
   VACANCY_AI_DESCRIPTION_MAX_CHARS_ENV_KEY,
@@ -46,27 +47,32 @@ function describeChatFailure(error: unknown): string {
  * VACANCY_AI_DESCRIPTION_MAX_CHARS ДО отправки (§4.11.7 — экономия токенов, а не
  * обрезка уже полученного вердикта).
  *
- * Любой сбой — таймаут, недоступный контейнер, невалидный JSON, несовпадение длины
- * массива вердиктов с батчем, а на этапе описания ещё и цитата (evidence), не
- * найденная в реальном тексте описания (isEvidenceGrounded) — превращается в
- * { ok: false, reason } с warn в лог, без ретраев (§4.12.3: повтор к перегруженной
- * модели только удвоит ожидание) и без исключений наружу: конвейер сам решает про
- * фолбэк на ключевые слова.
+ * Любой сбой возвращается как { ok: false, kind, reason } (AiFailure, vacancy-ai.interfaces.ts),
+ * с warn в лог, без ретраев (§4.12.3: повтор к перегруженной модели только удвоит
+ * ожидание) и без исключений наружу — конвейер сам решает, что делать по kind:
+ *
+ * - UNAVAILABLE (таймаут, недоступный контейнер, не-2xx статус — уже проставлено
+ *   адаптером) — прогон останавливается резюмируемо (SCAN_STOPPED_REASON.AI_UNAVAILABLE,
+ *   §4.11.12).
+ * - INVALID_RESPONSE (невалидный/неполный JSON, несовпадение длины массива вердиктов
+ *   с батчем, а на этапе описания ещё и цитата evidence, не найденная в реальном
+ *   тексте описания — isEvidenceGrounded) — пропускается только затронутый батч/
+ *   вакансия (счётчик aiSkipped), прогон продолжается.
  *
  * ai_title_reason/ai_description_reason НЕ обрезаются здесь по ширине колонки (500) —
  * это делает vacancy-lead.builder.ts, единственное место среза значений перед записью (§10).
  *
  * §4.12.3: каждый запрос к модели идёт с потолком генерации (maxOutputTokens —
  * AiChatRequest, num_predict/max_tokens у адаптеров). Генерация, оборванная этим
- * потолком, даёт невалидный/неполный JSON — то есть намеренно тот же класс сбоя, что
- * и невалидный ответ модели: { ok: false }, фолбэк на ключевые слова, счётчик
- * aiFallbacks и warn в лог, никакого отдельного пути обработки не заводится. Потолок —
- * это ГРАНИЦА, а не резервирование: недогенерированные токены ничего не стоят, поэтому
- * щедрый потолок бесплатен в обычном случае, а его единственная задача — остановить
- * убежавшую генерацию. Отсюда правило выбора значений (vacancy-ai.constants.ts): каждый
- * потолок обязан лежать заметно выше точки насыщения JSON Schema, которую он ограничивает,
+ * потолком, даёт невалидный/неполный JSON — то есть намеренно тот же класс сбоя
+ * (INVALID_RESPONSE), что и невалидный ответ модели: батч/вакансия пропускается,
+ * никакого отдельного пути обработки не заводится. Потолок — это ГРАНИЦА, а не
+ * резервирование: недогенерированные токены ничего не стоят, поэтому щедрый потолок
+ * бесплатен в обычном случае, а его единственная задача — остановить убежавшую
+ * генерацию. Отсюда правило выбора значений (vacancy-ai.constants.ts): каждый потолок
+ * обязан лежать заметно выше точки насыщения JSON Schema, которую он ограничивает,
  * иначе он режет легитимный многословный, но валидный по схеме ответ раньше, чем модель
- * успевает закрыть JSON. Рост aiFallbacks после смены этих значений — сигнал, что потолок
+ * успевает закрыть JSON. Рост aiSkipped после смены этих значений — сигнал, что потолок
  * всё ещё занижен относительно схемы, а не что модель стала хуже отвечать.
  */
 @Injectable()
@@ -106,7 +112,7 @@ export class VacancyAiService {
     if (!chatResult.ok) {
       this.logger.warn(`ИИ по названию недоступен: ${chatResult.reason}`);
 
-      return { ok: false, reason: chatResult.reason };
+      return chatResult;
     }
 
     const verdicts = parseTitleVerdicts(chatResult.content, request.items.length);
@@ -116,7 +122,11 @@ export class VacancyAiService {
         `ИИ по названию вернул невалидный ответ (ожидался массив вердиктов длиной ${request.items.length})`,
       );
 
-      return { ok: false, reason: VACANCY_AI_INVALID_RESPONSE_MESSAGE };
+      return {
+        ok: false,
+        kind: AI_FAILURE_KIND.INVALID_RESPONSE,
+        reason: VACANCY_AI_INVALID_RESPONSE_MESSAGE,
+      };
     }
 
     return { ok: true, verdicts };
@@ -141,7 +151,7 @@ export class VacancyAiService {
     if (!chatResult.ok) {
       this.logger.warn(`ИИ по описанию недоступен: ${chatResult.reason}`);
 
-      return { ok: false, reason: chatResult.reason };
+      return chatResult;
     }
 
     const verdict = parseDescriptionVerdict(chatResult.content);
@@ -149,7 +159,11 @@ export class VacancyAiService {
     if (verdict === null) {
       this.logger.warn('ИИ по описанию вернул невалидный ответ');
 
-      return { ok: false, reason: VACANCY_AI_INVALID_RESPONSE_MESSAGE };
+      return {
+        ok: false,
+        kind: AI_FAILURE_KIND.INVALID_RESPONSE,
+        reason: VACANCY_AI_INVALID_RESPONSE_MESSAGE,
+      };
     }
 
     // §4.12.3: цитата проверяется ТОЛЬКО при matches === true — при отрицательном
@@ -163,7 +177,11 @@ export class VacancyAiService {
           `«${clampText(verdict.evidence, VACANCY_AI_EVIDENCE_LOG_MAX_CHARS)}»`,
       );
 
-      return { ok: false, reason: VACANCY_AI_EVIDENCE_UNGROUNDED_MESSAGE };
+      return {
+        ok: false,
+        kind: AI_FAILURE_KIND.INVALID_RESPONSE,
+        reason: VACANCY_AI_EVIDENCE_UNGROUNDED_MESSAGE,
+      };
     }
 
     return { ok: true, matches: verdict.matches, reason: verdict.reason };
@@ -191,7 +209,7 @@ export class VacancyAiService {
         maxOutputTokens,
       });
     } catch (error) {
-      return { ok: false, reason: describeChatFailure(error) };
+      return { ok: false, kind: AI_FAILURE_KIND.UNAVAILABLE, reason: describeChatFailure(error) };
     }
   }
 }

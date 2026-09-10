@@ -13,6 +13,7 @@ import type {
 } from '../vacancies/vacancies.type';
 import { CompanyLogoService } from '../logos/company-logo.service';
 import {
+  AI_FAILURE_KIND,
   VACANCY_AI_BATCH_SIZE_ENV_KEY,
   VACANCY_AI_CONCURRENCY_ENV_KEY,
 } from '../vacancy-ai/vacancy-ai.constants';
@@ -34,6 +35,7 @@ import {
   SCAN_STOPPED_REASON,
   VACANCY_MATCH_MODE_ENV_KEY,
   VACANCY_PREFILTER_MODE_ENV_KEY,
+  VACANCY_SCAN_AI_DISABLED_MESSAGE,
   VACANCY_SCAN_ALREADY_RUNNING_MESSAGE,
   VACANCY_SCAN_AI_MIN_START_DELAY_MS,
   VACANCY_SCAN_FINISHED_MESSAGE,
@@ -55,6 +57,7 @@ import type {
   VacancyScanSurvivor,
   VacancySearchSettingsSnapshot,
   VacancyTitleDecision,
+  VacancyTitleStageResult,
 } from './vacancy-search.interfaces';
 import type {
   ScanMode,
@@ -123,13 +126,10 @@ function passesPrefilter(
  * описания — единственному месту, где это описание вообще существует (страница
  * вакансии уже загружена этапом 3). Проверка стоит СТРОГО перед вызовом ИИ по
  * описанию: запрос к модели — это ~6 КБ чата и таймаут до 120 с, а стоп-слово в
- * описании отбраковывает вакансию бесплатно, без единого токена.
- *
- * Именно это расположение и делает безопасной ветку !aiResult.ok ниже (фолбэк на
- * ключевые слова): если бы стоп-слова проверялись только по названию, вакансия,
- * где слово всплывает лишь в описании, при недоступной модели проскочила бы в фолбэк
- * непровереной. Возвращает СПИСОК совпавших слов (matchKeywords, а не hasExcluded) —
- * вызывающему нужны сами слова для лога, а не факт совпадения.
+ * описании отбраковывает вакансию бесплатно, без единого токена — дешёвое решение
+ * «пропустить» вместо ожидания UNAVAILABLE/INVALID_RESPONSE с этапа 4. Возвращает
+ * СПИСОК совпавших слов (matchKeywords, а не hasExcluded) — вызывающему нужны сами
+ * слова для лога, а не факт совпадения.
  *
  * Требование этапа 'full' по включающим словам сюда намеренно НЕ расширено: решить,
  * действительно ли перечисленные в профиле технологии нужны вакансии как основные, —
@@ -218,6 +218,13 @@ export class VacancyScanService {
    */
   async start(mode: ScanMode, source: VacancyLeadSearchSource): Promise<Date> {
     const settings = await this.settingsService.getSnapshot();
+
+    if (!settings.aiEnabled) {
+      // §5.7: отбор теперь только ИИ — без него прогон не может отобрать ни одной
+      // вакансии, поэтому запуск отказан ДО резолва провайдера и tryStart().
+      throw new ConflictException(VACANCY_SCAN_AI_DISABLED_MESSAGE);
+    }
+
     const provider = this.leadSearchRegistry.require(source);
     const searchUrlTemplate = settings.searchUrlTemplateBySource[source];
     let startPage: number = VACANCY_SCAN_INITIAL_PAGE;
@@ -457,16 +464,24 @@ export class VacancyScanService {
     // так что единственная синхронная точка перед его стартом отвечает строго
     // отзывчивее прежнего (не позже, а раньше). Внутри самого пула названий
     // чекпойнта намеренно нет: воркер, увидевший остановку, обязан был бы что-то
-    // вернуть, а оба дешёвых варианта плохи — решение по ключевым словам вставило бы
-    // лид во время остановки, а matches: false испортило бы rejectedTitle.
+    // вернуть, а matches: false испортило бы rejectedTitle.
     if (handle.isStopRequested()) {
       return SCAN_STOPPED_REASON.STOPPED;
     }
 
-    const decisions = await this.decideTitleMatches(fresh, settings, handle);
+    const titleStage = await this.decideTitleMatches(fresh, settings, handle);
+
+    if (titleStage.stop !== null) {
+      // §4.11.12: модель недоступна на этапе названий — решения, уже собранные с
+      // других чанков этой же страницы, намеренно отбрасываются: resumePage
+      // остаётся этой же страницей, повторный проход после «Продолжить» встретит
+      // тех же кандидатов заново, а дедупликация (§4.11.5) делает это дёшево.
+      return titleStage.stop;
+    }
+
     const matched: VacancyTitleDecision[] = [];
 
-    for (const decision of decisions) {
+    for (const decision of titleStage.decisions) {
       if (decision.matches) {
         matched.push(decision);
       } else {
@@ -480,11 +495,6 @@ export class VacancyScanService {
 
     const startedAt = Date.now();
     const plan = this.planPageWork(matched, handle, deadlineAt, detailsBudget);
-    const keywordStop = await this.insertKeywordLeads(plan.keywordLeads, handle, provider);
-
-    if (keywordStop !== null) {
-      return keywordStop;
-    }
 
     const detailStops = await mapWithConcurrency(plan.detailTasks, this.aiConcurrency, (decision) =>
       this.processDetailSafely(decision, settings, provider, handle, deadlineAt),
@@ -520,23 +530,13 @@ export class VacancyScanService {
     deadlineAt: number,
     detailsBudget: VacancyScanDetailsBudget,
   ): VacancyScanPagePlan {
-    const keywordLeads: VacancyTitleDecision[] = [];
     const detailTasks: VacancyTitleDecision[] = [];
     let stop: ScanStoppedReason | null = null;
 
     for (const decision of matched) {
-      // §4.11.12: проверка ПЕРВОЙ — покрывает и ветку без ИИ (KEYWORDS) ниже, иначе
-      // остановка не срабатывала бы, пока отбор идёт целиком по ключевым словам.
       if (handle.isStopRequested()) {
         stop = SCAN_STOPPED_REASON.STOPPED;
         break;
-      }
-
-      if (decision.matchSource === MATCH_SOURCE.KEYWORDS) {
-        // §4.11.4: без ИИ (выключен или батч не ответил) описание не грузим —
-        // этапы 3–4 пропускаются целиком, вакансия сразу идёт на вставку.
-        keywordLeads.push(decision);
-        continue;
       }
 
       if (Date.now() >= deadlineAt) {
@@ -553,30 +553,7 @@ export class VacancyScanService {
       detailTasks.push(decision);
     }
 
-    return { keywordLeads, detailTasks, stop };
-  }
-
-  /**
-   * §4.11.4 этап 5 (ветка KEYWORDS): последовательно — эта ветка не делает ни одного
-   * запроса к ИИ или HTTP, только INSERT, так что конкурентный пул здесь не даёт
-   * ничего, кроме лишней сложности. Чекпойнт остановки — перед КАЖДОЙ вставкой, тот
-   * же принцип отзывчивости, что был у прежнего единого цикла.
-   */
-  private async insertKeywordLeads(
-    leads: readonly VacancyTitleDecision[],
-    handle: ScanRunHandle,
-    provider: VacancyLeadSearchProvider,
-  ): Promise<ScanStoppedReason | null> {
-    for (const decision of leads) {
-      if (handle.isStopRequested()) {
-        return SCAN_STOPPED_REASON.STOPPED;
-      }
-
-      // Страница вакансии не открывалась вовсе, поэтому логотипа взять неоткуда (§4.10).
-      await this.insertLead(decision, handle, provider, null, null);
-    }
-
-    return null;
+    return { detailTasks, stop };
   }
 
   /**
@@ -609,9 +586,7 @@ export class VacancyScanService {
     }
 
     try {
-      await this.processDetail(decision, settings, provider, handle);
-
-      return null;
+      return await this.processDetail(decision, settings, provider, handle);
     } catch (error) {
       handle.increment('descriptionsFailed');
       this.logger.warn(`Вакансия ${decision.item.externalId}: ${describeError(error)}`);
@@ -621,41 +596,45 @@ export class VacancyScanService {
   }
 
   /**
-   * §4.11.4 этап 2: ИИ батчами до VACANCY_AI_BATCH_SIZE либо (ИИ выключен/недоступен)
-   * ключевые слова. Батчи гонятся через mapWithConcurrency (до VACANCY_AI_CONCURRENCY
-   * штук одновременно, §4.12.4) — единственное, что раньше держало три слота Ollama
-   * (OLLAMA_NUM_PARALLEL, шаг №50 §14) простаивающими, был этот последовательный цикл.
-   * mapWithConcurrency гарантирует порядок результатов по порядку items, поэтому
-   * плоский массив ниже собирается явным вложенным for…of, а не .flat() — гарантия
-   * порядка видна в месте вызова, а не спрятана внутри метода массива.
+   * §4.11.4 этап 2: ИИ батчами до VACANCY_AI_BATCH_SIZE. Батчи гонятся через
+   * mapWithConcurrency (до VACANCY_AI_CONCURRENCY штук одновременно, §4.12.4) —
+   * единственное, что раньше держало три слота Ollama (OLLAMA_NUM_PARALLEL, шаг №50
+   * §14) простаивающими, был последовательный цикл. mapWithConcurrency гарантирует
+   * порядок результатов по порядку items, поэтому плоский массив решений ниже
+   * собирается явным вложенным for…of, а не .flat() — гарантия порядка видна в
+   * месте вызова, а не спрятана внутри метода массива. Первая же недоступность
+   * модели (kind === UNAVAILABLE) на любом чанке останавливает страницу — решения
+   * остальных чанков намеренно отбрасываются вызывающим (processPage).
    */
   private async decideTitleMatches(
     survivors: readonly VacancyScanSurvivor[],
     settings: VacancySearchSettingsSnapshot,
     handle: ScanRunHandle,
-  ): Promise<VacancyTitleDecision[]> {
-    if (!settings.aiEnabled) {
-      return survivors.map((survivor) => this.decideByKeywordsOnly(survivor, settings));
-    }
-
+  ): Promise<VacancyTitleStageResult> {
     const chunks: VacancyScanSurvivor[][] = [];
 
     for (let start = 0; start < survivors.length; start += this.aiBatchSize) {
       chunks.push(survivors.slice(start, start + this.aiBatchSize));
     }
 
-    const chunkDecisions = await mapWithConcurrency(chunks, this.aiConcurrency, (chunk) =>
+    const chunkResults = await mapWithConcurrency(chunks, this.aiConcurrency, (chunk) =>
       this.decideTitleChunk(chunk, settings, handle),
     );
     const decisions: VacancyTitleDecision[] = [];
+    let stop: ScanStoppedReason | null = null;
 
-    for (const chunk of chunkDecisions) {
-      for (const decision of chunk) {
+    for (const chunkResult of chunkResults) {
+      for (const decision of chunkResult.decisions) {
         decisions.push(decision);
       }
+
+      // Первый непустой стоп среди чанков побеждает — их порядок в chunkResults
+      // совпадает с порядком chunks (гарантия mapWithConcurrency), но при
+      // единственной причине (AI_UNAVAILABLE) порядок здесь не важен.
+      stop ??= chunkResult.stop;
     }
 
-    return decisions;
+    return { decisions, stop };
   }
 
   /**
@@ -670,7 +649,7 @@ export class VacancyScanService {
     chunk: readonly VacancyScanSurvivor[],
     settings: VacancySearchSettingsSnapshot,
     handle: ScanRunHandle,
-  ): Promise<VacancyTitleDecision[]> {
+  ): Promise<VacancyTitleStageResult> {
     try {
       const aiResult = await this.aiService.judgeTitles({
         titlePrompt: settings.titlePrompt,
@@ -682,10 +661,16 @@ export class VacancyScanService {
       });
 
       if (!aiResult.ok) {
-        handle.increment('aiFallbacks');
-        this.logger.warn(`Фолбэк на ключевые слова (батч названий): ${aiResult.reason}`);
+        if (aiResult.kind === AI_FAILURE_KIND.UNAVAILABLE) {
+          this.logger.warn(`Батч названий остановлен — модель недоступна: ${aiResult.reason}`);
 
-        return chunk.map((survivor) => this.decideByKeywordsOnly(survivor, settings));
+          return { decisions: [], stop: SCAN_STOPPED_REASON.AI_UNAVAILABLE };
+        }
+
+        handle.increment('aiSkipped', chunk.length);
+        this.logger.warn(`Батч названий пропущен — ответ модели непригоден: ${aiResult.reason}`);
+
+        return { decisions: [], stop: null };
       }
 
       const decisions: VacancyTitleDecision[] = [];
@@ -704,47 +689,30 @@ export class VacancyScanService {
           item: survivor.item,
           dedupKey: survivor.dedupKey,
           matches: verdict.matches,
-          matchSource: MATCH_SOURCE.AI,
           matchedKeywords: matchKeywords(survivor.item.position, settings.keywords),
           aiTitleReason: verdict.reason,
         });
       }
 
-      return decisions;
+      return { decisions, stop: null };
     } catch (error) {
-      // Та же ветка, что и !aiResult.ok выше — вызов judgeTitles сам не бросает
-      // (§4.12.3), поэтому сюда попадает только по-настоящему неожиданный сбой.
-      handle.increment('aiFallbacks');
-      this.logger.warn(`Фолбэк на ключевые слова (батч названий): ${describeError(error)}`);
+      // Та же ветка, что и INVALID_RESPONSE выше — вызов judgeTitles сам не бросает
+      // (§4.12.3), поэтому сюда попадает только по-настоящему неожиданный сбой;
+      // прогон продолжается, батч пропущен, а не остановлен.
+      handle.increment('aiSkipped', chunk.length);
+      this.logger.warn(`Батч названий пропущен — неожиданная ошибка: ${describeError(error)}`);
 
-      return chunk.map((survivor) => this.decideByKeywordsOnly(survivor, settings));
+      return { decisions: [], stop: null };
     }
   }
 
-  private decideByKeywordsOnly(
-    survivor: VacancyScanSurvivor,
-    settings: VacancySearchSettingsSnapshot,
-  ): VacancyTitleDecision {
-    const matched = matchKeywords(survivor.item.position, settings.keywords);
-    const matches = isKeywordMatch(matched, settings.keywords.length, this.matchMode);
-
-    return {
-      item: survivor.item,
-      dedupKey: survivor.dedupKey,
-      matches,
-      matchSource: MATCH_SOURCE.KEYWORDS,
-      matchedKeywords: matched,
-      aiTitleReason: null,
-    };
-  }
-
-  /** §4.11.4 этапы 3–4: только для matchSource === 'AI' — загрузка описания и ИИ-вердикт по нему. */
+  /** §4.11.4 этапы 3–4: загрузка описания и ИИ-вердикт по нему. */
   private async processDetail(
     decision: VacancyTitleDecision,
     settings: VacancySearchSettingsSnapshot,
     provider: VacancyLeadSearchProvider,
     handle: ScanRunHandle,
-  ): Promise<void> {
+  ): Promise<ScanStoppedReason | null> {
     const descriptionResult = await provider.fetchVacancyDescription(decision.item.externalId);
 
     if (!descriptionResult.ok) {
@@ -752,7 +720,7 @@ export class VacancyScanService {
       handle.increment('descriptionsFailed');
       this.logger.warn(`Вакансия ${decision.item.externalId}: ${descriptionResult.message}`);
 
-      return;
+      return null;
     }
 
     const excludedInDescription = findExcludedInDescription(
@@ -770,7 +738,7 @@ export class VacancyScanService {
         `Вакансия ${decision.item.externalId}: стоп-слова в описании — ${excludedInDescription.join(', ')}`,
       );
 
-      return;
+      return null;
     }
 
     const aiResult = await this.aiService.judgeDescription({
@@ -782,43 +750,36 @@ export class VacancyScanService {
     });
 
     if (!aiResult.ok) {
-      // §4.12.3: тот же принцип фолбэка, что на этапе названия — решение по описанию
-      // принимают ключевые слова, matchSource переключается на KEYWORDS. Стоп-слова
-      // описания уже отсеяны выше, поэтому этот фолбэк не может пропустить вакансию,
-      // которую полагалось исключить.
-      handle.increment('aiFallbacks');
-      this.logger.warn(
-        `Фолбэк на ключевые слова (описание вакансии ${decision.item.externalId}): ${aiResult.reason}`,
-      );
+      if (aiResult.kind === AI_FAILURE_KIND.UNAVAILABLE) {
+        this.logger.warn(
+          `Вакансия ${decision.item.externalId}: модель недоступна — ${aiResult.reason}`,
+        );
 
-      const matchedInDescription = matchKeywords(descriptionResult.description, settings.keywords);
-
-      if (!isKeywordMatch(matchedInDescription, settings.keywords.length, this.matchMode)) {
-        handle.increment('rejectedDescription');
-
-        return;
+        return SCAN_STOPPED_REASON.AI_UNAVAILABLE;
       }
 
-      await this.insertLead(
-        { ...decision, matchSource: MATCH_SOURCE.KEYWORDS, matchedKeywords: matchedInDescription },
-        handle,
-        provider,
-        null,
-        resolveLeadLogoSource(descriptionResult),
+      // Непригодный ответ (невалидный JSON либо ungrounded evidence) — вакансия не
+      // сохраняется, но не считается отказом (rejectedDescription): сама модель ничего
+      // не решила, следующий прогон встретит её снова.
+      handle.increment('aiSkipped');
+      this.logger.warn(
+        `Вакансия ${decision.item.externalId}: ответ модели по описанию непригоден — ${aiResult.reason}`,
       );
 
-      return;
+      return null;
     }
 
     if (!aiResult.matches) {
       handle.increment('rejectedDescription');
 
-      return;
+      return null;
     }
 
     const logo = resolveLeadLogoSource(descriptionResult);
 
     await this.insertLead(decision, handle, provider, aiResult.reason, logo);
+
+    return null;
   }
 
   /**
@@ -840,8 +801,8 @@ export class VacancyScanService {
       companyKey: decision.dedupKey.companyKey,
       publishedOn: decision.dedupKey.publishedOn,
       matchedKeywords: decision.matchedKeywords,
-      matchSource: decision.matchSource,
-      aiModel: decision.matchSource === MATCH_SOURCE.AI ? this.aiService.model : null,
+      matchSource: MATCH_SOURCE.AI,
+      aiModel: this.aiService.model,
       aiTitleReason: decision.aiTitleReason,
       aiDescriptionReason,
     });

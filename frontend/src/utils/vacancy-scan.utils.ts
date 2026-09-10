@@ -9,6 +9,7 @@ import {
   SCAN_PROGRESS_CREATED_LABEL,
   SCAN_PROGRESS_DUPLICATES_LABEL,
   SCAN_PROGRESS_FAILED_LABEL,
+  SCAN_PROGRESS_AI_SKIPPED_LABEL,
   SCAN_PROGRESS_PAGES_LABEL,
   SCAN_PROGRESS_PERCENT_SCALE,
   SCAN_PROGRESS_REJECTED_LABEL,
@@ -45,8 +46,8 @@ export function formatScanSourceLabel(source: VacancySource | null): string {
 
 /**
  * «hh.ru · страниц 3 · просмотрено 40 · найдено 2 · дублей 5 · отклонено моделью 12 ·
- * ошибок 0». Источник идёт первым: прогон один на все источники (§4.11.12), и по одним
- * счётчикам не понять, чью выдачу сейчас разбирают.
+ * ошибок 0 · пропущено моделью 1». Источник идёт первым: прогон один на все источники
+ * (§4.11.12), и по одним счётчикам не понять, чью выдачу сейчас разбирают.
  * После смены порядка эшелонов дедупликации (§4.11.4, §4.11.5) «дублей» считает лидов,
  * узнанных ещё ДО ИИ по названию (эшелон 2 по БД), а «отклонено моделью» — только тех,
  * кто дедупликацию уже прошёл.
@@ -64,6 +65,7 @@ export function formatScanProgressText(
     `${SCAN_PROGRESS_DUPLICATES_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.duplicates}`,
     `${SCAN_PROGRESS_REJECTED_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${rejectedByModel}`,
     `${SCAN_PROGRESS_FAILED_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.failed}`,
+    `${SCAN_PROGRESS_AI_SKIPPED_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.aiSkipped}`,
   ];
 
   return parts.join(SCAN_SUMMARY_SEPARATOR);
@@ -85,7 +87,8 @@ export function formatScanSummaryText(status: ScanStatusResponse): string {
 /**
  * §7.9.2: сбой самого запроса — отдельный канал (error-Snackbar, не эта функция).
  * Здесь — исключительно severity Alert'а по уже полученному статусу: во время прогона
- * info, stoppedReason === 'ERROR' — error, успешный прогон — success, а created === 0 — info.
+ * info, stoppedReason === 'ERROR' — error, AI_UNAVAILABLE — warning (даже если что-то уже
+ * найдено, это не полноценный успех), успешный прогон — success, а created === 0 — info.
  */
 export function selectScanAlertSeverity(status: ScanStatusResponse): NotificationSeverity {
   if (status.status === SCAN_STATUS.RUNNING) {
@@ -94,6 +97,10 @@ export function selectScanAlertSeverity(status: ScanStatusResponse): Notificatio
 
   if (status.stoppedReason === SCAN_STOPPED_REASON.ERROR) {
     return NOTIFICATION_SEVERITY.ERROR;
+  }
+
+  if (status.stoppedReason === SCAN_STOPPED_REASON.AI_UNAVAILABLE) {
+    return NOTIFICATION_SEVERITY.WARNING;
   }
 
   if (status.progress.created === 0) {

@@ -26,6 +26,18 @@ export const VACANCY_AI_PROVIDER = {
 /** DI-токен адаптера, собранного vacancy-ai.provider.factory.ts по VACANCY_AI_PROVIDER. */
 export const VACANCY_AI_PROVIDER_TOKEN = Symbol('VACANCY_AI_PROVIDER');
 
+/**
+ * §4.12.3: класс сбоя ИИ-отбора — UNAVAILABLE (сеть/таймаут/не-2xx у самого
+ * провайдера) останавливает прогон (SCAN_STOPPED_REASON.AI_UNAVAILABLE,
+ * vacancy-search.constants.ts) резюмируемо; INVALID_RESPONSE (ответ получен, но
+ * не распарсен/длина не совпала/цитата не подтверждена) пропускает только
+ * затронутый батч/вакансию (aiSkipped), прогон продолжается.
+ */
+export const AI_FAILURE_KIND = {
+  UNAVAILABLE: 'UNAVAILABLE',
+  INVALID_RESPONSE: 'INVALID_RESPONSE',
+} as const;
+
 /** §4.12.3: воспроизводимость важнее творчества — одно и то же значение у обоих провайдеров. */
 export const VACANCY_AI_TEMPERATURE = 0;
 
@@ -218,7 +230,7 @@ export const VACANCY_AI_EVIDENCE_NORMALIZATION_REPLACEMENTS: ReadonlyArray<
 /**
  * §4.12.3: убивает вырожденные цитаты («», «.», «-»), которые тривиально совпали бы
  * подстрокой почти с любым описанием. Порог намеренно низкий — легитимный короткий
- * токен профиля («node.js», «java») не должен превращаться в фолбэк.
+ * токен профиля («node.js», «java») не должен ложно засчитываться как обоснованный.
  */
 export const VACANCY_AI_EVIDENCE_MIN_NORMALIZED_LENGTH = 3;
 
@@ -234,8 +246,8 @@ export const VACANCY_AI_EVIDENCE_UNGROUNDED_MESSAGE =
  * щедрый потолок в обычном случае бесплатен, а его единственная задача — остановить
  * убежавшую генерацию. Отсюда правило: потолок обязан лежать заметно ВЫШЕ точки
  * насыщения самой схемы, иначе он режет легитимный многословный ответ раньше, чем
- * модель успевает закрыть JSON, и превращает его в тот же { ok: false } / фолбэк по
- * ключевым словам, что и настоящий сбой модели.
+ * модель успевает закрыть JSON, и превращает его в тот же { ok: false, kind:
+ * INVALID_RESPONSE }, что и настоящий невалидный ответ модели.
  *
  * Число измерено на живом Ollama (qwen3:4b-instruct — другая модель имеет свой
  * токенизатор, числа сдвинутся), а не оценено на глаз: реалистичные reason (200
