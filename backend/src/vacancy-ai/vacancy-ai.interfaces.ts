@@ -1,4 +1,9 @@
-import type { AiChatResult, AiFailureKind, AiModelListResult } from './vacancy-ai.type';
+import type {
+  AiChatResult,
+  AiFailureKind,
+  AiModelListResult,
+  AiWarmUpResult,
+} from './vacancy-ai.type';
 
 /**
  * Формы данных ИИ-отбора (§4.12), общие для сервиса (vacancy-ai.service.ts) и обоих
@@ -44,6 +49,8 @@ export interface AiChatRequest {
 export interface AiProvider {
   chat(request: AiChatRequest): Promise<AiChatResult>;
   listModels(): Promise<AiModelListResult>;
+  /** §4.12.4: прогрев модели перед стартом прогона (загрузка в память) — никогда не бросает. */
+  warmUp(model: string): Promise<AiWarmUpResult>;
 }
 
 /** §4.11.4 этап 1: одно название вакансии батча вместе с компанией (для formatTitlesBlock). */

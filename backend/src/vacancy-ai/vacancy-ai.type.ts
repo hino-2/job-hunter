@@ -11,6 +11,13 @@ export type AiChatResult = { ok: true; content: string } | AiFailure;
 export type AiModelListResult = { ok: true; models: string[] } | { ok: false; reason: string };
 
 /**
+ * §4.12.4/§4.11.9: результат прогрева модели перед прогоном — та же форма, что у
+ * AiModelListResult, а не AiFailure: ничего не парсится (тело ответа не читается,
+ * см. ollama-ai.provider.ts), значит и различать INVALID_RESPONSE не от чего.
+ */
+export type AiWarmUpResult = { ok: true } | { ok: false; reason: string };
+
+/**
  * §4.11.4 этап 1 / §4.12.3: недоступность транспорта → { kind: UNAVAILABLE }, run
  * останавливается (§4.11.12); невалидный JSON или длина массива вердиктов ≠ размеру
  * батча → { kind: INVALID_RESPONSE }, пропускается только этот батч (aiSkipped).

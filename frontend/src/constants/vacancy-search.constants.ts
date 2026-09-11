@@ -230,6 +230,9 @@ export const SCAN_PAGE_PROGRESS_SEPARATOR = ' из ';
 export const SCAN_PAGE_NUMBER_OFFSET = 1;
 export const SCAN_PROGRESS_PERCENT_SCALE = 100;
 
+/** §7.9.2, §5.7: подпись Alert, пока прогон грузит модель в провайдер (aiWarmingUp). */
+export const SCAN_AI_WARM_UP_LABEL = 'запуск модели...';
+
 export const SCAN_PROGRESS_PAGES_LABEL = 'страниц';
 export const SCAN_PROGRESS_SEEN_LABEL = 'просмотрено';
 export const SCAN_PROGRESS_CREATED_LABEL = 'найдено';

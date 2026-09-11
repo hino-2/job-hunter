@@ -138,6 +138,11 @@ export interface ScanStatusResponse {
   pageProgress: ScanPageProgress;
   stopRequested: boolean;
   /**
+   * §5.7, §7.9.2: true, пока прогон загружает модель в провайдер и ещё не начал
+   * разбирать страницы; вне RUNNING всегда false.
+   */
+  aiWarmingUp: boolean;
+  /**
    * §5.7: позиция для продолжения — по строке на источник (§3.7). Кнопка «Продолжить»
    * читает срез выбранного источника, а не одно общее значение.
    */

@@ -28,7 +28,7 @@ import {
 } from './vacancy-ai.constants';
 import type { AiChatRequest, AiProvider } from './vacancy-ai.interfaces';
 import { isRecord, readString } from './vacancy-ai.parsers';
-import type { AiChatResult, AiModelListResult } from './vacancy-ai.type';
+import type { AiChatResult, AiModelListResult, AiWarmUpResult } from './vacancy-ai.type';
 
 function readMessageContent(payload: unknown): string | null {
   if (!isRecord(payload)) {
@@ -147,6 +147,17 @@ export class OpenAiAiProvider implements AiProvider {
         reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error),
       };
     }
+  }
+
+  /**
+   * §4.12.1/§4.11.9: облачные OpenAI-совместимые эндпоинты не держат модель
+   * выгруженной из памяти — загружать перед прогоном нечего, поэтому просто
+   * подтверждаем готовность. Без async: тело без await провалило бы
+   * @typescript-eslint/require-await (recommendedTypeChecked); аргумент модели
+   * не нужен — TS разрешает более узкую арность реализации интерфейса.
+   */
+  warmUp(): Promise<AiWarmUpResult> {
+    return Promise.resolve({ ok: true });
   }
 
   private buildAuthHeader(): Record<string, string> {

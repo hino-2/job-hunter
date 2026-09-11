@@ -27,6 +27,11 @@ export class ScanStatusDto {
   progress!: VacancyScanProgress;
   pageProgress!: VacancyScanPageProgress;
   stopRequested!: boolean;
+  /**
+   * §5.7/§4.11.9: true, пока прогон грузит модель перед первой страницей выдачи и
+   * ещё не начал листать; всегда false вне статуса RUNNING.
+   */
+  aiWarmingUp!: boolean;
   /** §5.7: источник идущего прогона, а после завершения — последнего; null, если прогонов не было. */
   source!: VacancySource | null;
   /**
@@ -51,6 +56,7 @@ export class ScanStatusDto {
     dto.progress = { ...snapshot.progress };
     dto.pageProgress = { ...snapshot.pageProgress };
     dto.stopRequested = snapshot.stopRequested;
+    dto.aiWarmingUp = snapshot.aiWarmingUp;
     dto.source = snapshot.source;
     dto.resumeBySource = resumeBySource;
     dto.stoppedReason = snapshot.stoppedReason;

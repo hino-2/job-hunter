@@ -204,6 +204,8 @@ export const VACANCY_AI_TRANSPORT_ERROR_MESSAGE = 'Запрос к провай�
 export const VACANCY_AI_MISSING_CONTENT_MESSAGE = 'В ответе провайдера ИИ нет текста сообщения';
 export const VACANCY_AI_MODELS_LIST_FAILED_MESSAGE =
   'Не удалось получить список моделей у провайдера ИИ';
+/** §4.11.9: сообщение прогрева модели — по нему различим лог от обычного chat/listModels. */
+export const VACANCY_AI_WARM_UP_FAILED_MESSAGE = 'Прогрев модели не удался';
 
 /**
  * §4.12.3: нормализация evidence и description ПЕРЕД сравнением подстрокой

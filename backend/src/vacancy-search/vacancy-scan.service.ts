@@ -286,6 +286,29 @@ export class VacancyScanService {
       // умерший на нулевой странице, не должен оставлять после себя нечего продолжать.
       await this.position.save(handle.source, startPage, searchUrlTemplate);
 
+      // §4.11.9: прогрев модели — ПЕРВОЕ действие ИИ в прогоне, до того, как вообще
+      // начнётся листание выдачи. Идёт ДО deadlineAt намеренно: время загрузки модели
+      // в память не должно откусывать от бюджета VACANCY_SCAN_MAX_DURATION_MS — иначе
+      // холодный старт мог бы съесть весь бюджет прогона ещё до первой страницы.
+      const warmUpStartedAt = Date.now();
+      const warmUp = await this.aiService.warmUp();
+
+      // Снимается на ОБОИХ исходах до ветвления — иначе неудачный прогрев оставил бы
+      // aiWarmingUp: true до самого state.finish() в finally.
+      handle.setAiWarmingUp(false);
+
+      if (!warmUp.ok) {
+        // §4.11.9/§4.12.3: недоступная модель — тот же класс сбоя, что и AI_UNAVAILABLE
+        // в середине прогона (§4.11.12): прогон завершается резюмируемо, а не тянется
+        // дальше к заведомо мёртвой модели.
+        stoppedReason = SCAN_STOPPED_REASON.AI_UNAVAILABLE;
+        message = warmUp.reason;
+
+        return;
+      }
+
+      this.logger.log(`Прогрев модели: ${Date.now() - warmUpStartedAt} мс`);
+
       const deadlineAt = Date.now() + this.maxDurationMs;
       const ageCutoffMs = Date.now() - this.maxAgeDays * MS_IN_DAY;
       const seenInRun = new Set<string>();

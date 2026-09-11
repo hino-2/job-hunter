@@ -60,6 +60,7 @@ export class VacancyScanStateService {
   private finishedAt: Date | null = null;
   private progress: VacancyScanProgress = createEmptyProgress();
   private stopRequested = false;
+  private aiWarmingUp = false;
   private currentPage: number | null = null;
   private totalPages: number;
   private stoppedReason: ScanStoppedReason | null = null;
@@ -89,6 +90,9 @@ export class VacancyScanStateService {
     this.finishedAt = null;
     this.progress = createEmptyProgress();
     this.stopRequested = false;
+    // Каждый прогон начинается с прогрева модели (§4.11.9) — иначе GET .../scan/status
+    // отдал бы RUNNING с нулевыми счётчиками и без всякого объяснения, что происходит.
+    this.aiWarmingUp = true;
     this.currentPage = startPage;
     this.totalPages = this.maxPages;
     this.stoppedReason = null;
@@ -105,6 +109,9 @@ export class VacancyScanStateService {
       },
       setTotalPages: (total) => {
         this.totalPages = total;
+      },
+      setAiWarmingUp: (value) => {
+        this.aiWarmingUp = value;
       },
     };
   }
@@ -124,6 +131,9 @@ export class VacancyScanStateService {
   finish(reason: ScanStoppedReason, message: string | null): void {
     this.status = reason === SCAN_STOPPED_REASON.ERROR ? SCAN_STATUS.ERROR : SCAN_STATUS.DONE;
     this.finishedAt = new Date();
+    // На случай, если прогон упал ДО того, как run() успел снять флаг сам (например,
+    // исключение внутри try до вызова setAiWarmingUp(false)) — флаг не должен застрять.
+    this.aiWarmingUp = false;
     this.stoppedReason = reason;
     this.message = message;
   }
@@ -142,6 +152,7 @@ export class VacancyScanStateService {
       progress: { ...this.progress },
       pageProgress,
       stopRequested: this.stopRequested,
+      aiWarmingUp: this.aiWarmingUp,
       stoppedReason: this.stoppedReason,
       message: this.message,
     };

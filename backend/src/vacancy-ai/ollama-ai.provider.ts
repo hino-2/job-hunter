@@ -22,7 +22,7 @@ import {
 } from './vacancy-ai.constants';
 import type { AiChatRequest, AiProvider } from './vacancy-ai.interfaces';
 import { isRecord, readString } from './vacancy-ai.parsers';
-import type { AiChatResult, AiModelListResult } from './vacancy-ai.type';
+import type { AiChatResult, AiModelListResult, AiWarmUpResult } from './vacancy-ai.type';
 
 function readMessageContent(payload: unknown): string | null {
   if (!isRecord(payload)) {
@@ -108,6 +108,35 @@ export class OllamaAiProvider implements AiProvider {
         reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error),
       };
     }
+  }
+
+  /**
+   * §4.11.9/§4.12.4: «Load a model» — официально документированный вызов Ollama:
+   * POST /api/chat с ПУСТЫМ messages блокируется, пока модель не окажется в памяти,
+   * и отвечает 200 с пустым content (done_reason: "load"). Тело ответа НЕ парсится —
+   * content == "" здесь ожидаем, интерес представляет только статус (модель не
+   * подтянута → Ollama отвечает не 200). keep_alive не передаётся — §4.12.4 уже
+   * фиксирует OLLAMA_KEEP_ALIVE=5m в compose, и каждый последующий запрос конвейера
+   * сам продлевает резидентность модели.
+   */
+  async warmUp(model: string): Promise<AiWarmUpResult> {
+    try {
+      const response = await firstValueFrom(
+        this.http.post<unknown>(OLLAMA_CHAT_PATH, { model, messages: [], stream: false }),
+      );
+
+      return this.interpretWarmUpResponse(response.status);
+    } catch (error) {
+      return { ok: false, reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error) };
+    }
+  }
+
+  private interpretWarmUpResponse(status: number): AiWarmUpResult {
+    if (status !== OK_STATUS) {
+      return { ok: false, reason: `${VACANCY_AI_UNEXPECTED_STATUS_MESSAGE} ${status}` };
+    }
+
+    return { ok: true };
   }
 
   private interpretChatResponse(status: number, payload: unknown): AiChatResult {

@@ -20,6 +20,7 @@ import {
   VACANCY_AI_TITLE_JSON_SCHEMA,
   VACANCY_AI_TITLE_PLACEHOLDER,
   VACANCY_AI_TITLES_PLACEHOLDER,
+  VACANCY_AI_WARM_UP_FAILED_MESSAGE,
 } from './vacancy-ai.constants';
 import {
   formatTitlesBlock,
@@ -34,7 +35,12 @@ import type {
   AiTitleBatchRequest,
 } from './vacancy-ai.interfaces';
 import { parseDescriptionVerdict, parseTitleVerdicts } from './vacancy-ai.parsers';
-import type { AiChatResult, AiDescriptionResult, AiTitleBatchResult } from './vacancy-ai.type';
+import type {
+  AiChatResult,
+  AiDescriptionResult,
+  AiTitleBatchResult,
+  AiWarmUpResult,
+} from './vacancy-ai.type';
 
 function describeChatFailure(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -192,6 +198,29 @@ export class VacancyAiService {
     const result = await this.provider.listModels();
 
     return result.ok && result.models.includes(this.model);
+  }
+
+  /**
+   * §4.11.9: прогрев модели перед первой страницей прогона. Та же защита в глубину,
+   * что у private chat() — адаптер уже не бросает, но контракт AiProvider этого не
+   * гарантирует извне.
+   */
+  async warmUp(): Promise<AiWarmUpResult> {
+    try {
+      const result = await this.provider.warmUp(this.model);
+
+      if (!result.ok) {
+        this.logger.warn(`${VACANCY_AI_WARM_UP_FAILED_MESSAGE}: ${result.reason}`);
+      }
+
+      return result;
+    } catch (error) {
+      const reason = describeChatFailure(error);
+
+      this.logger.warn(`${VACANCY_AI_WARM_UP_FAILED_MESSAGE}: ${reason}`);
+
+      return { ok: false, reason };
+    }
   }
 
   /** try/catch — защита в глубину: оба адаптера уже не бросают, но контракт AiProvider этого не гарантирует извне. */

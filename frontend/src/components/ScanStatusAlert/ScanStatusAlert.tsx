@@ -1,7 +1,7 @@
 import { Alert, LinearProgress, Stack, Typography } from '@mui/material';
 
 import { FIELD_GAP } from '../../constants/layout.constants';
-import { SCAN_STATUS } from '../../constants/vacancy-search.constants';
+import { SCAN_AI_WARM_UP_LABEL, SCAN_STATUS } from '../../constants/vacancy-search.constants';
 import {
   formatScanPageProgressText,
   formatScanProgressText,
@@ -21,28 +21,35 @@ import type { ScanStatusAlertProps } from './scan-status-alert.interfaces';
  * страниц, и остаётся indeterminate, пока currentPage ещё null (сразу после старта).
  * Кнопки закрытия нет намеренно: §7.9.2 требует показывать статус последнего прогона
  * и при монтировании экрана, а не только пока открыта вкладка, где он запущен.
+ * Пока грузится модель (aiWarmingUp, §5.7), счётчики и страница выдачи ещё нулевые —
+ * вместо них строка «запуск модели...» и indeterminate LinearProgress: backend уже
+ * выставляет currentPage = startPage на этом этапе, и determinate-бар показал бы
+ * бессмысленное значение прогресса.
  */
 export function ScanStatusAlert({ status }: ScanStatusAlertProps) {
   const isRunning = status.status === SCAN_STATUS.RUNNING;
+  const isWarmingUp = isRunning && status.aiWarmingUp;
   const severity = selectScanAlertSeverity(status);
   const pageProgressText = formatScanPageProgressText(status.pageProgress);
   const progressPercent = selectScanProgressPercent(status.pageProgress);
 
+  const bodyText = isWarmingUp
+    ? SCAN_AI_WARM_UP_LABEL
+    : isRunning
+      ? formatScanProgressText(status.progress, status.source)
+      : formatScanSummaryText(status);
+
   return (
     <Alert severity={severity}>
       <Stack spacing={FIELD_GAP}>
-        {isRunning && pageProgressText !== null ? (
+        {isRunning && !isWarmingUp && pageProgressText !== null ? (
           <Typography variant="body2">{pageProgressText}</Typography>
         ) : null}
 
-        <Typography variant="body2">
-          {isRunning
-            ? formatScanProgressText(status.progress, status.source)
-            : formatScanSummaryText(status)}
-        </Typography>
+        <Typography variant="body2">{bodyText}</Typography>
 
         {isRunning ? (
-          progressPercent === null ? (
+          isWarmingUp || progressPercent === null ? (
             <LinearProgress />
           ) : (
             <LinearProgress variant="determinate" value={progressPercent} />

@@ -68,6 +68,8 @@ export interface ScanRunHandle {
   /** Абсолютный 0-based номер страницы выдачи, которая обрабатывается прямо сейчас. */
   setCurrentPage(page: number): void;
   setTotalPages(total: number): void;
+  /** §4.11.9: снимает/поднимает индикатор прогрева модели, отдельный от status (RUNNING не меняется). */
+  setAiWarmingUp(value: boolean): void;
 }
 
 /** §5.7, §4.11.12: индикатор «страница N из M». currentPage — 0-based индекс, totalPages — количество. */
@@ -99,6 +101,8 @@ export interface VacancyScanStateSnapshot {
   progress: VacancyScanProgress;
   pageProgress: VacancyScanPageProgress;
   stopRequested: boolean;
+  /** §4.11.9: true, пока прогон грузит модель перед первой страницей выдачи; вне RUNNING всегда false. */
+  aiWarmingUp: boolean;
   stoppedReason: ScanStoppedReason | null;
   message: string | null;
 }
