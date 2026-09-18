@@ -48,7 +48,7 @@ import type { MatchSource } from './vacancy-search.type';
  * (§4.8) — источник вакансии один и тот же концепт в обеих таблицах.
  */
 @Entity({ name: VACANCY_LEADS_TABLE })
-@Unique(VACANCY_LEAD_INDEX.DEDUP_KEY, ['companyKey', 'positionKey', 'publishedOn'])
+@Unique(VACANCY_LEAD_INDEX.DEDUP_KEY, ['source', 'companyKey', 'positionKey', 'publishedOn'])
 export class VacancyLead {
   @PrimaryGeneratedColumn(PRIMARY_KEY_STRATEGY, { name: VACANCY_LEAD_COLUMN.ID })
   id!: string;

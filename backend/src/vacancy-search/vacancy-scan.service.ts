@@ -336,11 +336,13 @@ export class VacancyScanService {
    * ОБЯЗАН вызывать state.finish() на любом пути, включая исключение — иначе
    * статус навсегда останется RUNNING.
    *
-   * §4.11.8: deadlineAt/detailsBudget/ageCutoffMs/seenInRun — общие на ВЕСЬ прогон,
-   * а не на ногу: MAX_DETAILS и MAX_DURATION_MS делят бюджет между источниками, а
-   * дедупликация внутри прогона (seenInRun) — по компании+должности+дате, ключ не
-   * зависит от источника, так что кросспостинг между hh.ru и geekjob.ru гасится до
-   * всякого ИИ, а не на каждом источнике отдельно.
+   * §4.11.8: deadlineAt/detailsBudget/ageCutoffMs — общие бюджеты на ВЕСЬ прогон, а не
+   * на ногу: MAX_DETAILS и MAX_DURATION_MS делятся между источниками. seenInRun тоже
+   * общий на весь прогон (тот же Set листается через все ноги), но его ключ теперь
+   * несёт источник первым компонентом (§4.11.5) — поэтому кросспост вакансии на
+   * hh.ru и geekjob.ru больше НЕ гасится более ранней ногой: у каждого источника
+   * своя копия ключа, и обе доходят до выборки. Региональные клоны ВНУТРИ одной
+   * ноги продолжают схлопываться тем же общим Set — ключ для них не меняется.
    */
   private async run(
     handle: ScanRunHandle,
@@ -588,6 +590,7 @@ export class VacancyScanService {
       }
 
       const dedupKey = buildDedupKey(
+        provider.source,
         item.company,
         item.position,
         derivePublishedOn(item.publishedAtIso),
@@ -595,7 +598,9 @@ export class VacancyScanService {
       const serialized = serializeDedupKey(dedupKey);
 
       if (seenInRun.has(serialized)) {
-        // §4.11.5 эшелон 1: региональные клоны — тождественные компания+должность+дата, до всякого ИИ.
+        // §4.11.5 эшелон 1: региональные клоны — тождественные источник+компания+должность+дата,
+        // до всякого ИИ. Проверка теперь ограничена источником — копия того же названия с
+        // другого источника сюда не попадёт (ключ начинается с provider.source).
         handle.increment('duplicates');
         continue;
       }
@@ -618,6 +623,7 @@ export class VacancyScanService {
     // названию — потерянные токены; last_seen_at при этом обновляется у КАЖДОГО
     // известного лида страницы, а не только у тех, что прошли бы ИИ.
     const existingByKey = await this.leadsService.findExistingKeys(
+      provider.source,
       survivors.map((survivor) => survivor.dedupKey),
     );
     const duplicateIds: string[] = [];

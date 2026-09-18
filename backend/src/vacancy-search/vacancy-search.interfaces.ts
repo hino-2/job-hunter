@@ -35,8 +35,9 @@ export interface VacancySearchSettingsSnapshot {
   updatedAt: Date;
 }
 
-/** §4.11.5: тройка компания+должность+дата — материализованный ключ дедупликации (vacancy-lead-key.helpers.ts). */
+/** §4.11.5: четвёрка источник+компания+должность+дата — материализованный ключ дедупликации (vacancy-lead-key.helpers.ts). */
 export interface VacancyLeadDedupKey {
+  source: VacancySource;
   companyKey: string;
   positionKey: string;
   publishedOn: string;

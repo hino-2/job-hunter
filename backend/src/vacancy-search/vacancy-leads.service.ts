@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import type { SelectQueryBuilder } from 'typeorm';
 
+import type { VacancySource } from '../applications/applications.type';
 import { buildLikePattern } from '../common/like.helpers';
 import type { FindVacancyLeadsQueryDto } from './dto/find-vacancy-leads.query.dto';
 import {
@@ -81,20 +82,25 @@ export class VacancyLeadsService {
 
   /**
    * §4.11.5 эшелон 2: один SELECT по ключам страницы — по всем кандидатам страницы,
-   * переживших стоп-слова и эшелон 1, ДО ИИ по названию (§4.11.5). Возвращает
-   * Map<сериализованный ключ, id>, а не просто Set, чтобы touchLastSeen мог обновить
-   * last_seen_at найденных дубликатов без второго похода в БД. keys.length ограничен
-   * размером одной страницы выдачи (≤50), поэтому генерация плоского списка
-   * тройко-параметров безопасна.
+   * переживших стоп-слова и эшелон 1, ДО ИИ по названию (§4.11.5). source — равенство,
+   * а не четвёртый элемент кортежей IN: одна страница выдачи принадлежит ровно одной
+   * ноге мультипрогона (§4.11.0), поэтому это чистое сканирование по префиксу нового
+   * составного индекса, а не расширение каждого кортежа. Возвращает Map<сериализованный
+   * ключ, id>, а не просто Set, чтобы touchLastSeen мог обновить last_seen_at найденных
+   * дубликатов без второго похода в БД. keys.length ограничен размером одной страницы
+   * выдачи (≤50), поэтому генерация плоского списка тройко-параметров безопасна.
    */
-  async findExistingKeys(keys: readonly VacancyLeadDedupKey[]): Promise<Map<string, string>> {
+  async findExistingKeys(
+    source: VacancySource,
+    keys: readonly VacancyLeadDedupKey[],
+  ): Promise<Map<string, string>> {
     const result = new Map<string, string>();
 
     if (keys.length === 0) {
       return result;
     }
 
-    const params: Record<string, string> = {};
+    const params: Record<string, string> = { source };
     const tuples = keys.map((key, index) => {
       params[`ck${index}`] = key.companyKey;
       params[`pk${index}`] = key.positionKey;
@@ -109,7 +115,8 @@ export class VacancyLeadsService {
       .addSelect(`${VACANCY_LEADS_ALIAS}.companyKey`, 'company_key')
       .addSelect(`${VACANCY_LEADS_ALIAS}.positionKey`, 'position_key')
       .addSelect(`${VACANCY_LEADS_ALIAS}.publishedOn`, 'published_on')
-      .where(
+      .where(`${VACANCY_LEADS_ALIAS}.source = :source`, params)
+      .andWhere(
         `(${VACANCY_LEADS_ALIAS}.companyKey, ${VACANCY_LEADS_ALIAS}.positionKey, ${VACANCY_LEADS_ALIAS}.publishedOn)` +
           ` IN (${tuples.join(', ')})`,
         params,
@@ -117,7 +124,7 @@ export class VacancyLeadsService {
       .getRawMany();
 
     for (const row of rows) {
-      const parsed = parseDedupKeyWithIdRow(row);
+      const parsed = parseDedupKeyWithIdRow(row, source);
 
       if (parsed !== null) {
         result.set(serializeDedupKey(parsed.key), parsed.id);
