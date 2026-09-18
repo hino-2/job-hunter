@@ -5,6 +5,7 @@ import { SCAN_AI_WARM_UP_LABEL, SCAN_STATUS } from '../../constants/vacancy-sear
 import {
   formatScanPageProgressText,
   formatScanProgressText,
+  formatScanSourceLabel,
   formatScanSummaryText,
   selectScanAlertSeverity,
   selectScanProgressPercent,
@@ -15,8 +16,10 @@ import type { ScanStatusAlertProps } from './scan-status-alert.interfaces';
  * Прогресс/итог прогона поиска (§7.9.2, §4.11.12): один и тот же Alert, во время
  * прогона — строка «страница N из M» (пока currentPage известен) над счётчиками и
  * LinearProgress, после остановки — итоговая сводка с человекочитаемой причиной.
- * Первым элементом строки счётчиков идёт источник прогона (§5.7): прогон один на все
- * источники, и по одним цифрам не понять, чью выдачу сейчас разбирают.
+ * Первым элементом строки счётчиков идёт источник прогона (§5.7, formatScanSourceLabel):
+ * во время RUNNING — сайт, который читается прямо сейчас, даже если запрошены «Все
+ * источники» (по одним цифрам не понять, чью выдачу сейчас разбирают); в итоговой сводке
+ * прогона «Все источники» — «Все источники» целиком, счётчики там сумма по всем этапам.
  * LinearProgress переключается на determinate, как только известна доля пройденных
  * страниц, и остаётся indeterminate, пока currentPage ещё null (сразу после старта).
  * Кнопки закрытия нет намеренно: §7.9.2 требует показывать статус последнего прогона
@@ -36,7 +39,7 @@ export function ScanStatusAlert({ status }: ScanStatusAlertProps) {
   const bodyText = isWarmingUp
     ? SCAN_AI_WARM_UP_LABEL
     : isRunning
-      ? formatScanProgressText(status.progress, status.source)
+      ? formatScanProgressText(status.progress, formatScanSourceLabel(status))
       : formatScanSummaryText(status);
 
   return (

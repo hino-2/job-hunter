@@ -34,7 +34,7 @@ import {
   VACANCY_LEADS_HIDDEN_TOGGLE_LABEL,
   VACANCY_LEADS_SEARCH_PLACEHOLDER,
 } from '../../constants/vacancy-search.constants';
-import type { VacancyLeadSearchSource } from '../../types/vacancy-search.type';
+import type { ScanSourceSelection } from '../../types/vacancy-search.type';
 import { formatResumeButtonLabel } from '../../utils/vacancy-scan.utils';
 import { SCAN_SOURCE_LABEL_ID } from './vacancy-leads-filter-bar.constants';
 import type { VacancyLeadsFilterBarProps } from './vacancy-leads-filter-bar.interfaces';
@@ -60,7 +60,7 @@ export function VacancyLeadsFilterBar({
   resume,
   onOpenSettings,
 }: VacancyLeadsFilterBarProps) {
-  const handleScanSourceChange = (event: SelectChangeEvent<VacancyLeadSearchSource>) => {
+  const handleScanSourceChange = (event: SelectChangeEvent<ScanSourceSelection>) => {
     onScanSourceChange(event.target.value);
   };
 
@@ -91,7 +91,7 @@ export function VacancyLeadsFilterBar({
         disabled={isScanRunning || isStartPending}
       >
         <InputLabel id={SCAN_SOURCE_LABEL_ID}>{SCAN_SOURCE_PICKER_LABEL}</InputLabel>
-        <Select<VacancyLeadSearchSource>
+        <Select<ScanSourceSelection>
           labelId={SCAN_SOURCE_LABEL_ID}
           label={SCAN_SOURCE_PICKER_LABEL}
           value={scanSource}

@@ -6,7 +6,7 @@
  * SYNC_OUTCOME/VACANCY_SOURCE в applications.constants.ts (§10 пп.3–4).
  */
 
-import { VACANCY_SOURCE } from '../applications/applications.constants';
+import { VACANCY_LEAD_SEARCH_SOURCES } from '../vacancies/vacancies.constants';
 import type { ScanStoppedReason } from './vacancy-search.type';
 
 export const VACANCY_LEADS_TABLE = 'vacancy_leads';
@@ -343,12 +343,28 @@ export const SCAN_MODES = ['FRESH', 'RESUME'] as const;
 export const DEFAULT_SCAN_MODE = SCAN_MODES[0];
 
 /**
- * §5.7: источник, с которым идёт прогон, если тело POST /scan его не назвало —
- * ровно та же схема совместимости, что у DEFAULT_SCAN_MODE. Допустимые значения
- * перечисляет VACANCY_LEAD_SEARCH_SOURCES (vacancies/vacancies.constants.ts):
- * поиск лидов поддерживают не все источники синхронизации.
+ * §5.7/§4.11.0: сентинел «прогнать по очереди все источники поиска лидов» — не булев
+ * флаг и не массив, а ещё одно допустимое значение того же скалярного поля `source`,
+ * что и сами источники (SCAN_SOURCE_SELECTIONS ниже).
  */
-export const DEFAULT_SCAN_SOURCE = VACANCY_SOURCE.HH;
+export const SCAN_SOURCE_ALL = 'ALL';
+
+/** §5.7: полный список допустимых значений поля `source` — источники поиска лидов плюс сентинел «все». */
+export const SCAN_SOURCE_SELECTIONS = [...VACANCY_LEAD_SEARCH_SOURCES, SCAN_SOURCE_ALL] as const;
+
+/** §4.11.11: разделитель между именем источника и сообщением в списке ошибок мультипрогона. */
+export const VACANCY_SCAN_SOURCE_MESSAGE_SEPARATOR = ': ';
+
+/** §4.11.11: разделитель между сообщениями разных источников/сегментов при склейке. */
+export const VACANCY_SCAN_MESSAGE_JOIN_SEPARATOR = '; ';
+
+/**
+ * §5.7/§4.11.0: если тело POST /scan не назвало `source`, прогон теперь последовательно
+ * проходит ВСЕ источники поиска лидов (VACANCY_LEAD_SEARCH_SOURCES), а не только hh.ru —
+ * старой совместимости с одним-единственным источником больше нет, «искать по всем
+ * источникам» стало дефолтным поведением.
+ */
+export const DEFAULT_SCAN_SOURCE = SCAN_SOURCE_ALL;
 
 /**
  * §3.7: таблица сохранённых позиций прогона — по строке на источник поиска (PK по

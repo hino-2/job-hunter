@@ -1,14 +1,13 @@
 import { IsIn, IsOptional } from 'class-validator';
 
-import { VACANCY_LEAD_SEARCH_SOURCES } from '../../vacancies/vacancies.constants';
-import type { VacancyLeadSearchSource } from '../../vacancies/vacancies.type';
-import { SCAN_MODES } from '../vacancy-search.constants';
-import type { ScanMode } from '../vacancy-search.type';
+import { SCAN_MODES, SCAN_SOURCE_SELECTIONS } from '../vacancy-search.constants';
+import type { ScanMode, ScanSourceSelection } from '../vacancy-search.type';
 
 /**
- * Тело POST /api/vacancy-leads/scan (§5.7, §4.11.12). Оба поля опциональны — пустое
- * тело трактуется как FRESH по hh.ru (DEFAULT_SCAN_MODE/DEFAULT_SCAN_SOURCE), чтобы
- * старую кнопку «Начать поиск» можно было слать без изменений на фронте.
+ * Тело POST /api/vacancy-leads/scan (§5.7, §4.11.0, §4.11.12). Оба поля опциональны —
+ * пустое тело трактуется как FRESH по всем источникам поиска лидов сразу
+ * (DEFAULT_SCAN_MODE/DEFAULT_SCAN_SOURCE = SCAN_SOURCE_ALL) — «искать по всем
+ * источникам» это дефолтное поведение, а не отдельная опция.
  */
 export class StartScanDto {
   @IsOptional()
@@ -16,11 +15,13 @@ export class StartScanDto {
   mode?: ScanMode;
 
   /**
-   * §5.7: источник поиска лидов. Список — VACANCY_LEAD_SEARCH_SOURCES, а не все
-   * значения VacancySource: getmatch.ru выдачи для поиска не даёт, и 'GETMATCH'
-   * обязан получить 400, а не 500 из реестра.
+   * §5.7/§4.11.0: источник поиска лидов либо сентинел 'ALL' — по одному скалярному
+   * полю, не массиву и не булеву флагу. Список — SCAN_SOURCE_SELECTIONS
+   * (VACANCY_LEAD_SEARCH_SOURCES + 'ALL'), а не все значения VacancySource:
+   * getmatch.ru выдачи для поиска не даёт, и 'GETMATCH' обязан получить 400, а не
+   * 500 из реестра.
    */
   @IsOptional()
-  @IsIn(VACANCY_LEAD_SEARCH_SOURCES)
-  source?: VacancyLeadSearchSource;
+  @IsIn(SCAN_SOURCE_SELECTIONS)
+  source?: ScanSourceSelection;
 }

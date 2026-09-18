@@ -3,6 +3,7 @@ import type { VacancyLeadSearchSource } from '../vacancies/vacancies.type';
 import type {
   MATCH_SOURCE,
   SCAN_MODES,
+  SCAN_SOURCE_SELECTIONS,
   SCAN_STATUS,
   SCAN_STOPPED_REASON,
   VACANCY_LEADS_HIDDEN_FILTERS,
@@ -35,6 +36,12 @@ export type ScanStoppedReason = (typeof SCAN_STOPPED_REASON)[keyof typeof SCAN_S
 
 /** §4.11.12: режим старта прогона — с нуля («Начать») либо с сохранённой позиции («Продолжить»). */
 export type ScanMode = (typeof SCAN_MODES)[number];
+
+/**
+ * §5.7/§4.11.0: значение поля `source` тела POST /scan — один конкретный источник
+ * поиска лидов либо сентинел SCAN_SOURCE_ALL («искать по всем источникам»).
+ */
+export type ScanSourceSelection = (typeof SCAN_SOURCE_SELECTIONS)[number];
 
 /** §5.7: значения query-параметра hidden у GET /api/vacancy-leads. */
 export type VacancyLeadsHiddenFilter = (typeof VACANCY_LEADS_HIDDEN_FILTERS)[number];

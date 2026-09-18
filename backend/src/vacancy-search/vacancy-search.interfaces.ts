@@ -1,7 +1,12 @@
 import type { VacancySource } from '../applications/applications.type';
-import type { VacancySearchItem } from '../vacancies/vacancies.interfaces';
+import type {
+  VacancyLeadSearchProvider,
+  VacancySearchItem,
+} from '../vacancies/vacancies.interfaces';
+import type { VacancyLeadSearchSource } from '../vacancies/vacancies.type';
 import type {
   MatchSource,
+  ScanSourceSelection,
   ScanStatus,
   ScanStoppedReason,
   VacancySearchUrlTemplateBySource,
@@ -60,8 +65,6 @@ export interface VacancyScanProgress {
  * уходит только копия через snapshot().
  */
 export interface ScanRunHandle {
-  /** Источник, по которому идёт этот прогон — прогон один, но источник у него свой (§5.7). */
-  readonly source: VacancySource;
   increment(counter: keyof VacancyScanProgress, delta?: number): void;
   /** Кооперативная отмена (§4.11.12): проверяется в тех же точках, что и дедлайн. */
   isStopRequested(): boolean;
@@ -70,6 +73,13 @@ export interface ScanRunHandle {
   setTotalPages(total: number): void;
   /** §4.11.9: снимает/поднимает индикатор прогрева модели, отдельный от status (RUNNING не меняется). */
   setAiWarmingUp(value: boolean): void;
+  /**
+   * §4.11.0: переключает прогон на следующий сегмент («ногу») мультипрогона —
+   * источник, чью страницу мы сейчас листаем, и стартовую страницу этой ноги.
+   * totalPages сбрасывается на весь бюджет заново (см. VacancyScanStateService) —
+   * иначе прогресс второй ноги считался бы относительно lastPage первой.
+   */
+  startSource(source: VacancySource, startPage: number): void;
 }
 
 /** §5.7, §4.11.12: индикатор «страница N из M». currentPage — 0-based индекс, totalPages — количество. */
@@ -94,8 +104,14 @@ export interface VacancyScanResumeState {
 /** §5.7: тело GET .../scan/status — статус, прогресс и итог последнего прогона. */
 export interface VacancyScanStateSnapshot {
   status: ScanStatus;
-  /** Источник идущего прогона, а после finish() — последнего завершённого; null, если прогонов ещё не было. */
+  /**
+   * Источник, чья страница листается прямо сейчас, а после finish() — последней
+   * обработанной ноги; null, если прогонов ещё не было. При ALL меняется на
+   * каждой ноге (см. selection ниже — что было ЗАПРОШЕНО).
+   */
   source: VacancySource | null;
+  /** §4.11.0/§5.7: чем был запущен прогон — конкретный источник либо SCAN_SOURCE_ALL; живёт до следующего tryStart(), как и source. */
+  selection: ScanSourceSelection | null;
   startedAt: Date | null;
   finishedAt: Date | null;
   progress: VacancyScanProgress;
@@ -208,4 +224,22 @@ export interface VacancyScanDetailsBudget {
 export interface VacancyScanPagePlan {
   detailTasks: VacancyTitleDecision[];
   stop: ScanStoppedReason | null;
+}
+
+/**
+ * §4.11.0: одна нога мультипрогона — источник со своим провайдером, своим
+ * шаблоном ссылки на выдачу (из снимка настроек) и своей стартовой страницей
+ * (0 на FRESH, сохранённая позиция на RESUME). Собирает VacancyScanService.buildPlan().
+ */
+export interface VacancyScanSourcePlan {
+  source: VacancyLeadSearchSource;
+  provider: VacancyLeadSearchProvider;
+  searchUrlTemplate: string;
+  startPage: number;
+}
+
+/** §4.11.0/§4.11.11: итог одной ноги мультипрогона — причина её остановки и сообщение (VacancyScanService.runSource()). */
+export interface VacancyScanLegResult {
+  reason: ScanStoppedReason;
+  message: string | null;
 }

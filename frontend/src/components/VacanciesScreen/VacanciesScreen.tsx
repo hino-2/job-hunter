@@ -13,7 +13,6 @@ import {
   APPLY_VACANCY_SUCCESS_MESSAGE,
   DEFAULT_SCAN_SOURCE,
   DEFAULT_VACANCY_LEADS_FILTERS,
-  EMPTY_SCAN_RESUME_STATE,
   EMPTY_VACANCY_LEADS,
   HIDE_VACANCY_ERROR_FALLBACK_MESSAGE,
   RESTORE_VACANCY_ERROR_FALLBACK_MESSAGE,
@@ -34,9 +33,10 @@ import { useVacancyLeads } from '../../hooks/useVacancyLeads';
 import { useVacancyScanStatus } from '../../hooks/useVacancyScanStatus';
 import type { UpdateVacancyLeadVariables } from '../../hooks/use-update-vacancy-lead.interfaces';
 import type { VacancyLeadsFilters } from '../../types/vacancy-search.interfaces';
-import type { VacancyLeadSearchSource } from '../../types/vacancy-search.type';
+import type { ScanSourceSelection } from '../../types/vacancy-search.type';
 import { extractApiErrorMessage } from '../../utils/error.utils';
 import { isVacancyLeadsSearchActive } from '../../utils/vacancy-lead.utils';
+import { selectScanResumeState } from '../../utils/vacancy-scan.utils';
 import { ScanStatusAlert } from '../ScanStatusAlert/ScanStatusAlert';
 import { SearchSettingsDialog } from '../SearchSettingsDialog/SearchSettingsDialog';
 import { VacancyLeadsFilterBar } from '../VacancyLeadsFilterBar/VacancyLeadsFilterBar';
@@ -66,7 +66,7 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   // §5.7: источник следующего прогона. Локальное состояние экрана, а не часть filters:
   // на выдачу лидов он не влияет вовсе — только на тело POST …/scan и на то, чей срез
   // resumeBySource читает «Продолжить».
-  const [scanSource, setScanSource] = useState<VacancyLeadSearchSource>(DEFAULT_SCAN_SOURCE);
+  const [scanSource, setScanSource] = useState<ScanSourceSelection>(DEFAULT_SCAN_SOURCE);
 
   const items = leads.data ?? EMPTY_VACANCY_LEADS;
 
@@ -200,11 +200,8 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   const isScanRunning = scanStatus.data?.status === SCAN_STATUS.RUNNING;
   const isStopRequested = scanStatus.data?.stopRequested === true;
   // §5.7: позиция для продолжения хранится по строке на источник, кнопке нужен срез
-  // выбранного. Фолбэк стоит на самом срезе, а не на карте: он обязан сработать не только
-  // пока GET …/scan/status не ответил, но и когда ответивший сервер постарее и ключа
-  // только что добавленного источника в resumeBySource нет вовсе — иначе undefined
-  // разыменовался бы тем же рендером (ErrorBoundary в приложении нет).
-  const resume = scanStatus.data?.resumeBySource[scanSource] ?? EMPTY_SCAN_RESUME_STATE;
+  // выбранного пункта — конкретного сайта либо «Все источники» (selectScanResumeState).
+  const resume = selectScanResumeState(scanStatus.data?.resumeBySource, scanSource);
   const showScanAlert =
     scanStatus.data !== undefined && scanStatus.data.status !== SCAN_STATUS.IDLE;
 

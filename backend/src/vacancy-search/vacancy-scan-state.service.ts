@@ -14,7 +14,7 @@ import type {
   VacancyScanProgress,
   VacancyScanStateSnapshot,
 } from './vacancy-search.interfaces';
-import type { ScanStatus, ScanStoppedReason } from './vacancy-search.type';
+import type { ScanSourceSelection, ScanStatus, ScanStoppedReason } from './vacancy-search.type';
 
 function createEmptyProgress(): VacancyScanProgress {
   return {
@@ -56,6 +56,7 @@ export class VacancyScanStateService {
   private readonly maxPages: number;
   private status: ScanStatus = SCAN_STATUS.IDLE;
   private source: VacancySource | null = null;
+  private selection: ScanSourceSelection | null = null;
   private startedAt: Date | null = null;
   private finishedAt: Date | null = null;
   private progress: VacancyScanProgress = createEmptyProgress();
@@ -77,14 +78,19 @@ export class VacancyScanStateService {
    * даже если запрошен другой источник, — иначе два прогона делили бы один пул
    * HTTP-запросов и один бюджет ИИ.
    */
-  tryStart(startPage: number, source: VacancySource): ScanRunHandle | null {
+  tryStart(
+    selection: ScanSourceSelection,
+    source: VacancySource,
+    startPage: number,
+  ): ScanRunHandle | null {
     if (this.status === SCAN_STATUS.RUNNING) {
       return null;
     }
 
     this.status = SCAN_STATUS.RUNNING;
-    // Источник живёт до следующего tryStart(): после finish() статус отдаёт источник
-    // последнего завершённого прогона (§5.7).
+    // Источник и selection живут до следующего tryStart(): после finish() статус
+    // отдаёт источник/выбор последнего завершённого прогона (§5.7).
+    this.selection = selection;
     this.source = source;
     this.startedAt = new Date();
     this.finishedAt = null;
@@ -99,7 +105,6 @@ export class VacancyScanStateService {
     this.message = null;
 
     return {
-      source,
       increment: (counter, delta = 1) => {
         this.progress[counter] += delta;
       },
@@ -112,6 +117,13 @@ export class VacancyScanStateService {
       },
       setAiWarmingUp: (value) => {
         this.aiWarmingUp = value;
+      },
+      startSource: (nextSource, nextStartPage) => {
+        // §4.11.0: totalPages сбрасывается на весь бюджет заново — иначе прогресс
+        // следующей ноги считался бы относительно lastPage предыдущей.
+        this.source = nextSource;
+        this.currentPage = nextStartPage;
+        this.totalPages = this.maxPages;
       },
     };
   }
@@ -147,6 +159,7 @@ export class VacancyScanStateService {
     return {
       status: this.status,
       source: this.source,
+      selection: this.selection,
       startedAt: this.startedAt,
       finishedAt: this.finishedAt,
       progress: { ...this.progress },

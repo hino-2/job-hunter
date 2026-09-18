@@ -11,6 +11,7 @@ import type {
   VacancyDescriptionResult,
   VacancyLeadSearchSource,
 } from '../vacancies/vacancies.type';
+import { VACANCY_LEAD_SEARCH_SOURCES } from '../vacancies/vacancies.constants';
 import { CompanyLogoService } from '../logos/company-logo.service';
 import {
   AI_FAILURE_KIND,
@@ -32,6 +33,7 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
 import {
   MATCH_SOURCE,
   MS_IN_DAY,
+  SCAN_SOURCE_ALL,
   SCAN_STOPPED_REASON,
   VACANCY_MATCH_MODE_ENV_KEY,
   VACANCY_PREFILTER_MODE_ENV_KEY,
@@ -44,8 +46,10 @@ import {
   VACANCY_SCAN_MAX_DETAILS_ENV_KEY,
   VACANCY_SCAN_MAX_DURATION_MS_ENV_KEY,
   VACANCY_SCAN_MAX_PAGES_ENV_KEY,
+  VACANCY_SCAN_MESSAGE_JOIN_SEPARATOR,
   VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE,
   VACANCY_SCAN_NOT_RUNNING_MESSAGE,
+  VACANCY_SCAN_SOURCE_MESSAGE_SEPARATOR,
   VACANCY_SCAN_STOP_REQUESTED_MESSAGE,
   VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE,
 } from './vacancy-search.constants';
@@ -53,7 +57,9 @@ import type {
   ScanRunHandle,
   VacancyLeadLogoSource,
   VacancyScanDetailsBudget,
+  VacancyScanLegResult,
   VacancyScanPagePlan,
+  VacancyScanSourcePlan,
   VacancyScanSurvivor,
   VacancySearchSettingsSnapshot,
   VacancyTitleDecision,
@@ -61,6 +67,7 @@ import type {
 } from './vacancy-search.interfaces';
 import type {
   ScanMode,
+  ScanSourceSelection,
   ScanStoppedReason,
   VacancyMatchMode,
   VacancyPrefilterMode,
@@ -68,6 +75,21 @@ import type {
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * §4.11.0/§4.11.11: склеивает сообщения нескольких ног мультипрогона (и/или причины
+ * текущей ноги) в одну строку ScanStatusDto.message — пустые/null отбрасываются,
+ * остаток соединяется VACANCY_SCAN_MESSAGE_JOIN_SEPARATOR; null, если склеивать нечего.
+ */
+function joinScanMessages(parts: readonly (string | null)[]): string | null {
+  const nonEmpty = parts.filter((part): part is string => part !== null && part !== '');
+
+  if (nonEmpty.length === 0) {
+    return null;
+  }
+
+  return nonEmpty.join(VACANCY_SCAN_MESSAGE_JOIN_SEPARATOR);
 }
 
 /**
@@ -150,12 +172,16 @@ function findExcludedInDescription(
 }
 
 /**
- * §4.11: конвейер отбора «стоп-слова → дедупликация → ИИ по названию → загрузка
- * страницы → ИИ по описанию» (§4.11.4). Публичные входы — start(mode, source) и
- * requestStop() (§4.11.12). Источник прогона резолвится в провайдера через
+ * §4.11/§4.11.0: конвейер отбора «стоп-слова → дедупликация → ИИ по названию →
+ * загрузка страницы → ИИ по описанию» (§4.11.4). Публичные входы — start(mode,
+ * selection) и requestStop() (§4.11.12). selection === 'ALL' (SCAN_SOURCE_ALL)
+ * прогоняет ВСЕ источники поиска лидов последовательно, одной «ногой» за раз
+ * (buildPlan/run/runSource ниже) — конкретный источник даёт план из одной ноги, тот
+ * же код обслуживает оба случая. Источник каждой ноги резолвится в провайдера через
  * VacancyLeadSearchRegistry, а шаблон ссылки на выдачу берётся из снимка настроек по
- * тому же source — сам конвейер об источниках больше ничего не знает (§4.11). start() резолвит стартовую страницу (снимок настроек,
- * для RESUME — сохранённая позиция), а затем СИНХРОННО вызывает
+ * тому же source — сам конвейер об источниках больше ничего не знает (§4.11).
+ * start() строит план (buildPlan) — резолвит стартовую страницу каждой ноги (снимок
+ * настроек, для RESUME — сохранённая позиция), а затем СИНХРОННО вызывает
  * VacancyScanStateService.tryStart() (§4.11.9) — единственный check-and-set,
  * второй POST /scan при идущем прогоне получает 409 ДО первого await ниже него.
  *
@@ -209,39 +235,36 @@ export class VacancyScanService {
 
   /**
    * §5.7 POST /api/vacancy-leads/scan: отвечает сразу (202), прогон уходит в фон.
-   * mode === 'RESUME' требует валидную сохранённую позицию (§4.11.12) — иначе 409
-   * с отдельным сообщением, не путать с «прогон уже идёт».
+   * mode === 'RESUME' требует хотя бы одну ногу с валидной сохранённой позицией
+   * (§4.11.12) — иначе 409 с отдельным сообщением, не путать с «прогон уже идёт».
    *
-   * ВАЖНО: между this.state.tryStart(startPage) и void this.run(...) НЕ ДОЛЖНО быть
-   * ни одного await — иначе tryStart() перестаёт быть единственным арбитром
+   * ВАЖНО: между this.state.tryStart(...) и void this.run(...) НЕ ДОЛЖНО быть ни
+   * одного await — иначе tryStart() перестаёт быть единственным арбитром
    * конкурентности и два одновременных RESUME могли бы породить два прогона.
    */
-  async start(mode: ScanMode, source: VacancyLeadSearchSource): Promise<Date> {
+  async start(mode: ScanMode, selection: ScanSourceSelection): Promise<Date> {
     const settings = await this.settingsService.getSnapshot();
 
     if (!settings.aiEnabled) {
       // §5.7: отбор теперь только ИИ — без него прогон не может отобрать ни одной
-      // вакансии, поэтому запуск отказан ДО резолва провайдера и tryStart().
+      // вакансии, поэтому запуск отказан ДО построения плана и tryStart().
       throw new ConflictException(VACANCY_SCAN_AI_DISABLED_MESSAGE);
     }
 
-    const provider = this.leadSearchRegistry.require(source);
-    const searchUrlTemplate = settings.searchUrlTemplateBySource[source];
-    let startPage: number = VACANCY_SCAN_INITIAL_PAGE;
+    // §4.11.0: 'ALL' разворачивается в полный список источников поиска лидов,
+    // прогоняемых по очереди; конкретный источник — план из одной ноги тем же кодом.
+    const sources: readonly VacancyLeadSearchSource[] =
+      selection === SCAN_SOURCE_ALL ? VACANCY_LEAD_SEARCH_SOURCES : [selection];
+    const plan = await this.buildPlan(mode, sources, settings);
+    const [firstLeg] = plan;
 
-    if (mode === 'RESUME') {
-      // Позиция и ссылка на выдачу — того же источника: продолжать прогон одного
-      // источника с позиции другого нельзя (§4.11.12).
-      const position = await this.position.load(source);
-
-      if (!isResumablePosition(position, searchUrlTemplate, this.maxPages)) {
-        throw new ConflictException(VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE);
-      }
-
-      startPage = position.nextPage;
+    if (firstLeg === undefined) {
+      // §4.11.12: достижимо только на RESUME — ни у одного источника выбора нет
+      // валидной сохранённой позиции (FRESH всегда даёт хотя бы одну ногу).
+      throw new ConflictException(VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE);
     }
 
-    const handle = this.state.tryStart(startPage, source);
+    const handle = this.state.tryStart(selection, firstLeg.source, firstLeg.startPage);
 
     if (handle === null) {
       throw new ConflictException(VACANCY_SCAN_ALREADY_RUNNING_MESSAGE);
@@ -252,9 +275,47 @@ export class VacancyScanService {
     // void: run() сама ловит все ошибки (try/finally на state.finish) — необработанный
     // реджект уронил бы процесс (Node --unhandled-rejections=throw), тот же приём,
     // что у ScheduledSyncService.runScheduledSync (§4.7).
-    void this.run(handle, settings, provider, searchUrlTemplate, startPage);
+    void this.run(handle, settings, plan);
 
     return startedAt;
+  }
+
+  /**
+   * §4.11.0/§4.11.12: план мультипрогона — по одной ноге на источник, в порядке
+   * sources. FRESH включает КАЖДЫЙ источник (стартовая страница — 0). RESUME
+   * включает только источники с валидной сохранённой позицией
+   * (isResumablePosition) — источник без валидной позиции ПРОПУСКАЕТСЯ, а не
+   * перезапускается с нулевой страницы: иначе «Продолжить» по всем источникам
+   * молча стало бы «Начать» для части из них.
+   */
+  private async buildPlan(
+    mode: ScanMode,
+    sources: readonly VacancyLeadSearchSource[],
+    settings: VacancySearchSettingsSnapshot,
+  ): Promise<VacancyScanSourcePlan[]> {
+    const plan: VacancyScanSourcePlan[] = [];
+
+    for (const source of sources) {
+      const provider = this.leadSearchRegistry.require(source);
+      const searchUrlTemplate = settings.searchUrlTemplateBySource[source];
+
+      if (mode === 'FRESH') {
+        plan.push({ source, provider, searchUrlTemplate, startPage: VACANCY_SCAN_INITIAL_PAGE });
+        continue;
+      }
+
+      // Позиция и ссылка на выдачу — того же источника: продолжать прогон одного
+      // источника с позиции другого нельзя (§4.11.12).
+      const position = await this.position.load(source);
+
+      if (!isResumablePosition(position, searchUrlTemplate, this.maxPages)) {
+        continue;
+      }
+
+      plan.push({ source, provider, searchUrlTemplate, startPage: position.nextPage });
+    }
+
+    return plan;
   }
 
   /**
@@ -269,27 +330,32 @@ export class VacancyScanService {
     this.logger.log(VACANCY_SCAN_STOP_REQUESTED_MESSAGE);
   }
 
-  /** ОБЯЗАН вызывать state.finish() на любом пути, включая исключение — иначе статус навсегда останется RUNNING. */
+  /**
+   * §4.11.0: драйвер всего прогона — прогревает модель РОВНО ОДИН РАЗ (не на
+   * каждую ногу), затем листает plan по одной ноге за раз через runSource().
+   * ОБЯЗАН вызывать state.finish() на любом пути, включая исключение — иначе
+   * статус навсегда останется RUNNING.
+   *
+   * §4.11.8: deadlineAt/detailsBudget/ageCutoffMs/seenInRun — общие на ВЕСЬ прогон,
+   * а не на ногу: MAX_DETAILS и MAX_DURATION_MS делят бюджет между источниками, а
+   * дедупликация внутри прогона (seenInRun) — по компании+должности+дате, ключ не
+   * зависит от источника, так что кросспостинг между hh.ru и geekjob.ru гасится до
+   * всякого ИИ, а не на каждом источнике отдельно.
+   */
   private async run(
     handle: ScanRunHandle,
     settings: VacancySearchSettingsSnapshot,
-    provider: VacancyLeadSearchProvider,
-    searchUrlTemplate: string,
-    startPage: number,
+    plan: readonly VacancyScanSourcePlan[],
   ): Promise<void> {
     let stoppedReason: ScanStoppedReason = SCAN_STOPPED_REASON.COMPLETED;
     let message: string | null = null;
-    let resumePage = startPage;
 
     try {
-      // startPage === 0 заодно стирает позицию прошлого прогона: свежий прогон,
-      // умерший на нулевой странице, не должен оставлять после себя нечего продолжать.
-      await this.position.save(handle.source, startPage, searchUrlTemplate);
-
       // §4.11.9: прогрев модели — ПЕРВОЕ действие ИИ в прогоне, до того, как вообще
-      // начнётся листание выдачи. Идёт ДО deadlineAt намеренно: время загрузки модели
-      // в память не должно откусывать от бюджета VACANCY_SCAN_MAX_DURATION_MS — иначе
-      // холодный старт мог бы съесть весь бюджет прогона ещё до первой страницы.
+      // начнётся листание выдачи, и ОДИН раз на весь прогон, а не на каждую ногу.
+      // Идёт ДО deadlineAt намеренно: время загрузки модели в память не должно
+      // откусывать от бюджета VACANCY_SCAN_MAX_DURATION_MS — иначе холодный старт
+      // мог бы съесть весь бюджет прогона ещё до первой страницы.
       const warmUpStartedAt = Date.now();
       const warmUp = await this.aiService.warmUp();
 
@@ -313,6 +379,99 @@ export class VacancyScanService {
       const ageCutoffMs = Date.now() - this.maxAgeDays * MS_IN_DAY;
       const seenInRun = new Set<string>();
       const detailsBudget: VacancyScanDetailsBudget = { opened: 0 };
+      const isMultiSource = plan.length > 1;
+      const errors: string[] = [];
+
+      for (const leg of plan) {
+        if (handle.isStopRequested()) {
+          stoppedReason = SCAN_STOPPED_REASON.STOPPED;
+          message = joinScanMessages(errors);
+          break;
+        }
+
+        this.logger.log(`Нога прогона: источник ${leg.source}, старт со страницы ${leg.startPage}`);
+
+        const result = await this.runSource(
+          handle,
+          settings,
+          leg,
+          deadlineAt,
+          ageCutoffMs,
+          seenInRun,
+          detailsBudget,
+        );
+
+        if (result.reason === SCAN_STOPPED_REASON.ERROR) {
+          // §4.11.11: сбой ОДНОЙ страницы результатов не отменяет соседние источники —
+          // ошибка запоминается, и цикл переходит к следующей ноге; префикс с именем
+          // источника появляется только в мультипрогоне, где иначе не понять, чья ошибка.
+          errors.push(
+            isMultiSource
+              ? `${leg.source}${VACANCY_SCAN_SOURCE_MESSAGE_SEPARATOR}${result.message ?? ''}`
+              : (result.message ?? ''),
+          );
+          stoppedReason = SCAN_STOPPED_REASON.ERROR;
+          message = joinScanMessages(errors);
+          continue;
+        }
+
+        if (!isExhaustedStop(result.reason)) {
+          // STOPPED/DEADLINE/MAX_DETAILS/AI_UNAVAILABLE — общие бюджеты и кооперативная
+          // остановка, они завершают ВЕСЬ прогон, а не только текущую ногу.
+          stoppedReason = result.reason;
+          message = joinScanMessages([result.message, ...errors]);
+          break;
+        }
+
+        // Выдача этой ноги исчерпана целиком — если до неё не было ошибок на других
+        // источниках, её причина/сообщение и есть итог прогона на данный момент;
+        // если были — прогон остаётся ERROR, а этот источник просто пройден.
+        if (errors.length === 0) {
+          stoppedReason = result.reason;
+          message = result.message;
+        }
+      }
+    } catch (error) {
+      stoppedReason = SCAN_STOPPED_REASON.ERROR;
+      message = describeError(error);
+      this.logger.error(VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE, message);
+    } finally {
+      this.state.finish(stoppedReason, message);
+      this.logger.log(`${VACANCY_SCAN_FINISHED_MESSAGE}: ${stoppedReason}`);
+    }
+  }
+
+  /**
+   * §4.11.0: одна нога мультипрогона — тело сегодняшнего run() без прогрева модели
+   * и без state.finish() (оба общие на весь прогон, см. run() выше). MAX_PAGES
+   * остаётся бюджетом ЭТОЙ ноги — каждый источник листается заново с нулевого
+   * счётчика страниц. Пишет СВОЮ позицию (position.save/clear) в СВОЁМ finally —
+   * до того, как run() дойдёт до следующей ноги или до общего state.finish(),
+   * поэтому гарантия §4.11.12 («позиция обновлена раньше, чем статус увидел бы
+   * DONE») держится по построению и для мультипрогона.
+   */
+  private async runSource(
+    handle: ScanRunHandle,
+    settings: VacancySearchSettingsSnapshot,
+    plan: VacancyScanSourcePlan,
+    deadlineAt: number,
+    ageCutoffMs: number,
+    seenInRun: Set<string>,
+    detailsBudget: VacancyScanDetailsBudget,
+  ): Promise<VacancyScanLegResult> {
+    const { source, provider, searchUrlTemplate, startPage } = plan;
+    let stoppedReason: ScanStoppedReason = SCAN_STOPPED_REASON.COMPLETED;
+    let message: string | null = null;
+    let resumePage = startPage;
+
+    handle.startSource(source, startPage);
+
+    try {
+      // startPage === 0 заодно стирает позицию прошлого прогона этого источника:
+      // нога, умершая на нулевой странице, не должна оставлять после себя нечего
+      // продолжать.
+      await this.position.save(source, startPage, searchUrlTemplate);
+
       let lastPage: number | null = null;
       let outcome: ScanStoppedReason | null = null;
 
@@ -338,7 +497,7 @@ export class VacancyScanService {
         const pageResult = await provider.fetchSearchPage({ searchUrlTemplate, page });
 
         if (!pageResult.ok) {
-          // §4.11.3: неразбираемая страница выдачи — fail-loud, останов прогона.
+          // §4.11.3: неразбираемая страница выдачи — fail-loud, останов этой ноги.
           outcome = SCAN_STOPPED_REASON.ERROR;
           message = pageResult.message;
           break;
@@ -378,7 +537,7 @@ export class VacancyScanService {
         // Страница обработана целиком — сохраняем позицию ДО следующей: SIGKILL
         // между страницами не должен стоить больше одной страницы (§4.11.12).
         resumePage = page + 1;
-        await this.position.save(handle.source, resumePage, searchUrlTemplate);
+        await this.position.save(source, resumePage, searchUrlTemplate);
       }
 
       stoppedReason = outcome ?? SCAN_STOPPED_REASON.MAX_PAGES;
@@ -387,17 +546,17 @@ export class VacancyScanService {
       message = describeError(error);
       this.logger.error(VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE, message);
     } finally {
-      // Порядок важен: GET .../scan/status, который первым увидит DONE, обязан уже
-      // видеть финальную позицию (§4.11.12) — поэтому позиция пишется ДО state.finish().
+      // Порядок важен: GET .../scan/status, который первым увидит DONE (или следующую
+      // ногу), обязан уже видеть финальную позицию ЭТОГО источника (§4.11.12) —
+      // поэтому позиция пишется ДО того, как run() пойдёт дальше.
       if (isExhaustedStop(stoppedReason)) {
-        await this.position.clear(handle.source);
+        await this.position.clear(source);
       } else {
-        await this.position.save(handle.source, resumePage, searchUrlTemplate);
+        await this.position.save(source, resumePage, searchUrlTemplate);
       }
-
-      this.state.finish(stoppedReason, message);
-      this.logger.log(`${VACANCY_SCAN_FINISHED_MESSAGE}: ${stoppedReason}`);
     }
+
+    return { reason: stoppedReason, message };
   }
 
   /** Обрабатывает одну страницу выдачи целиком; null — продолжать листать дальше. */
@@ -819,7 +978,7 @@ export class VacancyScanService {
   ): Promise<void> {
     const row = buildVacancyLeadRow({
       item: decision.item,
-      source: handle.source,
+      source: provider.source,
       positionKey: decision.dedupKey.positionKey,
       companyKey: decision.dedupKey.companyKey,
       publishedOn: decision.dedupKey.publishedOn,

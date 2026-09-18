@@ -1,6 +1,7 @@
 import type {
   MATCH_SOURCE,
   SCAN_MODE,
+  SCAN_SOURCE_ALL,
   SCAN_STATUS,
   SCAN_STOPPED_REASON,
   VACANCY_LEAD_SEARCH_SOURCES,
@@ -36,6 +37,12 @@ export type ScanMode = (typeof SCAN_MODE)[keyof typeof SCAN_MODE];
  * (§4.8), поэтому в поле source запроса POST /api/vacancy-leads/scan не допускается.
  */
 export type VacancyLeadSearchSource = (typeof VACANCY_LEAD_SEARCH_SOURCES)[number];
+
+/**
+ * §5.7: значение выпадающего списка «Источник» — конкретный сайт либо «Все источники»
+ * (SCAN_SOURCE_ALL). Пресетится дефолтом (§7.9), выбор конкретного сайта — явное сужение.
+ */
+export type ScanSourceSelection = VacancyLeadSearchSource | typeof SCAN_SOURCE_ALL;
 
 /**
  * §5.7: состояние «можно продолжить» отдельно по каждому источнику поиска — позиция

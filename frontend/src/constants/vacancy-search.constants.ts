@@ -5,8 +5,8 @@ import type {
 } from '../types/vacancy-search.interfaces';
 import type {
   MatchSource,
+  ScanSourceSelection,
   ScanStoppedReason,
-  VacancyLeadSearchSource,
   VacancyLeadsHiddenFilter,
   VacancyLeadsOrder,
   VacancyLeadsSortField,
@@ -82,19 +82,33 @@ export const VACANCY_LEAD_SEARCH_SOURCES = [
   VACANCY_SOURCE.GEEKJOB,
 ] as const;
 
-/** §5.7: дефолт поля source у POST /api/vacancy-leads/scan (ручная копия DEFAULT_SCAN_SOURCE бэкенда). */
-export const DEFAULT_SCAN_SOURCE: VacancyLeadSearchSource = VACANCY_SOURCE.HH;
+/**
+ * §5.7: значение поля source, означающее «прогнать все источники по очереди» —
+ * ручная копия SCAN_SOURCE_ALL бэкенда.
+ */
+export const SCAN_SOURCE_ALL = 'ALL';
+export const SCAN_SOURCE_ALL_LABEL = 'Все источники';
 
 /**
- * §7.9.2: пункты выпадающего списка «Источник» перед запуском прогона. Подписи берутся
+ * §5.7: дефолт поля source у POST /api/vacancy-leads/scan (ручная копия DEFAULT_SCAN_SOURCE
+ * бэкенда) — «Все источники» пресетит выпадающий список, выбор конкретного сайта — явное
+ * сужение.
+ */
+export const DEFAULT_SCAN_SOURCE: ScanSourceSelection = SCAN_SOURCE_ALL;
+
+/**
+ * §7.9.2: пункты выпадающего списка «Источник» перед запуском прогона. «Все источники»
+ * идёт первым пунктом (дефолт), дальше — конкретные сайты; их подписи берутся
  * из VACANCY_SOURCE_LABELS, а не дублируются: тот же текст показывает tooltip иконки
  * синхронизации отклика (§7.2.3), и расходиться они не должны.
  */
-export const LEAD_SEARCH_SOURCE_OPTIONS: readonly LeadSearchSourceOption[] =
-  VACANCY_LEAD_SEARCH_SOURCES.map((value) => ({
+export const LEAD_SEARCH_SOURCE_OPTIONS: readonly LeadSearchSourceOption[] = [
+  { value: SCAN_SOURCE_ALL, label: SCAN_SOURCE_ALL_LABEL },
+  ...VACANCY_LEAD_SEARCH_SOURCES.map((value) => ({
     value,
     label: VACANCY_SOURCE_LABELS[value],
-  }));
+  })),
+];
 
 /** Подписи §4.12 — тот же приём, что MATCH_SOURCE_LABELS у остальных enum-ов. */
 export const MATCH_SOURCE_LABELS: Record<MatchSource, string> = {
@@ -254,6 +268,14 @@ export const SCAN_SUMMARY_VALUE_SEPARATOR = ' ';
  * весь экран (ErrorBoundary в приложении нет).
  */
 export const EMPTY_SCAN_RESUME_STATE: ScanResumeState = { available: false, nextPage: null };
+
+/**
+ * §10, §5.7: стабильная ссылка на «продолжить доступно» для «Все источники» — тем же
+ * приёмом, что EMPTY_SCAN_RESUME_STATE. nextPage: null держит подпись кнопки простым
+ * «Продолжить» без номера страницы: продолжение сразу нескольких источников не сводится
+ * к одному номеру.
+ */
+export const SCAN_RESUME_STATE_ANY_SOURCE: ScanResumeState = { available: true, nextPage: null };
 
 /** §7.9.2: подпись выпадающего списка «Источник» в панели фильтров. */
 export const SCAN_SOURCE_PICKER_LABEL = 'Источник';

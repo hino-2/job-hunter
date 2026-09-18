@@ -1,12 +1,12 @@
 import type { ScanResumeState, VacancyLeadsFilters } from '../../types/vacancy-search.interfaces';
-import type { VacancyLeadSearchSource } from '../../types/vacancy-search.type';
+import type { ScanSourceSelection } from '../../types/vacancy-search.type';
 
 export interface VacancyLeadsFilterBarProps {
   filters: VacancyLeadsFilters;
   onFiltersChange: (filters: VacancyLeadsFilters) => void;
-  /** §5.7, §7.9.2: источник, чью выдачу разберёт следующий прогон. */
-  scanSource: VacancyLeadSearchSource;
-  onScanSourceChange: (source: VacancyLeadSearchSource) => void;
+  /** §5.7, §7.9.2: источник, чью выдачу разберёт следующий прогон — сайт либо «Все источники». */
+  scanSource: ScanSourceSelection;
+  onScanSourceChange: (source: ScanSourceSelection) => void;
   onScanFresh: () => void;
   onScanResume: () => void;
   onScanStop: () => void;

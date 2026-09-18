@@ -3,6 +3,7 @@ import {
   VACANCY_SOURCE_UNKNOWN_LABEL,
 } from '../constants/application.constants';
 import {
+  EMPTY_SCAN_RESUME_STATE,
   SCAN_PAGE_NUMBER_OFFSET,
   SCAN_PAGE_PROGRESS_PREFIX,
   SCAN_PAGE_PROGRESS_SEPARATOR,
@@ -16,15 +17,19 @@ import {
   SCAN_PROGRESS_SEEN_LABEL,
   SCAN_RESUME_BUTTON_LABEL,
   SCAN_RESUME_BUTTON_PAGE_PREFIX,
+  SCAN_RESUME_STATE_ANY_SOURCE,
+  SCAN_SOURCE_ALL,
+  SCAN_SOURCE_ALL_LABEL,
   SCAN_STATUS,
   SCAN_STOPPED_REASON,
   SCAN_STOPPED_REASON_LABELS,
   SCAN_SUMMARY_SEPARATOR,
   SCAN_SUMMARY_VALUE_SEPARATOR,
+  VACANCY_LEAD_SEARCH_SOURCES,
 } from '../constants/vacancy-search.constants';
 import { NOTIFICATION_SEVERITY } from '../constants/notification.constants';
-import type { VacancySource } from '../types/application.type';
 import type { NotificationSeverity } from '../types/notification.type';
+import type { ScanResumeStateBySource, ScanSourceSelection } from '../types/vacancy-search.type';
 import type {
   ScanPageProgress,
   ScanProgress,
@@ -35,13 +40,24 @@ import type {
 /** Производные статуса прогона поиска (§7.9.2), чистые функции без литералов внутри. */
 
 /**
- * §5.7, §7.9.2: подпись источника прогона — тот же словарь, что у tooltip'а иконки
- * синхронизации отклика (§7.2.3). null приходит только до самого первого прогона,
- * когда Alert ещё не показывается вовсе, но значение всё равно обязано остаться
- * читаемым, а не пустым.
+ * §5.7, §7.9.2: подпись источника прогона. Пока прогон RUNNING, называет конкретный сайт,
+ * который читается прямо сейчас (status.source) — тот же словарь, что у tooltip'а иконки
+ * синхронизации отклика (§7.2.3): пользователю важно, чью выдачу разбирают в этот момент,
+ * даже когда запрошены «Все источники». В итоговой сводке счётчики — сумма по всем этапам
+ * прогона, поэтому там название последнего этапа было бы неправдой: при selection === 'ALL'
+ * сводка называет «Все источники», иначе — тот же конкретный сайт. source === null бывает
+ * только до самого первого прогона, когда Alert ещё не показывается вовсе, но значение
+ * всё равно обязано остаться читаемым, а не пустым.
  */
-export function formatScanSourceLabel(source: VacancySource | null): string {
-  return source === null ? VACANCY_SOURCE_UNKNOWN_LABEL : VACANCY_SOURCE_LABELS[source];
+export function formatScanSourceLabel(status: ScanStatusResponse): string {
+  const concreteSourceLabel =
+    status.source === null ? VACANCY_SOURCE_UNKNOWN_LABEL : VACANCY_SOURCE_LABELS[status.source];
+
+  if (status.status === SCAN_STATUS.RUNNING) {
+    return concreteSourceLabel;
+  }
+
+  return status.selection === SCAN_SOURCE_ALL ? SCAN_SOURCE_ALL_LABEL : concreteSourceLabel;
 }
 
 /**
@@ -52,13 +68,10 @@ export function formatScanSourceLabel(source: VacancySource | null): string {
  * узнанных ещё ДО ИИ по названию (эшелон 2 по БД), а «отклонено моделью» — только тех,
  * кто дедупликацию уже прошёл.
  */
-export function formatScanProgressText(
-  progress: ScanProgress,
-  source: VacancySource | null,
-): string {
+export function formatScanProgressText(progress: ScanProgress, sourceLabel: string): string {
   const rejectedByModel = progress.rejectedTitle + progress.rejectedDescription;
   const parts = [
-    formatScanSourceLabel(source),
+    sourceLabel,
     `${SCAN_PROGRESS_PAGES_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.pagesFetched}`,
     `${SCAN_PROGRESS_SEEN_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.itemsSeen}`,
     `${SCAN_PROGRESS_CREATED_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.created}`,
@@ -77,7 +90,7 @@ export function formatScanSummaryText(status: ScanStatusResponse): string {
     status.stoppedReason === null ? null : SCAN_STOPPED_REASON_LABELS[status.stoppedReason];
   const parts = [
     reasonLabel,
-    formatScanProgressText(status.progress, status.source),
+    formatScanProgressText(status.progress, formatScanSourceLabel(status)),
     status.message,
   ].filter((part): part is string => part !== null && part.length > 0);
 
@@ -159,4 +172,30 @@ export function formatResumeButtonLabel(resume: ScanResumeState): string {
   const pageNumber = resume.nextPage + SCAN_PAGE_NUMBER_OFFSET;
 
   return `${SCAN_RESUME_BUTTON_PAGE_PREFIX}${SCAN_SUMMARY_VALUE_SEPARATOR}${pageNumber}`;
+}
+
+/**
+ * §5.7, §4.11.12: срез resumeBySource для выбранного пункта «Источник». При «Все
+ * источники» кнопка «Продолжить» доступна, если хотя бы один сайт из
+ * VACANCY_LEAD_SEARCH_SOURCES резервировал позицию — тогда прогон продолжит с них,
+ * остальные пройдёт с нуля. Оба варианта возвращают стабильную ссылку (константу либо
+ * сам объект из кэша запроса), поэтому useMemo на месте вызова не нужен (§10).
+ */
+export function selectScanResumeState(
+  resumeBySource: ScanResumeStateBySource | undefined,
+  selection: ScanSourceSelection,
+): ScanResumeState {
+  if (resumeBySource === undefined) {
+    return EMPTY_SCAN_RESUME_STATE;
+  }
+
+  if (selection === SCAN_SOURCE_ALL) {
+    const anyAvailable = VACANCY_LEAD_SEARCH_SOURCES.some(
+      (source) => resumeBySource[source]?.available === true,
+    );
+
+    return anyAvailable ? SCAN_RESUME_STATE_ANY_SOURCE : EMPTY_SCAN_RESUME_STATE;
+  }
+
+  return resumeBySource[selection] ?? EMPTY_SCAN_RESUME_STATE;
 }
