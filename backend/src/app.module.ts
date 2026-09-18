@@ -7,6 +7,7 @@ import { validateEnvironment } from './config/environment.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { SourceIconsModule } from './source-icons/source-icons.module';
 import { VacanciesModule } from './vacancies/vacancies.module';
 import { VacancySearchModule } from './vacancy-search/vacancy-search.module';
 
@@ -22,6 +23,7 @@ import { VacancySearchModule } from './vacancy-search/vacancy-search.module';
     ApplicationsModule,
     HealthModule,
     SchedulerModule,
+    SourceIconsModule,
     VacanciesModule,
     VacancySearchModule,
   ],

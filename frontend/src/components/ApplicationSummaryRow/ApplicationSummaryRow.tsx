@@ -51,6 +51,7 @@ import {
 } from './application-summary-row.constants';
 import type { ApplicationSummaryRowProps } from './application-summary-row.interfaces';
 import { FieldCell } from '../FieldCell/FieldCell';
+import { SourceIcon } from '../SourceIcon/SourceIcon';
 import { SyncStatusIcon } from '../SyncStatusIcon/SyncStatusIcon';
 
 /**
@@ -134,6 +135,8 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
           minWidth: SUMMARY_TEXT_MIN_WIDTH_PX,
         }}
       >
+        <SourceIcon source={application.vacancySource} />
+
         <Avatar
           variant="rounded"
           alt=""
@@ -262,11 +265,7 @@ export const ApplicationSummaryRow = memo(function ApplicationSummaryRow({
        * без наведения — поэтому Tooltip'а здесь нет. Обёртка со stopPropagation не нужна:
        * кнопка никогда не disabled, повторное нажатие гасит isNoopPatch в commit (§7.3).
        */}
-      <Button
-        variant="contained"
-        onClick={handleRejectByCompany}
-        sx={{ flex: SUMMARY_FLEX.auto }}
-      >
+      <Button variant="contained" onClick={handleRejectByCompany} sx={{ flex: SUMMARY_FLEX.auto }}>
         {APPLICATION_RESULT_LABELS[APPLICATION_RESULT.REJECTED_BY_COMPANY]}
       </Button>
     </Box>

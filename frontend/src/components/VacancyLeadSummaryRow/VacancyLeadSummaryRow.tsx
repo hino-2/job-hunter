@@ -20,6 +20,7 @@ import {
 } from '../../constants/vacancy-search.constants';
 import { buildCompanyInitial, buildCompanyLogoUrl } from '../../utils/company-logo.utils';
 import { formatPublishedOnShort, formatSalaryShort } from '../../utils/vacancy-lead.utils';
+import { SourceIcon } from '../SourceIcon/SourceIcon';
 import type { VacancyLeadSummaryRowProps } from './vacancy-lead-summary-row.interfaces';
 
 /**
@@ -103,6 +104,8 @@ export const VacancyLeadSummaryRow = memo(function VacancyLeadSummaryRow({
           minWidth: SUMMARY_TEXT_MIN_WIDTH_PX,
         }}
       >
+        <SourceIcon source={lead.source} />
+
         <Avatar
           variant="rounded"
           alt=""

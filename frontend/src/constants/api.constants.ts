@@ -44,6 +44,13 @@ export const VACANCY_LEAD_APPLY_PATH_SEGMENT = 'apply';
 export const LOGO_PATH_SEGMENT = 'logo';
 
 /**
+ * §5.8: GET /api/vacancy-sources/:source/icon — байты фавикона сайта-источника (§4.10).
+ * Иконка одна на источник, а не на запись — в отличие от LOGO_PATH_SEGMENT здесь нет id.
+ */
+export const VACANCY_SOURCES_ENDPOINT = '/vacancy-sources';
+export const SOURCE_ICON_PATH_SEGMENT = 'icon';
+
+/**
  * Худший случай одной записи на бэкенде: 3 попытки × 10 000 мс + backoff 500/1500 мс ≈ 32 с
  * (backend/src/config/config.constants.ts, backend/src/vacancies/vacancies.constants.ts), то
  * есть дефолтный API_TIMEOUT_MS (20 000) оборвал бы штатный запрос. Одинаково для обоих

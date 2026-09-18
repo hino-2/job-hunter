@@ -31,13 +31,18 @@ export const COMPANY_LOGO_ACCEPT_HEADER_VALUE = 'image/*';
 /**
  * Белый список Content-Type → расширение файла на диске. svg сюда намеренно не входит
  * (§4.10, §8 критичных моментов блюпринта): SVG умеет носить скрипт, а hh.ru/getmatch.ru
- * логотипы компаний отдают только растровыми форматами.
+ * логотипы компаний отдают только растровыми форматами. image/x-icon и
+ * image/vnd.microsoft.icon (§5.8) добавлены ради favicon.ico источников — ICO растровый
+ * контейнер без какого-либо скриптинга, то же основание, что не пускает сюда SVG, на
+ * него не распространяется.
  */
 export const COMPANY_LOGO_CONTENT_TYPES = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
   'image/gif': 'gif',
+  'image/x-icon': 'ico',
+  'image/vnd.microsoft.icon': 'ico',
 } as const;
 
 /** Обратная карта для чтения (§4.10): расширение файла на диске → Content-Type ответа. */
@@ -46,6 +51,7 @@ export const COMPANY_LOGO_EXTENSION_CONTENT_TYPES = {
   jpg: 'image/jpeg',
   webp: 'image/webp',
   gif: 'image/gif',
+  ico: 'image/x-icon',
 } as const;
 
 /**
@@ -60,17 +66,25 @@ export const COMPANY_LOGO_FILE_COLUMN_LENGTH = 64;
 /** §4.10, §4.11, §5.1: отдаётся и когда у записи нет логотипа, и когда файл пропал с диска. */
 export const COMPANY_LOGO_NOT_FOUND_MESSAGE = 'Логотип компании не сохранён';
 
-/** fileKey — это id записи (application.id либо vacancy_leads.id), то есть всегда UUID (§4.10). */
+/**
+ * fileKey — это id записи (application.id либо vacancy_leads.id, то есть UUID) ЛИБО имя
+ * источника вакансий (§4.8, §5.8: VacancySource, например 'HH' или 'IT_VACANCIES') —
+ * favicon источника не принадлежит ни одной записи БД. Обе ветки альтернативы заякорены
+ * (^…$) и не содержат ни `.`, ни `/` — защита от path traversal в глубину не ослаблена
+ * тем, что альтернатива теперь две.
+ */
 export const COMPANY_LOGO_FILE_KEY_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[A-Z][A-Z_]{1,15})$/;
 
 /**
- * Имя файла на диске: <uuid записи>.<расширение из белого списка>. Проверяется и на
- * запись (после выбора расширения), и на чтение (значение из колонки БД) — защита
- * в глубину от path traversal, клиентский ввод в путь никогда не попадает.
+ * Имя файла на диске: <fileKey>.<расширение из белого списка>, тот же fileKey, что и
+ * в COMPANY_LOGO_FILE_KEY_PATTERN (uuid записи либо имя источника, §5.8). Проверяется
+ * и на запись (после выбора расширения), и на чтение (значение из колонки БД или из
+ * SourceIconService) — защита в глубину от path traversal, клиентский ввод в путь
+ * никогда не попадает.
  */
 export const COMPANY_LOGO_FILE_NAME_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp|gif)$/;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[A-Z][A-Z_]{1,15})\.(png|jpg|webp|gif|ico)$/;
 
 export const COMPANY_LOGO_FILE_NAME_SEPARATOR = '.';
 
