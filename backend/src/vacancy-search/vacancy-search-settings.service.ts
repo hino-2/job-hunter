@@ -12,6 +12,7 @@ import {
 } from './vacancy-search-settings.helpers';
 import {
   KEYWORD_LIST_JOIN_SEPARATOR,
+  VACANCY_SEARCH_SETTINGS_INVALID_GEEKJOB_URL_TEMPLATE_MESSAGE,
   VACANCY_SEARCH_SETTINGS_INVALID_IT_VACANCIES_URL_TEMPLATE_MESSAGE,
   VACANCY_SEARCH_SETTINGS_INVALID_URL_TEMPLATE_MESSAGE,
   VACANCY_SEARCH_SETTINGS_MISSING_MESSAGE,
@@ -90,6 +91,17 @@ export class VacancySearchSettingsService {
       );
     }
 
+    if (!isValidSearchUrlTemplate(entity.geekjobSearchUrlTemplate, VACANCY_SOURCE.GEEKJOB)) {
+      this.logger.error(
+        'Шаблон ссылки на выдачу geekjob.ru в настройках повреждён: нет' +
+          ' плейсхолдера {page} либо хост не входит в allow-list geekjob.ru',
+      );
+
+      throw new InternalServerErrorException(
+        VACANCY_SEARCH_SETTINGS_INVALID_GEEKJOB_URL_TEMPLATE_MESSAGE,
+      );
+    }
+
     return {
       keywords: parseKeywordList(entity.keywords),
       excludeKeywords: parseKeywordList(entity.excludeKeywords),
@@ -112,6 +124,7 @@ export class VacancySearchSettingsService {
     entity.aiEnabled = dto.aiEnabled;
     entity.searchUrlTemplate = dto.searchUrlTemplate;
     entity.itVacanciesSearchUrlTemplate = dto.itVacanciesSearchUrlTemplate;
+    entity.geekjobSearchUrlTemplate = dto.geekjobSearchUrlTemplate;
 
     return this.settings.save(entity);
   }

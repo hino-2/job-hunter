@@ -167,6 +167,8 @@ export interface VacancySearchSettings {
   searchUrlTemplate: string;
   /** §3.6, §5.7: тот же шаблон для второго источника лидов — выдачи it-vacancies.ru. */
   itVacanciesSearchUrlTemplate: string;
+  /** §3.6, §5.7: тот же шаблон для третьего источника лидов — выдачи geekjob.ru. */
+  geekjobSearchUrlTemplate: string;
   updatedAt: string;
 }
 
@@ -182,6 +184,7 @@ export interface VacancySearchSettingsUpdate {
   aiEnabled: boolean;
   searchUrlTemplate: string;
   itVacanciesSearchUrlTemplate: string;
+  geekjobSearchUrlTemplate: string;
 }
 
 /**

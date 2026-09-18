@@ -96,6 +96,7 @@ export function buildSettingsFormValues(settings: VacancySearchSettings): Search
     aiEnabled: settings.aiEnabled,
     searchUrlTemplate: settings.searchUrlTemplate,
     itVacanciesSearchUrlTemplate: settings.itVacanciesSearchUrlTemplate,
+    geekjobSearchUrlTemplate: settings.geekjobSearchUrlTemplate,
   };
 }
 
@@ -111,5 +112,6 @@ export function buildSettingsUpdatePayload(
     aiEnabled: values.aiEnabled,
     searchUrlTemplate: values.searchUrlTemplate.trim(),
     itVacanciesSearchUrlTemplate: values.itVacanciesSearchUrlTemplate.trim(),
+    geekjobSearchUrlTemplate: values.geekjobSearchUrlTemplate.trim(),
   };
 }

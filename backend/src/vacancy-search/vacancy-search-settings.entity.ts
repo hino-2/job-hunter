@@ -56,6 +56,20 @@ export class VacancySearchSettings {
   })
   itVacanciesSearchUrlTemplate!: string;
 
+  /**
+   * §3.6/§4.11.1/§5.7/§4.13: шаблон ссылки на выдачу geekjob.ru — своя колонка по
+   * тому же правилу, что и у it-vacancies.ru: обязателен плейсхолдер {page}, хост —
+   * из allow-list geekjob.ru. Пользователь вставляет user-facing ссылку выдачи
+   * (.../vacancies?…); подмена на внутренний JSON-эндпоинт происходит на этапе
+   * buildGeekjobSearchUrl, а не здесь.
+   */
+  @Column({
+    type: COLUMN_TYPE.VARCHAR,
+    name: VACANCY_SEARCH_SETTINGS_COLUMN.GEEKJOB_SEARCH_URL_TEMPLATE,
+    length: VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH,
+  })
+  geekjobSearchUrlTemplate!: string;
+
   /** §4.11.4: ключевые слова через запятую — и для детерминированного отбора, и для промптов. */
   @Column({ type: COLUMN_TYPE.TEXT, name: VACANCY_SEARCH_SETTINGS_COLUMN.KEYWORDS })
   keywords!: string;

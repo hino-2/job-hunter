@@ -2,6 +2,7 @@ import { config as loadEnvFile } from 'dotenv';
 
 import {
   DEFAULT_DATABASE_PORT,
+  DEFAULT_GEEKJOB_MAX_RETRIES,
   DEFAULT_GETMATCH_MAX_RETRIES,
   DEFAULT_HH_MAX_RETRIES,
   DEFAULT_IT_VACANCIES_MAX_RETRIES,
@@ -11,6 +12,7 @@ import type { TestDatabaseSettings } from './e2e.interfaces';
 import {
   DEFAULT_TEST_DATABASE_HOST,
   DEFAULT_TEST_DATABASE_NAME,
+  GEEKJOB_STUB_BASE_URL,
   GETMATCH_STUB_BASE_URL,
   HH_STUB_BASE_URL,
   IT_VACANCIES_STUB_BASE_URL,
@@ -19,6 +21,8 @@ import {
   TEST_DATABASE_NAME_PATTERN,
   TEST_ENV_APPLIED_FLAG,
   TEST_ENV_APPLIED_VALUE,
+  TEST_GEEKJOB_MAX_REQUESTS_PER_SECOND,
+  TEST_GEEKJOB_USER_AGENT,
   TEST_GETMATCH_USER_AGENT,
   TEST_HH_MAX_REQUESTS_PER_SECOND,
   TEST_HH_USER_AGENT,
@@ -122,6 +126,14 @@ export function applyTestEnvironment(): TestDatabaseSettings {
   process.env.IT_VACANCIES_USER_AGENT = TEST_IT_VACANCIES_USER_AGENT;
   process.env.IT_VACANCIES_MAX_RETRIES = String(DEFAULT_IT_VACANCIES_MAX_RETRIES);
   process.env.IT_VACANCIES_MAX_REQUESTS_PER_SECOND = TEST_IT_VACANCIES_MAX_REQUESTS_PER_SECOND;
+  // geekjob.ru (§4.13): тот же приём, что у it-vacancies.ru выше — оверрайд заведён
+  // вместе с самим источником, ДО появления его фикстур. Порт заглушки свой
+  // (GEEKJOB_STUB_PORT): пока её никто не поднимает, запрос упирается в ECONNREFUSED,
+  // а не в живой сайт.
+  process.env.GEEKJOB_SITE_BASE_URL = GEEKJOB_STUB_BASE_URL;
+  process.env.GEEKJOB_USER_AGENT = TEST_GEEKJOB_USER_AGENT;
+  process.env.GEEKJOB_MAX_RETRIES = String(DEFAULT_GEEKJOB_MAX_RETRIES);
+  process.env.GEEKJOB_MAX_REQUESTS_PER_SECOND = TEST_GEEKJOB_MAX_REQUESTS_PER_SECOND;
   // Общие для всех источников (§4.6) — переименованы из HH_SYNC_CONCURRENCY/
   // HH_SYNC_MIN_DELAY_MS вместе с обобщением синхронизации в vacancies/.
   process.env.SYNC_CONCURRENCY = String(TEST_SYNC_CONCURRENCY);

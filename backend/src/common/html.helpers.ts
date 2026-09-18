@@ -2,6 +2,8 @@ import {
   HTML_ANY_TAG_PATTERN,
   HTML_BLANK_LINE_RUN_PATTERN,
   HTML_BLOCK_BREAK_TAG_PATTERN,
+  HTML_DIV_CLOSE_TOKEN_PREFIX,
+  HTML_DIV_TOKEN_PATTERN,
   HTML_ENTITY_REPLACEMENTS,
   HTML_INLINE_WHITESPACE_PATTERN,
 } from './common.constants';
@@ -42,4 +44,59 @@ export function htmlToPlainText(html: string): string {
     .join('\n');
 
   return collapsedLines.replace(HTML_BLANK_LINE_RUN_PATTERN, '\n').trim();
+}
+
+/**
+ * §4.11.7: внутренний HTML открывающего тега `<div …>`, найденного вызывающим по
+ * своему `openPattern` (у it-vacancies.ru — класс content, у geekjob.ru — id
+ * vacancy-description). Разбор — один проход вперёд со счётчиком вложенности, без
+ * HTML-библиотеки (§2.4 п.7: cheerio/jsdom не добавляются) и без «жадного» регекса
+ * до последнего </div>: тот захватил бы полстраницы, а нежадный — оборвался бы на
+ * первом вложенном закрывающем теге. Бэктрекинга здесь нет: HTML_DIV_TOKEN_PATTERN
+ * ищет только токены тегов, а счётчик двигается линейно.
+ *
+ * Перенесена из it-vacancies-html.helpers.ts при добавлении geekjob.ru: оба
+ * источника разбирают SSR-блок описания идентичным алгоритмом, только открывающий
+ * тег у них разный — дублировать 35 строк парсинга означало бы гарантированное
+ * расхождение при первой правке.
+ *
+ * Атрибут вида `data-x="</div>"` теоретически сбил бы счётчик, но такой разметки
+ * ни на одной странице источников нет, а ошибка деградирует мягко — вызывающий
+ * откатывается на фолбэк-описание, а не срывает прогон.
+ *
+ * Никогда не бросает: открывающий тег не найден или вложенность не закрылась — null.
+ */
+export function extractBalancedDivBlock(html: string, openPattern: RegExp): string | null {
+  const open = openPattern.exec(html);
+
+  if (open === null) {
+    return null;
+  }
+
+  const start = open.index + open[0].length;
+
+  // Локальная копия глобального регекса: lastIndex мутируется проходом, и общий
+  // экземпляр из constants сломал бы следующий вызов.
+  const tokens = new RegExp(HTML_DIV_TOKEN_PATTERN.source, HTML_DIV_TOKEN_PATTERN.flags);
+
+  tokens.lastIndex = start;
+
+  let depth = 1;
+  let token = tokens.exec(html);
+
+  while (token !== null) {
+    if (token[0].startsWith(HTML_DIV_CLOSE_TOKEN_PREFIX)) {
+      depth -= 1;
+
+      if (depth === 0) {
+        return html.slice(start, token.index);
+      }
+    } else {
+      depth += 1;
+    }
+
+    token = tokens.exec(html);
+  }
+
+  return null;
 }

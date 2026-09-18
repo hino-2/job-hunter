@@ -1,22 +1,22 @@
 # Job Hunter
 
 A personal tracker of submitted job applications that refreshes their status from the public
-vacancy page of the source — hh.ru, getmatch.ru or it-vacancies.ru. Runs locally in Docker, for a
-single user.
+vacancy page of the source — hh.ru, getmatch.ru, it-vacancies.ru or geekjob.ru. Runs locally in
+Docker, for a single user.
 
 Features:
 
 - applications shown as expandable accordions, not as a table;
 - inline field editing with autosave — there is no «Сохранить» button;
 - company and position auto-filled from a pasted vacancy link (hh.ru, getmatch.ru,
-  it-vacancies.ru);
+  it-vacancies.ru, geekjob.ru);
 - manual status refresh — per record (🔄) and for all open records at once, across all sources;
 - a scheduled background refresh of all open records, running inside the `api` process;
 - «Все / Открытые / HR-собес / Тех-собес / Закрытые» filters (the two interview-stage chips list
   only records still open, §5.1), search by company/position/notes, and sorting;
-- a second screen, «Вакансии»: searching for new vacancies on hh.ru and it-vacancies.ru, screening
-  them by keywords and, optionally, by a local LLM in Ollama, then creating an application from a
-  found lead in one click;
+- a second screen, «Вакансии»: searching for new vacancies on hh.ru, it-vacancies.ru and geekjob.ru,
+  screening them by keywords and, optionally, by a local LLM in Ollama, then creating an application
+  from a found lead in one click;
 - local Docker deployment behind Basic Auth, sized for one user.
 
 The requirements and the full description of the behaviour live in [spec/](./spec/), one file per
@@ -47,8 +47,9 @@ In `.env` you should change at least:
 - `AUTH_USER` / `AUTH_PASSWORD` — the Basic Auth credentials (defaults `admin` / `admin`);
 - `POSTGRES_PASSWORD` — the database password;
 - `HH_USER_AGENT` — hh.ru answers `400` to requests without a meaningful User-Agent, so put your
-  own real contact there. `GETMATCH_USER_AGENT` and `IT_VACANCIES_USER_AGENT` need no change — both
-  sources have a safe default (no `403` on an ordinary User-Agent has been observed).
+  own real contact there. `GETMATCH_USER_AGENT`, `IT_VACANCIES_USER_AGENT` and `GEEKJOB_USER_AGENT`
+  need no change — all three sources have a safe default (no `403` on an ordinary User-Agent has
+  been observed).
 
 > **Renamed env keys.** `HH_SYNC_CONCURRENCY` and `HH_SYNC_MIN_DELAY_MS` were renamed to
 > `SYNC_CONCURRENCY` and `SYNC_MIN_DELAY_MS` — the bulk-run parameters are shared by all vacancy
@@ -88,15 +89,16 @@ npm run ps      # service status
 
 ### The «Отклики» screen
 
-- «+ Добавить» → paste a vacancy link from hh.ru, getmatch.ru or it-vacancies.ru — the company and
-  position are filled in automatically, and values you already typed by hand are not overwritten.
+- «+ Добавить» → paste a vacancy link from hh.ru, getmatch.ru, it-vacancies.ru or geekjob.ru — the
+  company and position are filled in automatically, and values you already typed by hand are not
+  overwritten.
 - Fields save themselves: on blur and after a pause in typing. There is no «Сохранить» button; a
   failed autosave rolls the value back and shows a notification.
 - «Статус» and «Результат» are selects in the collapsed record header, so both can be changed
   without expanding the record.
-- 🔄 in the record header refreshes the status of one vacancy from its source (hh.ru, getmatch.ru
-  or it-vacancies.ru — resolved automatically from the pasted link); the source is shown in the
-  tooltip of the sync icon.
+- 🔄 in the record header refreshes the status of one vacancy from its source (hh.ru, getmatch.ru,
+  it-vacancies.ru or geekjob.ru — resolved automatically from the pasted link); the source is shown
+  in the tooltip of the sync icon.
 - «Обновить все открытые» runs the refresh over every record in status «Открыта», regardless of the
   source of each one, and reports a summary afterwards.
 - «Отказ компании» in the record header sets that result in one click. There is no delete button in
@@ -111,7 +113,7 @@ npm run ps      # service status
 
 ### The «Вакансии» screen
 
-- Pick the search source (hh.ru or it-vacancies.ru) in the first control of the filter bar, then
+- Pick the search source (hh.ru, it-vacancies.ru or geekjob.ru) in the first control of the filter bar, then
   «Начать поиск» to run a fresh sweep from the first page, «Продолжить» to resume from the saved
   position of the previous run, «Остановить» to stop the current one. The run is asynchronous: the
   request returns immediately and the screen polls its status every 2 s, showing progress and then
@@ -156,7 +158,7 @@ docker compose exec -T db psql -U jobhunter jobhunter < backup.sql
 browser → web (nginx :8080) → api (NestJS :3000) → db (PostgreSQL :5432)
                 ↓                      ↓
           React static files    public vacancy pages
-                                (hh.ru, getmatch.ru, it-vacancies.ru)
+                                (hh.ru, getmatch.ru, it-vacancies.ru, geekjob.ru)
                                        ↓
                             ollama :11434 (optional, profile `ai`)
 ```
@@ -280,10 +282,11 @@ In Docker the migrations are applied automatically when the `api` container star
 - **Sync returns «страница вакансии hh.ru не распознана».** hh.ru changed the page markup (the
   expected `archived` tokens are gone) — update `hh-page.parser.ts` for the new layout. Until then
   the vacancy data is simply not refreshed; the whole application does not fall over.
-- **Syncing getmatch.ru or it-vacancies.ru returns `403`.** Neither source was observed to block by
-  User-Agent, but if that changed — check `GETMATCH_USER_AGENT` / `IT_VACANCIES_USER_AGENT` in
-  `.env` and that the site is reachable from the machine running the `api` container; retrying does
-  not help here either (no retries on `403`, same as hh.ru).
+- **Syncing getmatch.ru, it-vacancies.ru or geekjob.ru returns `403`.** None of these sources was
+  observed to block by User-Agent, but if that changed — check `GETMATCH_USER_AGENT` /
+  `IT_VACANCIES_USER_AGENT` / `GEEKJOB_USER_AGENT` in `.env` and that the site is reachable from the
+  machine running the `api` container; retrying does not help here either (no retries on `403`, same
+  as hh.ru).
 - **Sync returns «страница вакансии getmatch.ru не распознана».** getmatch.ru changed its markup or
   the format of the flight payload (`self.__next_f.push(...)`) — the `initialVacancy` key is not
   found, or the chunks do not concatenate into valid JSON. Update `getmatch-page.parser.ts` for the
@@ -292,6 +295,9 @@ In Docker the migrations are applied automatically when the `api` container star
 - **Sync returns «страница вакансии it-vacancies.ru не распознана».** The
   `application/ld+json` `JobPosting` block is missing from the page — update
   `it-vacancies-page.parser.ts`. Same fail-soft principle.
+- **Sync returns «страница вакансии geekjob.ru не распознана».** The page's single `<h1>` title is
+  missing or empty — geekjob.ru changed its markup; update `geekjob-page.parser.ts`. Same fail-soft
+  principle.
 - **A run keeps stopping with `stoppedReason = 'AI_UNAVAILABLE'` and no other errors in the log.**
   `VACANCY_AI_TIMEOUT_MS` (default `120000`) is too low for this machine — the default is measured on
   a GPU, and on CPU-only Ollama a cold model load plus a full stage-1 batch can exceed it. Raise
@@ -338,12 +344,12 @@ missing or a value falls outside the allowed range, the process dies with a clea
 particular, **the application does not start without `AUTH_PASSWORD`** — a guard against
 accidentally bringing up an instance with no authorization.
 
-The vacancy-source integration variables are three symmetric groups, `HH_*`, `GETMATCH_*` and
-`IT_VACANCIES_*` (base URL, User-Agent, request timeout, retry count), plus `SYNC_CONCURRENCY` /
-`SYNC_MIN_DELAY_MS` shared by all sources (bulk-run concurrency and pause, §4.6 of the
-specification). The only variable that is mandatory and has no default is `HH_USER_AGENT` (hh.ru
-answers `400` without a meaningful User-Agent); all `GETMATCH_*` and `IT_VACANCIES_*` variables are
-optional.
+The vacancy-source integration variables are four symmetric groups, `HH_*`, `GETMATCH_*`,
+`IT_VACANCIES_*` and `GEEKJOB_*` (base URL, User-Agent, request timeout, retry count), plus
+`SYNC_CONCURRENCY` / `SYNC_MIN_DELAY_MS` shared by all sources (bulk-run concurrency and pause, §4.6
+of the specification). The only variable that is mandatory and has no default is `HH_USER_AGENT`
+(hh.ru answers `400` without a meaningful User-Agent); all `GETMATCH_*`, `IT_VACANCIES_*` and
+`GEEKJOB_*` variables are optional.
 
 The application runs the same sweep as the «Обновить все открытые» button on a schedule of its own
 (§4.7): `SCHEDULED_SYNC_ENABLED` (`true`/`false`, default `true`) and `SCHEDULED_SYNC_INTERVAL_MS`
@@ -365,17 +371,18 @@ the host. When changing `COMPANY_LOGO_DIR` in `.env`, change the volume mount po
 
 `HH_MAX_REQUESTS_PER_SECOND` is a shared throttle for **all** hh.ru requests, not just search: the
 vacancy page during sync and preview, the results page and the vacancy page during search, and the
-logos from hhcdn.ru all go through the same rate limit. it-vacancies.ru has its own independent
-`IT_VACANCIES_MAX_REQUESTS_PER_SECOND` — a sweep of one source must not eat the other's request
-budget.
+logos from hhcdn.ru all go through the same rate limit. it-vacancies.ru and geekjob.ru each have
+their own independent throttle (`IT_VACANCIES_MAX_REQUESTS_PER_SECOND`,
+`GEEKJOB_MAX_REQUESTS_PER_SECOND`) — a sweep of one source must not eat another's request budget.
 
 ---
 
 ## Vacancy search and AI screening (Ollama)
 
-The «Вакансии» tab (§4.11, §4.12) searches for new vacancies on hh.ru and it-vacancies.ru on a
-button press and sorts them by keywords, and optionally by a local model in Ollama. The tab works
-out of the box without AI: the deterministic keyword screening needs no extra container.
+The «Вакансии» tab (§4.11, §4.12) searches for new vacancies on hh.ru, it-vacancies.ru and
+geekjob.ru on a button press and sorts them by keywords, and optionally by a local model in Ollama.
+The tab works out of the box without AI: the deterministic keyword screening needs no extra
+container.
 
 To enable AI screening:
 

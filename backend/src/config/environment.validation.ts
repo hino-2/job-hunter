@@ -18,6 +18,11 @@ import {
   DEFAULT_COMPANY_LOGO_DIR,
   DEFAULT_COMPANY_LOGO_REQUEST_TIMEOUT_MS,
   DEFAULT_DATABASE_PORT,
+  DEFAULT_GEEKJOB_MAX_REQUESTS_PER_SECOND,
+  DEFAULT_GEEKJOB_MAX_RETRIES,
+  DEFAULT_GEEKJOB_REQUEST_TIMEOUT_MS,
+  DEFAULT_GEEKJOB_SITE_BASE_URL,
+  DEFAULT_GEEKJOB_USER_AGENT,
   DEFAULT_GETMATCH_MAX_RETRIES,
   DEFAULT_GETMATCH_REQUEST_TIMEOUT_MS,
   DEFAULT_GETMATCH_SITE_BASE_URL,
@@ -208,6 +213,42 @@ export class EnvironmentVariables {
   @Min(HH_MAX_REQUESTS_PER_SECOND_MIN)
   @Max(HH_MAX_REQUESTS_PER_SECOND_MAX)
   IT_VACANCIES_MAX_REQUESTS_PER_SECOND: number = DEFAULT_IT_VACANCIES_MAX_REQUESTS_PER_SECOND;
+
+  /**
+   * §4.8/§4.11/§4.13: geekjob.ru — четвёртый источник, все ключи опциональны с
+   * безопасными дефолтами, свой лимит частоты (по нему тоже идёт прогон поиска
+   * лидов — десятки запросов подряд).
+   */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  GEEKJOB_SITE_BASE_URL: string = DEFAULT_GEEKJOB_SITE_BASE_URL;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  GEEKJOB_USER_AGENT: string = DEFAULT_GEEKJOB_USER_AGENT;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(REQUEST_TIMEOUT_MIN_MS)
+  @Max(REQUEST_TIMEOUT_MAX_MS)
+  GEEKJOB_REQUEST_TIMEOUT_MS: number = DEFAULT_GEEKJOB_REQUEST_TIMEOUT_MS;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(MAX_RETRIES_MAX)
+  GEEKJOB_MAX_RETRIES: number = DEFAULT_GEEKJOB_MAX_RETRIES;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(HH_MAX_REQUESTS_PER_SECOND_MIN)
+  @Max(HH_MAX_REQUESTS_PER_SECOND_MAX)
+  GEEKJOB_MAX_REQUESTS_PER_SECOND: number = DEFAULT_GEEKJOB_MAX_REQUESTS_PER_SECOND;
 
   @IsOptional()
   @Type(() => Number)

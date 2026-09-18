@@ -79,6 +79,7 @@ export const SCAN_MODE = {
 export const VACANCY_LEAD_SEARCH_SOURCES = [
   VACANCY_SOURCE.HH,
   VACANCY_SOURCE.IT_VACANCIES,
+  VACANCY_SOURCE.GEEKJOB,
 ] as const;
 
 /** §5.7: дефолт поля source у POST /api/vacancy-leads/scan (ручная копия DEFAULT_SCAN_SOURCE бэкенда). */
@@ -281,6 +282,10 @@ export const IT_VACANCIES_SEARCH_URL_TEMPLATE_LABEL = 'Ссылка на выд�
 export const IT_VACANCIES_SEARCH_URL_TEMPLATE_HINT =
   'Обязательный плейсхолдер: {page}. Только https и домены it-vacancies.ru';
 
+export const GEEKJOB_SEARCH_URL_TEMPLATE_LABEL = 'Ссылка на выдачу geekjob.ru';
+export const GEEKJOB_SEARCH_URL_TEMPLATE_HINT =
+  'Обязательный плейсхолдер: {page}. Только https и домены geekjob.ru';
+
 export const TITLE_PROMPT_HINT = 'Обязательные плейсхолдеры: {keywords}, {titles}';
 export const DESCRIPTION_PROMPT_HINT = 'Обязательные плейсхолдеры: {keywords}, {description}';
 export const KEYWORDS_HINT = 'Через запятую';
@@ -381,3 +386,12 @@ export const DEFAULT_SEARCH_URL_TEMPLATE =
  */
 export const DEFAULT_IT_VACANCIES_SEARCH_URL_TEMPLATE =
   'https://it-vacancies.ru/vacancies/?search_field=node.js&page={page}';
+
+/**
+ * Дословная копия дефолтного шаблона ссылки из миграции
+ * backend/src/database/migrations/1787500000000-AddGeekjobSearchSource.ts,
+ * нужна третьей кнопке «Вернуть ссылку по умолчанию» (§7.9.4). Менять только вместе
+ * с миграцией.
+ */
+export const DEFAULT_GEEKJOB_SEARCH_URL_TEMPLATE =
+  'https://geekjob.ru/vacancies?rm=1&qs=node&page={page}';

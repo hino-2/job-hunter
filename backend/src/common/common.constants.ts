@@ -104,3 +104,14 @@ export const HTML_ANY_TAG_PATTERN = /<[^>]*>/g;
 export const HTML_INLINE_WHITESPACE_PATTERN = /[ \t\f\v]+/g;
 
 export const HTML_BLANK_LINE_RUN_PATTERN = /\n{2,}/g;
+
+/**
+ * Токены прохода по вложенности при поиске парного </div> (common/html.helpers.ts:
+ * extractBalancedDivBlock). Перенесены из it-vacancies.constants.ts на шаге добавления
+ * geekjob.ru: оба источника разбирают SSR-блок описания одним и тем же алгоритмом
+ * счётчика вложенности, дублировать регексы в двух модулях источников означало бы
+ * гарантированное расхождение при первой же правке.
+ */
+export const HTML_DIV_TOKEN_PATTERN = /<div\b|<\/div\s*>/gi;
+
+export const HTML_DIV_CLOSE_TOKEN_PREFIX = '</';

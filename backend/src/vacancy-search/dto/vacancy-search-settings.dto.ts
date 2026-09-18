@@ -12,6 +12,8 @@ export class VacancySearchSettingsDto {
   searchUrlTemplate!: string;
   /** §3.6/§4.11.1: шаблон ссылки на выдачу второго источника поиска лидов (§5.7). */
   itVacanciesSearchUrlTemplate!: string;
+  /** §3.6/§4.11.1/§4.13: шаблон ссылки на выдачу geekjob.ru (§5.7). */
+  geekjobSearchUrlTemplate!: string;
   updatedAt!: string;
 
   static fromEntity(entity: VacancySearchSettings): VacancySearchSettingsDto {
@@ -24,6 +26,7 @@ export class VacancySearchSettingsDto {
     dto.aiEnabled = entity.aiEnabled;
     dto.searchUrlTemplate = entity.searchUrlTemplate;
     dto.itVacanciesSearchUrlTemplate = entity.itVacanciesSearchUrlTemplate;
+    dto.geekjobSearchUrlTemplate = entity.geekjobSearchUrlTemplate;
     dto.updatedAt = entity.updatedAt.toISOString();
 
     return dto;

@@ -61,6 +61,7 @@ export const VACANCY_SOURCE_ORDER = [
   VACANCY_SOURCE.HH,
   VACANCY_SOURCE.GETMATCH,
   VACANCY_SOURCE.IT_VACANCIES,
+  VACANCY_SOURCE.GEEKJOB,
 ] as const;
 
 /**
@@ -72,10 +73,11 @@ export const VACANCY_SOURCE_ORDER = [
 export const VACANCY_LEAD_SEARCH_SOURCES = [
   VACANCY_SOURCE.HH,
   VACANCY_SOURCE.IT_VACANCIES,
+  VACANCY_SOURCE.GEEKJOB,
 ] as const;
 
 export const VACANCY_SKIPPED_UNSUPPORTED_MESSAGE =
-  'В ссылке на вакансию нет поддерживаемого источника (hh.ru, getmatch.ru или it-vacancies.ru)';
+  'В ссылке на вакансию нет поддерживаемого источника (hh.ru, getmatch.ru, it-vacancies.ru или geekjob.ru)';
 
 export const VACANCY_UNKNOWN_SOURCE_MESSAGE = 'Источник вакансии не поддерживается этой версией';
 

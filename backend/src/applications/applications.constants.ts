@@ -113,6 +113,7 @@ export const VACANCY_SOURCE = {
   HH: 'HH',
   GETMATCH: 'GETMATCH',
   IT_VACANCIES: 'IT_VACANCIES',
+  GEEKJOB: 'GEEKJOB',
 } as const;
 
 /**

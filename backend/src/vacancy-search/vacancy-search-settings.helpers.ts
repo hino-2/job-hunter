@@ -1,5 +1,9 @@
 import { VACANCY_SOURCE } from '../applications/applications.constants';
 import {
+  hasGeekjobSearchPagePlaceholder,
+  isAllowedGeekjobSearchUrlOrigin,
+} from '../geekjob/geekjob-search-url.helpers';
+import {
   hasHhSearchPagePlaceholder,
   isAllowedHhSearchUrlOrigin,
 } from '../hh/hh-search-url.helpers';
@@ -29,6 +33,7 @@ export function buildSearchUrlTemplateBySource(
   return {
     [VACANCY_SOURCE.HH]: entity.searchUrlTemplate,
     [VACANCY_SOURCE.IT_VACANCIES]: entity.itVacanciesSearchUrlTemplate,
+    [VACANCY_SOURCE.GEEKJOB]: entity.geekjobSearchUrlTemplate,
   };
 }
 
@@ -46,6 +51,10 @@ export function isValidSearchUrlTemplate(
     return (
       hasItVacanciesSearchPagePlaceholder(template) && isAllowedItVacanciesSearchUrlOrigin(template)
     );
+  }
+
+  if (source === VACANCY_SOURCE.GEEKJOB) {
+    return hasGeekjobSearchPagePlaceholder(template) && isAllowedGeekjobSearchUrlOrigin(template);
   }
 
   return hasHhSearchPagePlaceholder(template) && isAllowedHhSearchUrlOrigin(template);

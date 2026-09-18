@@ -77,5 +77,6 @@ export function buildResumeStateBySource(
   return {
     [VACANCY_SOURCE.HH]: resolve(VACANCY_SOURCE.HH),
     [VACANCY_SOURCE.IT_VACANCIES]: resolve(VACANCY_SOURCE.IT_VACANCIES),
+    [VACANCY_SOURCE.GEEKJOB]: resolve(VACANCY_SOURCE.GEEKJOB),
   };
 }

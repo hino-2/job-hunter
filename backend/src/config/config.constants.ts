@@ -52,6 +52,23 @@ export const DEFAULT_IT_VACANCIES_MAX_RETRIES = 2;
  */
 export const DEFAULT_IT_VACANCIES_MAX_REQUESTS_PER_SECOND = 2;
 
+/**
+ * §4.8/§4.11/§4.13: четвёртый источник. Как и у getmatch.ru/it-vacancies.ru,
+ * требований к конкретному User-Agent разведка не обнаружила — все пять ключей
+ * опциональны с безопасными дефолтами.
+ */
+export const DEFAULT_GEEKJOB_SITE_BASE_URL = 'https://geekjob.ru';
+export const DEFAULT_GEEKJOB_USER_AGENT = 'job-hunter/1.0';
+export const DEFAULT_GEEKJOB_REQUEST_TIMEOUT_MS = 10_000;
+export const DEFAULT_GEEKJOB_MAX_RETRIES = 2;
+
+/**
+ * §4.11.2: свой лимит частоты, независимый от лимитов остальных источников —
+ * прогон по одному источнику не должен отнимать слоты у другого. Границы диапазона
+ * переиспользуются общие (HH_MAX_REQUESTS_PER_SECOND_MIN/MAX).
+ */
+export const DEFAULT_GEEKJOB_MAX_REQUESTS_PER_SECOND = 2;
+
 /** Общий параметр массового прогона (§4.6): один прогон может смешивать источники. */
 export const DEFAULT_SYNC_CONCURRENCY = 3;
 export const DEFAULT_SYNC_MIN_DELAY_MS = 200;

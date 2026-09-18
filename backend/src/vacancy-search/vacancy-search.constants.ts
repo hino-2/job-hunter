@@ -91,6 +91,7 @@ export const VACANCY_SEARCH_SETTINGS_COLUMN = {
   AI_ENABLED: 'ai_enabled',
   SEARCH_URL_TEMPLATE: 'search_url_template',
   IT_VACANCIES_SEARCH_URL_TEMPLATE: 'it_vacancies_search_url_template',
+  GEEKJOB_SEARCH_URL_TEMPLATE: 'geekjob_search_url_template',
   UPDATED_AT: 'updated_at',
 } as const;
 
@@ -108,6 +109,9 @@ export const SEARCH_URL_TEMPLATE_CONSTRAINT_NAME = 'searchUrlTemplateOrigin';
 /** То же для шаблона ссылки на выдачу it-vacancies.ru (it-vacancies-search-url-template.validator.ts). */
 export const IT_VACANCIES_SEARCH_URL_TEMPLATE_CONSTRAINT_NAME =
   'itVacanciesSearchUrlTemplateOrigin';
+
+/** То же для шаблона ссылки на выдачу geekjob.ru (geekjob-search-url-template.validator.ts). */
+export const GEEKJOB_SEARCH_URL_TEMPLATE_CONSTRAINT_NAME = 'geekjobSearchUrlTemplateOrigin';
 
 export const VACANCY_SEARCH_SETTINGS_ROUTE = 'vacancy-search-settings';
 
@@ -177,6 +181,16 @@ export const VACANCY_SEARCH_SETTINGS_IT_VACANCIES_SEARCH_URL_ORIGIN_MESSAGE =
   '$property: ссылка обязана начинаться с https:// и вести на it-vacancies.ru';
 
 /**
+ * §5.7: те же два сообщения для шаблона ссылки на выдачу geekjob.ru — своя пара
+ * констант по тому же правилу, что у it-vacancies.ru: сообщение называет конкретный
+ * хост, и фронт кладёт его под свой контрол по префиксу $property.
+ */
+export const VACANCY_SEARCH_SETTINGS_GEEKJOB_SEARCH_URL_MISSING_PAGE_MESSAGE =
+  '$property: обязан содержать плейсхолдер {page}, иначе прогон читал бы первую страницу бесконечно';
+export const VACANCY_SEARCH_SETTINGS_GEEKJOB_SEARCH_URL_ORIGIN_MESSAGE =
+  '$property: ссылка обязана начинаться с https:// и вести на geekjob.ru';
+
+/**
  * §4.11.1: строка засеивается той же миграцией, что и остальные поля (§3.6) —
  * повреждённое значение (руками правленный SQL) обнаруживается только при старте
  * прогона (VacancySearchSettingsService.getSnapshot), поэтому GET продолжает
@@ -186,6 +200,8 @@ export const VACANCY_SEARCH_SETTINGS_INVALID_URL_TEMPLATE_MESSAGE =
   'Шаблон ссылки на выдачу в настройках повреждён: нет плейсхолдера {page} либо хост не hh.ru';
 export const VACANCY_SEARCH_SETTINGS_INVALID_IT_VACANCIES_URL_TEMPLATE_MESSAGE =
   'Шаблон ссылки на выдачу в настройках повреждён: нет плейсхолдера {page} либо хост не it-vacancies.ru';
+export const VACANCY_SEARCH_SETTINGS_INVALID_GEEKJOB_URL_TEMPLATE_MESSAGE =
+  'Шаблон ссылки на выдачу в настройках повреждён: нет плейсхолдера {page} либо хост не geekjob.ru';
 
 /** Общий делитель для бюджета по возрасту (§4.11.6, VACANCY_SCAN_MAX_AGE_DAYS). */
 export const MS_IN_DAY = 86_400_000;

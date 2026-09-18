@@ -67,6 +67,7 @@ export const VACANCY_SOURCE = {
   HH: 'HH',
   GETMATCH: 'GETMATCH',
   IT_VACANCIES: 'IT_VACANCIES',
+  GEEKJOB: 'GEEKJOB',
 } as const;
 
 /**
@@ -256,6 +257,7 @@ export const VACANCY_SOURCE_LABELS: Record<VacancySource, string> = {
   HH: 'hh.ru',
   GETMATCH: 'getmatch.ru',
   IT_VACANCIES: 'it-vacancies.ru',
+  GEEKJOB: 'geekjob.ru',
 };
 
 export const VACANCY_SOURCE_UNKNOWN_LABEL = 'Источник не определён';

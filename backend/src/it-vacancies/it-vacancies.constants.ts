@@ -86,11 +86,6 @@ export const IT_VACANCIES_TIME_ZONE_OFFSET = '+03:00';
  */
 export const IT_VACANCIES_CONTENT_BLOCK_OPEN_PATTERN = /<div class="[^"]*\bcontent\b[^"]*">/;
 
-/** Токены прохода по вложенности при поиске парного </div> (it-vacancies-html.helpers.ts). */
-export const IT_VACANCIES_DIV_TOKEN_PATTERN = /<div\b|<\/div\s*>/gi;
-
-export const IT_VACANCIES_DIV_CLOSE_TOKEN_PREFIX = '</';
-
 /**
  * §4.3: НЕ ПРОВЕРЕНО — ни на одной живой странице маркера «вакансия закрыта» нет,
  * признак archived_at/is_active существует только внутри минифицированного

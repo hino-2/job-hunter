@@ -11,4 +11,5 @@ export interface SearchSettingsFormValues {
   aiEnabled: boolean;
   searchUrlTemplate: string;
   itVacanciesSearchUrlTemplate: string;
+  geekjobSearchUrlTemplate: string;
 }

@@ -10,8 +10,10 @@ import {
 } from 'class-validator';
 
 import { TrimEachText, TrimText } from '../../common/string.transforms';
+import { GEEKJOB_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN } from '../../geekjob/geekjob.constants';
 import { HH_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN } from '../../hh/hh.constants';
 import { IT_VACANCIES_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN } from '../../it-vacancies/it-vacancies.constants';
+import { GeekjobSearchUrlTemplateConstraint } from './geekjob-search-url-template.validator';
 import { ItVacanciesSearchUrlTemplateConstraint } from './it-vacancies-search-url-template.validator';
 import { SearchUrlTemplateConstraint } from './search-url-template.validator';
 import {
@@ -20,6 +22,8 @@ import {
   PLACEHOLDER_TITLES_PATTERN,
   VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_DESCRIPTION_MESSAGE,
   VACANCY_SEARCH_SETTINGS_DESCRIPTION_PROMPT_MISSING_KEYWORDS_MESSAGE,
+  VACANCY_SEARCH_SETTINGS_GEEKJOB_SEARCH_URL_MISSING_PAGE_MESSAGE,
+  VACANCY_SEARCH_SETTINGS_GEEKJOB_SEARCH_URL_ORIGIN_MESSAGE,
   VACANCY_SEARCH_SETTINGS_IT_VACANCIES_SEARCH_URL_MISSING_PAGE_MESSAGE,
   VACANCY_SEARCH_SETTINGS_IT_VACANCIES_SEARCH_URL_ORIGIN_MESSAGE,
   VACANCY_SEARCH_SETTINGS_PROMPT_MAX_LENGTH,
@@ -126,4 +130,21 @@ export class UpdateVacancySearchSettingsDto {
   })
   @TrimText()
   itVacanciesSearchUrlTemplate!: string;
+
+  /**
+   * §3.6/§4.11.1/§5.7/§4.13: шаблон ссылки на выдачу geekjob.ru — требования те же,
+   * что у остальных шаблонов, но свой паттерн плейсхолдера (подставляет
+   * buildGeekjobSearchUrl) и свой ValidatorConstraint с allow-list geekjob.ru.
+   */
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(VACANCY_SEARCH_SETTINGS_SEARCH_URL_TEMPLATE_LENGTH)
+  @Matches(GEEKJOB_SEARCH_URL_PAGE_PLACEHOLDER_PATTERN, {
+    message: VACANCY_SEARCH_SETTINGS_GEEKJOB_SEARCH_URL_MISSING_PAGE_MESSAGE,
+  })
+  @Validate(GeekjobSearchUrlTemplateConstraint, {
+    message: VACANCY_SEARCH_SETTINGS_GEEKJOB_SEARCH_URL_ORIGIN_MESSAGE,
+  })
+  @TrimText()
+  geekjobSearchUrlTemplate!: string;
 }

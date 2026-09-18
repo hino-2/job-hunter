@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { VacancySource } from '../applications/applications.type';
+import { GeekjobApiService } from '../geekjob/geekjob-api.service';
 import { GetmatchApiService } from '../getmatch/getmatch-api.service';
 import { HhApiService } from '../hh/hh-api.service';
 import { ItVacanciesApiService } from '../it-vacancies/it-vacancies-api.service';
@@ -19,13 +20,19 @@ import type { VacancyResolution, VacancySourceProvider } from './vacancies.inter
 export class VacancyProviderRegistry {
   private readonly byId: ReadonlyMap<VacancySource, VacancySourceProvider>;
 
-  constructor(hh: HhApiService, getmatch: GetmatchApiService, itVacancies: ItVacanciesApiService) {
+  constructor(
+    hh: HhApiService,
+    getmatch: GetmatchApiService,
+    itVacancies: ItVacanciesApiService,
+    geekjob: GeekjobApiService,
+  ) {
     // Аннотация элемента кортежа обязательна: без неё TS выводит union конкретных
     // сервисов, а не VacancySourceProvider, и Map получает несовместимый тип значений.
     const entries: [VacancySource, VacancySourceProvider][] = [
       [hh.source, hh],
       [getmatch.source, getmatch],
       [itVacancies.source, itVacancies],
+      [geekjob.source, geekjob],
     ];
 
     this.byId = new Map(entries);

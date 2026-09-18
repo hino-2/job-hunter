@@ -2,11 +2,13 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ApplicationsModule } from '../applications/applications.module';
+import { GeekjobModule } from '../geekjob/geekjob.module';
 import { HhModule } from '../hh/hh.module';
 import { ItVacanciesModule } from '../it-vacancies/it-vacancies.module';
 import { LogosModule } from '../logos/logos.module';
 import { VacancyAiModule } from '../vacancy-ai/vacancy-ai.module';
 import { VacancyAiCheckService } from './vacancy-ai-check.service';
+import { GeekjobSearchUrlTemplateConstraint } from './dto/geekjob-search-url-template.validator';
 import { ItVacanciesSearchUrlTemplateConstraint } from './dto/it-vacancies-search-url-template.validator';
 import { VacancyLeadApplicationService } from './vacancy-lead-application.service';
 import { VacancyLeadSearchRegistry } from './vacancy-lead-search.registry';
@@ -29,11 +31,12 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
  * vacancy_scan_position и VacancyScanPositionService — сохранённую позицию
  * прогона, переживающую рестарт процесса, в отличие от VacancyScanStateService
  * (только память). Зависимость модулей — VacancySearchModule → { HhModule,
- * ItVacanciesModule, VacancyAiModule, LogosModule, ApplicationsModule } — циклов нет:
- * ни hh/, ни it-vacancies/, ни vacancy-ai/, ни logos/, ни applications/ не импортируют
- * vacancy-search/. ItVacanciesModule добавлен ради второго источника поиска лидов
- * (§4.11): VacancyLeadSearchRegistry диспетчеризует прогон по source, а сам конвейер
- * знает только контракт VacancyLeadSearchProvider. LogosModule
+ * ItVacanciesModule, GeekjobModule, VacancyAiModule, LogosModule, ApplicationsModule } —
+ * циклов нет: ни hh/, ни it-vacancies/, ни geekjob/, ни vacancy-ai/, ни logos/, ни
+ * applications/ не импортируют vacancy-search/. ItVacanciesModule и GeekjobModule
+ * добавлены ради второго и третьего источника поиска лидов (§4.11, §4.13):
+ * VacancyLeadSearchRegistry диспетчеризует прогон по source, а сам конвейер знает
+ * только контракт VacancyLeadSearchProvider. LogosModule
  * добавлен шагом №26 (§14, §4.10) — CompanyLogoService нужен VacancyScanService для
  * скачивания логотипа лида. ApplicationsModule добавлен ради VacancyLeadApplicationService
  * (§5.7): кнопка «Отклик» создаёт запись тем же путём, что ручное создание, а
@@ -44,6 +47,7 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
     TypeOrmModule.forFeature([VacancyLead, VacancySearchSettings, VacancyScanPosition]),
     HhModule,
     ItVacanciesModule,
+    GeekjobModule,
     VacancyAiModule,
     LogosModule,
     ApplicationsModule,
@@ -58,11 +62,12 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
     VacancyScanService,
     VacancyAiCheckService,
     VacancyLeadApplicationService,
-    // §5.7: валидатор шаблона ссылки it-vacancies объявлен провайдером по чертежу шага
-    // 28 — экземпляр для @Validate class-validator создаёт сам (useContainer не
-    // настроен), зависимостей у валидатора нет, так что регистрация лишь держит его
-    // в графе модуля.
+    // §5.7: валидаторы шаблонов ссылок it-vacancies/geekjob объявлены провайдерами по
+    // чертежу шага 28 — экземпляр для @Validate class-validator создаёт сам
+    // (useContainer не настроен), зависимостей у валидаторов нет, так что регистрация
+    // лишь держит их в графе модуля.
     ItVacanciesSearchUrlTemplateConstraint,
+    GeekjobSearchUrlTemplateConstraint,
   ],
 })
 export class VacancySearchModule {}

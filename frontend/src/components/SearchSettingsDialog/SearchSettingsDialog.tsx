@@ -28,6 +28,7 @@ import {
   AI_ENABLED_DESCRIPTION,
   AI_ENABLED_LABEL,
   DEFAULT_DESCRIPTION_PROMPT,
+  DEFAULT_GEEKJOB_SEARCH_URL_TEMPLATE,
   DEFAULT_IT_VACANCIES_SEARCH_URL_TEMPLATE,
   DEFAULT_SEARCH_URL_TEMPLATE,
   DEFAULT_TITLE_PROMPT,
@@ -35,6 +36,8 @@ import {
   DESCRIPTION_PROMPT_LABEL,
   DESCRIPTION_PROMPT_MISSING_PLACEHOLDERS_MESSAGE,
   EXCLUDE_KEYWORDS_LABEL,
+  GEEKJOB_SEARCH_URL_TEMPLATE_HINT,
+  GEEKJOB_SEARCH_URL_TEMPLATE_LABEL,
   IT_VACANCIES_SEARCH_URL_TEMPLATE_HINT,
   IT_VACANCIES_SEARCH_URL_TEMPLATE_LABEL,
   KEYWORDS_HINT,
@@ -97,6 +100,7 @@ function SearchSettingsForm({
   const [isSearchUrlTemplateTouched, setSearchUrlTemplateTouched] = useState(false);
   const [isItVacanciesSearchUrlTemplateTouched, setItVacanciesSearchUrlTemplateTouched] =
     useState(false);
+  const [isGeekjobSearchUrlTemplateTouched, setGeekjobSearchUrlTemplateTouched] = useState(false);
 
   const writeValues = (next: SearchSettingsFormValues) => {
     valuesRef.current = next;
@@ -126,6 +130,9 @@ function SearchSettingsForm({
   const itVacanciesSearchUrlTemplateIssue = resolveSearchUrlTemplateIssue(
     values.itVacanciesSearchUrlTemplate,
   );
+  const geekjobSearchUrlTemplateIssue = resolveSearchUrlTemplateIssue(
+    values.geekjobSearchUrlTemplate,
+  );
 
   // Заведомо невалидные значения на сервер не отправляются вовсе (§10): каждая проверка
   // здесь дублирует правило UpdateVacancySearchSettingsDto (§5.7).
@@ -139,7 +146,8 @@ function SearchSettingsForm({
     isDescriptionPromptTooLong ||
     isDescriptionPromptMissingPlaceholders ||
     searchUrlTemplateIssue !== null ||
-    itVacanciesSearchUrlTemplateIssue !== null;
+    itVacanciesSearchUrlTemplateIssue !== null ||
+    geekjobSearchUrlTemplateIssue !== null;
 
   const titlePromptClientError = !isTitlePromptTouched
     ? null
@@ -171,6 +179,10 @@ function SearchSettingsForm({
   const itVacanciesSearchUrlTemplateError =
     (isItVacanciesSearchUrlTemplateTouched ? itVacanciesSearchUrlTemplateIssue : null) ??
     serverFieldErrors.itVacanciesSearchUrlTemplate ??
+    null;
+  const geekjobSearchUrlTemplateError =
+    (isGeekjobSearchUrlTemplateTouched ? geekjobSearchUrlTemplateIssue : null) ??
+    serverFieldErrors.geekjobSearchUrlTemplate ??
     null;
 
   const handleKeywordsChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -231,12 +243,25 @@ function SearchSettingsForm({
     onFieldEdited('itVacanciesSearchUrlTemplate');
   };
 
+  const handleGeekjobSearchUrlTemplateChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    patchValues({ geekjobSearchUrlTemplate: event.target.value });
+    onFieldEdited('geekjobSearchUrlTemplate');
+  };
+
+  const handleResetGeekjobSearchUrlTemplate = () => {
+    patchValues({ geekjobSearchUrlTemplate: DEFAULT_GEEKJOB_SEARCH_URL_TEMPLATE });
+    onFieldEdited('geekjobSearchUrlTemplate');
+  };
+
   const handleSubmit = () => {
     setKeywordsTouched(true);
     setTitlePromptTouched(true);
     setDescriptionPromptTouched(true);
     setSearchUrlTemplateTouched(true);
     setItVacanciesSearchUrlTemplateTouched(true);
+    setGeekjobSearchUrlTemplateTouched(true);
     onSubmit(valuesRef.current);
   };
 
@@ -289,6 +314,30 @@ function SearchSettingsForm({
             <Button
               size="small"
               onClick={handleResetItVacanciesSearchUrlTemplate}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              {RESET_SEARCH_URL_TEMPLATE_LABEL}
+            </Button>
+          </Stack>
+
+          {/* Третий источник лидов (§5.7): своё поле и своя кнопка сброса, тем же приёмом. */}
+          <Stack spacing={0}>
+            <TextField
+              fullWidth
+              multiline
+              minRows={MULTILINE_MIN_ROWS_URL_TEMPLATE}
+              maxRows={MULTILINE_MAX_ROWS_URL_TEMPLATE}
+              label={GEEKJOB_SEARCH_URL_TEMPLATE_LABEL}
+              value={values.geekjobSearchUrlTemplate}
+              error={geekjobSearchUrlTemplateError !== null}
+              helperText={geekjobSearchUrlTemplateError ?? GEEKJOB_SEARCH_URL_TEMPLATE_HINT}
+              onChange={handleGeekjobSearchUrlTemplateChange}
+              onBlur={() => setGeekjobSearchUrlTemplateTouched(true)}
+              slotProps={{ htmlInput: { maxLength: SEARCH_URL_TEMPLATE_MAX_LENGTH } }}
+            />
+            <Button
+              size="small"
+              onClick={handleResetGeekjobSearchUrlTemplate}
               sx={{ alignSelf: 'flex-start' }}
             >
               {RESET_SEARCH_URL_TEMPLATE_LABEL}
