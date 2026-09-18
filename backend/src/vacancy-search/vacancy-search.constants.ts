@@ -288,7 +288,6 @@ export const SCAN_STOPPED_REASON = {
   COMPLETED: 'COMPLETED',
   LAST_PAGE: 'LAST_PAGE',
   MAX_PAGES: 'MAX_PAGES',
-  MAX_DETAILS: 'MAX_DETAILS',
   DEADLINE: 'DEADLINE',
   AGE_LIMIT: 'AGE_LIMIT',
   STOPPED: 'STOPPED',
@@ -300,9 +299,9 @@ export const SCAN_STOPPED_REASON = {
  * §4.11.12: причины, при которых выдача исчерпана целиком (или намеренно обрублена
  * возрастной отсечкой) — позиция прогона в этих случаях очищается (следующий
  * запуск начнётся с страницы 0), а не сохраняется. Остальные причины (STOPPED,
- * DEADLINE, MAX_DETAILS, AI_UNAVAILABLE, ERROR) сохраняют позицию — прогон
- * оборвался, не дойдя до конца выдачи (AI_UNAVAILABLE в их числе: «Продолжить»
- * обязан оставаться доступным после недоступности модели).
+ * DEADLINE, AI_UNAVAILABLE, ERROR) сохраняют позицию — прогон оборвался, не дойдя
+ * до конца выдачи (AI_UNAVAILABLE в их числе: «Продолжить» обязан оставаться
+ * доступным после недоступности модели).
  */
 export const SCAN_EXHAUSTED_STOPPED_REASONS = [
   SCAN_STOPPED_REASON.COMPLETED,
@@ -321,13 +320,11 @@ export const SCAN_EXHAUSTED_STOPPED_REASONS = [
 export const VACANCY_SCAN_AI_MIN_START_DELAY_MS = 0;
 
 /**
- * §4.11.12: порядок, в котором сегодняшний последовательный цикл проверяет условия
- * для ОДНОГО кандидата (см. planPageWork в vacancy-scan.service.ts) — resolvePageStop
- * (vacancy-scan-stop.helpers.ts) воспроизводит его для набора причин, собранных с
- * конкурентных воркеров пула деталей и этапа названий, чтобы прогон, который раньше
- * упёрся бы сразу в два условия, отдавал ту же причину, что и раньше. AI_UNAVAILABLE
- * стоит сразу за STOPPED: недоступность модели важнее исчерпанных бюджетов страницы,
- * но кооперативная остановка пользователем важнее всего. Все причины таблицы сохраняют
+ * §4.11.12: порядок, в котором конкурентные воркеры пула деталей и этапа названий
+ * могут остановить страницу — resolvePageStop (vacancy-scan-stop.helpers.ts) сводит
+ * набор причин, собранных с них, в одну по этому приоритету. AI_UNAVAILABLE стоит
+ * сразу за STOPPED: недоступность модели важнее общего дедлайна прогона, но
+ * кооперативная остановка пользователем важнее всего. Обе причины таблицы сохраняют
  * позицию возобновления (§4.11.12) одинаково — порядок влияет только на отображаемый
  * stoppedReason, никогда на возобновляемость.
  */
@@ -335,7 +332,6 @@ export const SCAN_PAGE_STOP_PRECEDENCE: readonly ScanStoppedReason[] = [
   SCAN_STOPPED_REASON.STOPPED,
   SCAN_STOPPED_REASON.AI_UNAVAILABLE,
   SCAN_STOPPED_REASON.DEADLINE,
-  SCAN_STOPPED_REASON.MAX_DETAILS,
 ];
 
 /** §4.11.12: режим старта прогона — с нуля либо с сохранённой позиции. */
@@ -405,7 +401,6 @@ export const VACANCY_LEAD_SEARCH_PROVIDER_MISSING_MESSAGE =
 
 /** §8: имена env-переменных бюджетов и режимов прогона (значения — в config/config.constants.ts). */
 export const VACANCY_SCAN_MAX_PAGES_ENV_KEY = 'VACANCY_SCAN_MAX_PAGES';
-export const VACANCY_SCAN_MAX_DETAILS_ENV_KEY = 'VACANCY_SCAN_MAX_DETAILS';
 export const VACANCY_SCAN_MAX_AGE_DAYS_ENV_KEY = 'VACANCY_SCAN_MAX_AGE_DAYS';
 export const VACANCY_SCAN_MAX_DURATION_MS_ENV_KEY = 'VACANCY_SCAN_MAX_DURATION_MS';
 export const VACANCY_PREFILTER_MODE_ENV_KEY = 'VACANCY_PREFILTER_MODE';

@@ -208,26 +208,6 @@ export interface VacancyTitleStageResult {
 }
 
 /**
- * Счётчик открытых страниц вакансий (§4.11.8, VACANCY_SCAN_MAX_DETAILS), общий на весь
- * прогон (несколько страниц выдачи) — объект, а не примитив, чтобы processPage мог
- * инкрементировать его по ссылке без возврата значения наружу.
- */
-export interface VacancyScanDetailsBudget {
-  opened: number;
-}
-
-/**
- * §4.11.4/§4.11.8: итог синхронного планирующего прохода по одной странице выдачи
- * (planPageWork, vacancy-scan.service.ts) — кандидаты, под которых бюджет
- * MAX_DETAILS уже зарезервирован, и причина, на которой планирование прервалось,
- * либо null, если дошло до конца списка.
- */
-export interface VacancyScanPagePlan {
-  detailTasks: VacancyTitleDecision[];
-  stop: ScanStoppedReason | null;
-}
-
-/**
  * §4.11.0: одна нога мультипрогона — источник со своим провайдером, своим
  * шаблоном ссылки на выдачу (из снимка настроек) и своей стартовой страницей
  * (0 на FRESH, сохранённая позиция на RESUME). Собирает VacancyScanService.buildPlan().

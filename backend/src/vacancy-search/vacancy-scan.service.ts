@@ -43,7 +43,6 @@ import {
   VACANCY_SCAN_FINISHED_MESSAGE,
   VACANCY_SCAN_INITIAL_PAGE,
   VACANCY_SCAN_MAX_AGE_DAYS_ENV_KEY,
-  VACANCY_SCAN_MAX_DETAILS_ENV_KEY,
   VACANCY_SCAN_MAX_DURATION_MS_ENV_KEY,
   VACANCY_SCAN_MAX_PAGES_ENV_KEY,
   VACANCY_SCAN_MESSAGE_JOIN_SEPARATOR,
@@ -56,9 +55,7 @@ import {
 import type {
   ScanRunHandle,
   VacancyLeadLogoSource,
-  VacancyScanDetailsBudget,
   VacancyScanLegResult,
-  VacancyScanPagePlan,
   VacancyScanSourcePlan,
   VacancyScanSurvivor,
   VacancySearchSettingsSnapshot,
@@ -193,7 +190,6 @@ function findExcludedInDescription(
 export class VacancyScanService {
   private readonly logger = new Logger(VacancyScanService.name);
   private readonly maxPages: number;
-  private readonly maxDetails: number;
   private readonly maxAgeDays: number;
   private readonly maxDurationMs: number;
   private readonly prefilterMode: VacancyPrefilterMode;
@@ -219,7 +215,6 @@ export class VacancyScanService {
     configService: ConfigService,
   ) {
     this.maxPages = configService.getOrThrow<number>(VACANCY_SCAN_MAX_PAGES_ENV_KEY);
-    this.maxDetails = configService.getOrThrow<number>(VACANCY_SCAN_MAX_DETAILS_ENV_KEY);
     this.maxAgeDays = configService.getOrThrow<number>(VACANCY_SCAN_MAX_AGE_DAYS_ENV_KEY);
     this.maxDurationMs = configService.getOrThrow<number>(VACANCY_SCAN_MAX_DURATION_MS_ENV_KEY);
     this.prefilterMode = configService.getOrThrow<VacancyPrefilterMode>(
@@ -336,10 +331,10 @@ export class VacancyScanService {
    * ОБЯЗАН вызывать state.finish() на любом пути, включая исключение — иначе
    * статус навсегда останется RUNNING.
    *
-   * §4.11.8: deadlineAt/detailsBudget/ageCutoffMs — общие бюджеты на ВЕСЬ прогон, а не
-   * на ногу: MAX_DETAILS и MAX_DURATION_MS делятся между источниками. seenInRun тоже
-   * общий на весь прогон (тот же Set листается через все ноги), но его ключ теперь
-   * несёт источник первым компонентом (§4.11.5) — поэтому кросспост вакансии на
+   * §4.11.8: deadlineAt/ageCutoffMs — общие значения на ВЕСЬ прогон, а не на ногу:
+   * дедлайн делится между источниками. seenInRun тоже общий на весь прогон (тот же
+   * Set листается через все ноги), но его ключ теперь несёт источник первым
+   * компонентом (§4.11.5) — поэтому кросспост вакансии на
    * hh.ru и geekjob.ru больше НЕ гасится более ранней ногой: у каждого источника
    * своя копия ключа, и обе доходят до выборки. Региональные клоны ВНУТРИ одной
    * ноги продолжают схлопываться тем же общим Set — ключ для них не меняется.
@@ -380,7 +375,6 @@ export class VacancyScanService {
       const deadlineAt = Date.now() + this.maxDurationMs;
       const ageCutoffMs = Date.now() - this.maxAgeDays * MS_IN_DAY;
       const seenInRun = new Set<string>();
-      const detailsBudget: VacancyScanDetailsBudget = { opened: 0 };
       const isMultiSource = plan.length > 1;
       const errors: string[] = [];
 
@@ -400,7 +394,6 @@ export class VacancyScanService {
           deadlineAt,
           ageCutoffMs,
           seenInRun,
-          detailsBudget,
         );
 
         if (result.reason === SCAN_STOPPED_REASON.ERROR) {
@@ -418,8 +411,8 @@ export class VacancyScanService {
         }
 
         if (!isExhaustedStop(result.reason)) {
-          // STOPPED/DEADLINE/MAX_DETAILS/AI_UNAVAILABLE — общие бюджеты и кооперативная
-          // остановка, они завершают ВЕСЬ прогон, а не только текущую ногу.
+          // STOPPED/DEADLINE/AI_UNAVAILABLE — общий дедлайн и кооперативная остановка,
+          // они завершают ВЕСЬ прогон, а не только текущую ногу.
           stoppedReason = result.reason;
           message = joinScanMessages([result.message, ...errors]);
           break;
@@ -459,7 +452,6 @@ export class VacancyScanService {
     deadlineAt: number,
     ageCutoffMs: number,
     seenInRun: Set<string>,
-    detailsBudget: VacancyScanDetailsBudget,
   ): Promise<VacancyScanLegResult> {
     const { source, provider, searchUrlTemplate, startPage } = plan;
     let stoppedReason: ScanStoppedReason = SCAN_STOPPED_REASON.COMPLETED;
@@ -528,7 +520,6 @@ export class VacancyScanService {
           seenInRun,
           ageCutoffMs,
           deadlineAt,
-          detailsBudget,
         );
 
         if (pageStop !== null) {
@@ -570,7 +561,6 @@ export class VacancyScanService {
     seenInRun: Set<string>,
     ageCutoffMs: number,
     deadlineAt: number,
-    detailsBudget: VacancyScanDetailsBudget,
   ): Promise<ScanStoppedReason | null> {
     const survivors: VacancyScanSurvivor[] = [];
     let skippedOldOnPage = 0;
@@ -682,66 +672,18 @@ export class VacancyScanService {
     }
 
     const startedAt = Date.now();
-    const plan = this.planPageWork(matched, handle, deadlineAt, detailsBudget);
 
-    const detailStops = await mapWithConcurrency(plan.detailTasks, this.aiConcurrency, (decision) =>
+    const detailStops = await mapWithConcurrency(matched, this.aiConcurrency, (decision) =>
       this.processDetailSafely(decision, settings, provider, handle, deadlineAt),
     );
 
     // §4.11.2: единственная строка лога на страницу — дешёвый способ убедиться
     // впоследствии, что пул деталей не выродился в последовательный проход.
     this.logger.log(
-      `Этап деталей страницы: кандидатов ${plan.detailTasks.length}, ${Date.now() - startedAt} мс`,
+      `Этап деталей страницы: кандидатов ${matched.length}, ${Date.now() - startedAt} мс`,
     );
 
-    return resolvePageStop([plan.stop, ...detailStops]);
-  }
-
-  /**
-   * §4.11.4/§4.11.8: синхронный планирующий проход по кандидатам, переживший этап
-   * названия — БЕЗ единого await. Именно это делает переполнение MAX_DETAILS
-   * невозможным ПО ПОСТРОЕНИЮ: каждое решение о резервировании слота бюджета
-   * происходит в одном непрерывном синхронном проходе, поэтому detailsBudget.opened
-   * не может быть прочитан устаревшим конкурентным воркером — тот же приём «слот
-   * резервируется синхронно, ДО первого await», что и в VacancyRequestThrottle /
-   * mapWithConcurrency (common/async.helpers.ts), доведённый на шаг дальше: там он
-   * защищает временной слот, здесь — счётчик бюджета.
-   *
-   * Слот, зарезервированный здесь и затем пропущенный воркером пула из-за стопа/
-   * дедлайна (processDetailSafely), — безобидный перерасход ВЕРХНЕЙ границы: оба
-   * условия останавливают прогон целиком, так что к бюджету больше никто не
-   * обратится.
-   */
-  private planPageWork(
-    matched: readonly VacancyTitleDecision[],
-    handle: ScanRunHandle,
-    deadlineAt: number,
-    detailsBudget: VacancyScanDetailsBudget,
-  ): VacancyScanPagePlan {
-    const detailTasks: VacancyTitleDecision[] = [];
-    let stop: ScanStoppedReason | null = null;
-
-    for (const decision of matched) {
-      if (handle.isStopRequested()) {
-        stop = SCAN_STOPPED_REASON.STOPPED;
-        break;
-      }
-
-      if (Date.now() >= deadlineAt) {
-        stop = SCAN_STOPPED_REASON.DEADLINE;
-        break;
-      }
-
-      if (detailsBudget.opened >= this.maxDetails) {
-        stop = SCAN_STOPPED_REASON.MAX_DETAILS;
-        break;
-      }
-
-      detailsBudget.opened += 1;
-      detailTasks.push(decision);
-    }
-
-    return { detailTasks, stop };
+    return resolvePageStop(detailStops);
   }
 
   /**
