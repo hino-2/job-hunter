@@ -14,9 +14,9 @@ Features:
 - a scheduled background refresh of all open records, running inside the `api` process;
 - «Все / Открытые / HR-собес / Тех-собес / Закрытые» filters (the two interview-stage chips list
   only records still open, §5.1), search by company/position/notes, and sorting;
-- a second screen, «Вакансии»: searching for new vacancies on hh.ru, it-vacancies.ru and geekjob.ru,
-  screening them by keywords and, optionally, by a local LLM in Ollama, then creating an application
-  from a found lead in one click;
+- a second screen, «Вакансии»: searching for new vacancies on hh.ru, it-vacancies.ru, geekjob.ru and a
+  user-editable list of companies' own career pages, screening them by keywords and, optionally, by a
+  local LLM in Ollama, then creating an application from a found lead in one click;
 - local Docker deployment behind Basic Auth, sized for one user.
 
 The requirements and the full description of the behaviour live in [spec/](./spec/), one file per
@@ -113,13 +113,15 @@ npm run ps      # service status
 
 ### The «Вакансии» screen
 
-- Pick the search source (hh.ru, it-vacancies.ru or geekjob.ru) in the first control of the filter bar, then
-  «Начать поиск» to run a fresh sweep from the first page, «Продолжить» to resume from the saved
-  position of the previous run, «Остановить» to stop the current one. The run is asynchronous: the
-  request returns immediately and the screen polls its status every 2 s, showing progress and then
-  the final summary.
+- Pick the search source (hh.ru, it-vacancies.ru, geekjob.ru or «Сайты компаний») in the first control
+  of the filter bar, then «Начать поиск» to run a fresh sweep from the first page, «Продолжить» to
+  resume from the saved position of the previous run, «Остановить» to stop the current one. The run is
+  asynchronous: the request returns immediately and the screen polls its status every 2 s, showing
+  progress and then the final summary.
 - «⚙ Настройки поиска» opens a dialog with the keywords, the stop-words, one results-page link per
   search source, the two model prompts and the «Использовать ИИ-отбор» switch.
+- The «Сайты компаний» section holds the editable list of companies' own career pages that the
+  `COMPANY_SITE` search source walks — add, edit inline and delete a row without leaving the screen.
 - Each found vacancy is an accordion. A click on the collapsed row opens the vacancy in a new tab;
   expansion lives on the arrow at the right. «Отклик» creates an application from the lead in one
   click, «Скрыть» removes the lead from the list, and the «Скрытые» toggle switches to the hidden
@@ -349,7 +351,10 @@ The vacancy-source integration variables are four symmetric groups, `HH_*`, `GET
 `SYNC_CONCURRENCY` / `SYNC_MIN_DELAY_MS` shared by all sources (bulk-run concurrency and pause, §4.6
 of the specification). The only variable that is mandatory and has no default is `HH_USER_AGENT`
 (hh.ru answers `400` without a meaningful User-Agent); all `GETMATCH_*`, `IT_VACANCIES_*` and
-`GEEKJOB_*` variables are optional.
+`GEEKJOB_*` variables are optional. `COMPANY_SITE_*` (§4.14 — User-Agent, timeout, retries and one
+request-rate ceiling shared by every company career site host at once) is the fifth such group, also
+fully optional; unlike the other four it has no `*_SITE_BASE_URL` — the source has no single base
+host, each parser talks to its own constant host.
 
 The application runs the same sweep as the «Обновить все открытые» button on a schedule of its own
 (§4.7): `SCHEDULED_SYNC_ENABLED` (`true`/`false`, default `true`) and `SCHEDULED_SYNC_INTERVAL_MS`

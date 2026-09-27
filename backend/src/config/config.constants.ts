@@ -236,3 +236,19 @@ export const DEFAULT_VACANCY_AI_DESCRIPTION_MAX_CHARS = 6_000;
  */
 export const DEFAULT_VACANCY_AI_CONCURRENCY = 3;
 export const VACANCY_AI_CONCURRENCY_MAX = 10;
+
+/**
+ * §4.14: company-sites/ — четыре ключа опциональны с безопасными дефолтами, как у
+ * getmatch.ru/it-vacancies.ru/geekjob.ru; своего baseUrl нет (§4.14/B1 — VacancyHttpEnvKeys.baseUrl
+ * опционален), поэтому здесь нет DEFAULT_COMPANY_SITE_SITE_BASE_URL.
+ */
+export const DEFAULT_COMPANY_SITE_USER_AGENT = 'job-hunter/1.0';
+export const DEFAULT_COMPANY_SITE_REQUEST_TIMEOUT_MS = 10_000;
+export const DEFAULT_COMPANY_SITE_MAX_RETRIES = 2;
+
+/**
+ * §4.11.2/§4.14: один общий троттл на ВСЕ хосты сайтов компаний — заведомо ниже, чем
+ * у любого отдельного источника (2 rps): десятки разных хостов делят один и тот же
+ * небольшой лимит, а не соревнуются за отдельные.
+ */
+export const DEFAULT_COMPANY_SITE_MAX_REQUESTS_PER_SECOND = 2;

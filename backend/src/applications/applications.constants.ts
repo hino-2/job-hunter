@@ -108,12 +108,19 @@ export const SYNC_OUTCOME = {
 /**
  * §4.8. Живёт здесь по тому же правилу, что SYNC_OUTCOME: это значение колонки
  * vacancy_source таблицы applications, а не абстракция модуля vacancies.
+ *
+ * COMPANY_SITE (§4.14) — источник только поиска лидов, синхронизации у него нет:
+ * ни один VacancySourceProvider его не резолвит (VacancyProviderRegistry.resolveByUrl
+ * пропускает источник без провайдера), а значение попадает в vacancy_leads.source и,
+ * если из такого лида создан отклик, в applications.vacancy_source — тем же
+ * varchar(16), что и у остальных источников, миграция колонки не нужна.
  */
 export const VACANCY_SOURCE = {
   HH: 'HH',
   GETMATCH: 'GETMATCH',
   IT_VACANCIES: 'IT_VACANCIES',
   GEEKJOB: 'GEEKJOB',
+  COMPANY_SITE: 'COMPANY_SITE',
 } as const;
 
 /**

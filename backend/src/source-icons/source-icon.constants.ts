@@ -12,7 +12,7 @@ import {
   IT_VACANCIES_ALLOWED_HOST_PATTERN,
   IT_VACANCIES_SITE_BASE_URL_ENV_KEY,
 } from '../it-vacancies/it-vacancies.constants';
-import type { VacancySource } from '../applications/applications.type';
+import type { SourceIconSource } from './source-icon.type';
 
 export const SOURCE_ICONS_ROUTE = 'vacancy-sources';
 
@@ -25,7 +25,7 @@ export const SOURCE_ICON_ROUTE = `:${SOURCE_ICON_PARAM}/icon`;
  * источников (импорт значений, не DI): source-icons/ не тянет их модули целиком, поэтому
  * цикла зависимостей нет.
  */
-export const SOURCE_SITE_BASE_URL_ENV_KEYS: Record<VacancySource, string> = {
+export const SOURCE_SITE_BASE_URL_ENV_KEYS: Record<SourceIconSource, string> = {
   HH: HH_SITE_BASE_URL_ENV_KEY,
   GETMATCH: GETMATCH_SITE_BASE_URL_ENV_KEY,
   IT_VACANCIES: IT_VACANCIES_SITE_BASE_URL_ENV_KEY,
@@ -37,7 +37,7 @@ export const SOURCE_SITE_BASE_URL_ENV_KEYS: Record<VacancySource, string> = {
  * сегодня — единственная точка правки, если источник переедет с классического favicon
  * (например, на <link rel="icon"> с другим путём).
  */
-export const SOURCE_ICON_PATHS: Record<VacancySource, string> = {
+export const SOURCE_ICON_PATHS: Record<SourceIconSource, string> = {
   HH: '/favicon.ico',
   GETMATCH: '/favicon.ico',
   IT_VACANCIES: '/favicon.ico',
@@ -50,7 +50,7 @@ export const SOURCE_ICON_PATHS: Record<VacancySource, string> = {
  * покрывает и hhcdn.ru): favicon может 3xx-нуть на CDN, а не только отдаться с самого
  * hh.ru.
  */
-export const SOURCE_ICON_ALLOWED_HOST_PATTERNS: Record<VacancySource, RegExp> = {
+export const SOURCE_ICON_ALLOWED_HOST_PATTERNS: Record<SourceIconSource, RegExp> = {
   HH: HH_LOGO_ALLOWED_HOST_PATTERN,
   GETMATCH: GETMATCH_ALLOWED_HOST_PATTERN,
   IT_VACANCIES: IT_VACANCIES_ALLOWED_HOST_PATTERN,

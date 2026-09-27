@@ -9,7 +9,7 @@ import {
   SOURCE_ICON_RETRY_AFTER_MS,
   SOURCE_SITE_BASE_URL_ENV_KEYS,
 } from './source-icon.constants';
-import type { VacancySource } from '../applications/applications.type';
+import type { SourceIconSource } from './source-icon.type';
 
 /**
  * §5.8: скачивание и in-process кэш иконки сайта-источника вакансий поверх logos/
@@ -22,7 +22,7 @@ export class SourceIconService {
   private readonly logger = new Logger(SourceIconService.name);
 
   /** Разрешённое имя файла (`<SOURCE>.<ext>`) на источник — попадание возвращается сразу. */
-  private readonly fileNames = new Map<VacancySource, string>();
+  private readonly fileNames = new Map<SourceIconSource, string>();
 
   /**
    * Первый рендер списка откликов/лидов запрашивает иконку одного и того же источника
@@ -30,21 +30,21 @@ export class SourceIconService {
    * in-flight запросов это стало бы 12 одинаковыми исходящими скачиваниями одной и той
    * же favicon.ico вместо одного.
    */
-  private readonly inFlight = new Map<VacancySource, Promise<string | null>>();
+  private readonly inFlight = new Map<SourceIconSource, Promise<string | null>>();
 
   /**
    * Негативный кэш: пока не прошёл SOURCE_ICON_RETRY_AFTER_MS с последнего провала,
    * повторный запрос отдаёт null без похода в сеть — иначе источник, отдающий 403/5xx
    * на favicon, получал бы по исходящему запросу на КАЖДЫЙ рендер КАЖДОЙ строки.
    */
-  private readonly failedAt = new Map<VacancySource, number>();
+  private readonly failedAt = new Map<SourceIconSource, number>();
 
   constructor(
     private readonly logos: CompanyLogoService,
     private readonly configService: ConfigService,
   ) {}
 
-  async resolveFileName(source: VacancySource): Promise<string | null> {
+  async resolveFileName(source: SourceIconSource): Promise<string | null> {
     const cached = this.fileNames.get(source);
 
     if (cached !== undefined) {
@@ -70,7 +70,7 @@ export class SourceIconService {
     return download;
   }
 
-  private async download(source: VacancySource): Promise<string | null> {
+  private async download(source: SourceIconSource): Promise<string | null> {
     const siteBaseUrl = this.configService.getOrThrow<string>(SOURCE_SITE_BASE_URL_ENV_KEYS[source]);
     const iconUrl = buildSourceIconUrl(siteBaseUrl, source);
 

@@ -226,3 +226,15 @@ export interface VacancyScanLegResult {
   reason: ScanStoppedReason;
   message: string | null;
 }
+
+/**
+ * §4.14/§5.7: признак «отклик уже создан» для всего списка GET /api/vacancy-leads
+ * одним проходом (VacancyLeadApplicationService.findAppliedKeys). refKeys обслуживает
+ * HH/IT_VACANCIES/GEEKJOB (пара vacancy_source+vacancy_external_id резолвится штатно,
+ * serializeVacancyRefKey), urls — COMPANY_SITE (§4.14: такая запись резолвится в
+ * vacancySource: null, единственный устойчивый признак — точное vacancy_url).
+ */
+export interface VacancyLeadAppliedKeys {
+  refKeys: ReadonlySet<string>;
+  urls: ReadonlySet<string>;
+}

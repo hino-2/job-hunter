@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 
 import type { VacancySource } from '../applications/applications.type';
+import { CompanySiteSearchService } from '../company-sites/company-site-search/company-site-search.service';
 import { GeekjobSearchService } from '../geekjob/geekjob-search.service';
 import { HhSearchService } from '../hh/hh-search.service';
 import { ItVacanciesSearchService } from '../it-vacancies/it-vacancies-search.service';
@@ -27,6 +28,7 @@ export class VacancyLeadSearchRegistry {
     hh: HhSearchService,
     itVacancies: ItVacanciesSearchService,
     geekjob: GeekjobSearchService,
+    companySites: CompanySiteSearchService,
   ) {
     // Аннотация элемента кортежа обязательна: без неё TS выводит union конкретных
     // сервисов, а не VacancyLeadSearchProvider, и Map получает несовместимый тип значений.
@@ -34,6 +36,7 @@ export class VacancyLeadSearchRegistry {
       [hh.source, hh],
       [itVacancies.source, itVacancies],
       [geekjob.source, geekjob],
+      [companySites.source, companySites],
     ];
 
     this.bySource = new Map(entries);

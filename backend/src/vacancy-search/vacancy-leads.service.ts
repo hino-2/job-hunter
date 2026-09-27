@@ -9,6 +9,7 @@ import { buildLikePattern } from '../common/like.helpers';
 import type { FindVacancyLeadsQueryDto } from './dto/find-vacancy-leads.query.dto';
 import {
   parseDedupKeyWithIdRow,
+  parseExternalIdWithIdRow,
   readInsertedLeadId,
   serializeDedupKey,
 } from './vacancy-lead-key.helpers';
@@ -128,6 +129,47 @@ export class VacancyLeadsService {
 
       if (parsed !== null) {
         result.set(serializeDedupKey(parsed.key), parsed.id);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * §4.11.5/§4.14: эшелон 2 для источников без достоверной даты (publicationDateKnown = false,
+   * §4.14) — по external_id, а не по (компания, должность, дата): у company-sites/ дата
+   * публикации — first-seen (§3.5), поэтому четвёрка ключа дедупликации не годится сама
+   * по себе. Map<externalId, id>, как и findExistingKeys, — тем же принципом пользуется
+   * touchLastSeen ниже.
+   */
+  async findExistingByExternalIds(
+    source: VacancySource,
+    externalIds: readonly string[],
+  ): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+
+    if (externalIds.length === 0) {
+      return result;
+    }
+
+    const rows: unknown[] = await this.leads
+      .createQueryBuilder(VACANCY_LEADS_ALIAS)
+      .select(`${VACANCY_LEADS_ALIAS}.id`, 'id')
+      .addSelect(`${VACANCY_LEADS_ALIAS}.externalId`, 'external_id')
+      .where(`${VACANCY_LEADS_ALIAS}.source = :source`, { source })
+      .andWhere(`${VACANCY_LEADS_ALIAS}.externalId IN (:...externalIds)`, {
+        externalIds: [...externalIds],
+      })
+      .getRawMany();
+
+    for (const row of rows) {
+      const parsed = parseExternalIdWithIdRow(row);
+
+      // Первая строка на externalId побеждает — совпадение возможно только при гонке
+      // с параллельной вставкой (эшелон 3, §4.11.5), в рамках одного SELECT externalId
+      // уникален для source (иначе он не прошёл бы UNIQUE-индекс).
+      if (parsed !== null && !result.has(parsed.externalId)) {
+        result.set(parsed.externalId, parsed.id);
       }
     }
 

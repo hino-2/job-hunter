@@ -11,6 +11,9 @@ export const VACANCY_PREVIEW_ENDPOINT = '/vacancies/preview';
 export const VACANCY_LEADS_ENDPOINT = '/vacancy-leads';
 export const VACANCY_SEARCH_SETTINGS_ENDPOINT = '/vacancy-search-settings';
 
+/** §5.9, §4.14: карьерные сайты компаний — CRUD-ресурс, живёт своим модулем на бэкенде. */
+export const COMPANY_CAREER_SITES_ENDPOINT = '/company-career-sites';
+
 /** Разделитель сегментов пути: путь к одной записи — `${APPLICATIONS_ENDPOINT}/${id}`. */
 export const API_PATH_SEPARATOR = '/';
 

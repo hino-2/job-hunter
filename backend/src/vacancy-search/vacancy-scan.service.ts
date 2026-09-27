@@ -37,6 +37,7 @@ import {
   SCAN_STOPPED_REASON,
   VACANCY_MATCH_MODE_ENV_KEY,
   VACANCY_PREFILTER_MODE_ENV_KEY,
+  VACANCY_PREFILTER_MODE_WITHOUT_SEARCH_QUERY,
   VACANCY_SCAN_AI_DISABLED_MESSAGE,
   VACANCY_SCAN_ALREADY_RUNNING_MESSAGE,
   VACANCY_SCAN_AI_MIN_START_DELAY_MS,
@@ -515,8 +516,13 @@ export class VacancyScanService {
           handle.setTotalPages(resolveTotalPages(lastPage, this.maxPages));
         }
 
-        if (pageResult.page.items.length === 0) {
-          // §4.11.1: короткая пагинация без lastPage — конец выдачи сигнализирует пустая страница.
+        if (pageResult.page.items.length === 0 && pageResult.page.lastPage === null) {
+          // §4.11.1/D3: пустая страница означает конец выдачи ТОЛЬКО когда источник не
+          // репортит lastPage (короткая пагинация hh.ru/it-vacancies.ru). Когда lastPage
+          // известен — компания без вакансий или без парсера (§4.14) тоже даёт пустую
+          // страницу, и это не конец ноги: листание продолжается до page > lastPage
+          // (LAST_PAGE ниже), иначе прогон COMPANY_SITE остановился бы на первой же
+          // компании без вакансий, не дойдя до остальных строк списка.
           outcome = SCAN_STOPPED_REASON.COMPLETED;
           break;
         }
@@ -561,6 +567,45 @@ export class VacancyScanService {
     return { reason: stoppedReason, message };
   }
 
+  /**
+   * §4.11.4/§4.14: эффективный режим детерминированного отбора для конкретного
+   * провайдера — глобальный VACANCY_PREFILTER_MODE для источников с достоверной
+   * датой, и всегда 'full' для источников без неё (сайты компаний, D4б): у них нет
+   * своего поискового запроса, ключевые слова профиля его заменяют целиком.
+   */
+  private resolvePrefilterMode(provider: VacancyLeadSearchProvider): VacancyPrefilterMode {
+    return provider.publicationDateKnown
+      ? this.prefilterMode
+      : VACANCY_PREFILTER_MODE_WITHOUT_SEARCH_QUERY;
+  }
+
+  /**
+   * §4.11.5/§4.14: эшелон 2 дедупликации, выбранный по источнику — известная дата
+   * публикации сверяется по четвёрке (источник, компания, должность, дата), а её
+   * отсутствие (D4б) — по external_id (findExistingByExternalIds). Результат
+   * выровнен по позиции с survivors: existingIds[i] относится к survivors[i].
+   */
+  private async findExistingLeadIds(
+    provider: VacancyLeadSearchProvider,
+    survivors: readonly VacancyScanSurvivor[],
+  ): Promise<(string | undefined)[]> {
+    if (provider.publicationDateKnown) {
+      const existingByKey = await this.leadsService.findExistingKeys(
+        provider.source,
+        survivors.map((survivor) => survivor.dedupKey),
+      );
+
+      return survivors.map((survivor) => existingByKey.get(serializeDedupKey(survivor.dedupKey)));
+    }
+
+    const existingByExternalId = await this.leadsService.findExistingByExternalIds(
+      provider.source,
+      survivors.map((survivor) => survivor.item.externalId),
+    );
+
+    return survivors.map((survivor) => existingByExternalId.get(survivor.item.externalId));
+  }
+
   /** Обрабатывает одну страницу выдачи целиком; null — продолжать листать дальше. */
   private async processPage(
     items: readonly VacancySearchItem[],
@@ -572,18 +617,25 @@ export class VacancyScanService {
     deadlineAt: number,
   ): Promise<ScanStoppedReason | null> {
     const survivors: VacancyScanSurvivor[] = [];
+    const prefilterMode = this.resolvePrefilterMode(provider);
     let skippedOldOnPage = 0;
 
     for (const item of items) {
-      const publishedAtMs = Date.parse(item.publishedAtIso);
+      // §4.11.4/§4.14: источники без достоверной даты выдачи (publicationDateKnown = false,
+      // сайты компаний) не проходят отсечку по возрасту вовсе — publishedAtIso у них
+      // first-seen (§3.5), а не настоящая дата публикации, и отсекать по ней старые
+      // вакансии означало бы отсекать наугад.
+      if (provider.publicationDateKnown) {
+        const publishedAtMs = Date.parse(item.publishedAtIso);
 
-      if (Number.isNaN(publishedAtMs) || publishedAtMs < ageCutoffMs) {
-        handle.increment('skippedOld');
-        skippedOldOnPage += 1;
-        continue;
+        if (Number.isNaN(publishedAtMs) || publishedAtMs < ageCutoffMs) {
+          handle.increment('skippedOld');
+          skippedOldOnPage += 1;
+          continue;
+        }
       }
 
-      if (!passesPrefilter(item.position, settings, this.prefilterMode, this.matchMode)) {
+      if (!passesPrefilter(item.position, settings, prefilterMode, this.matchMode)) {
         handle.increment('skippedExcluded');
         continue;
       }
@@ -621,15 +673,20 @@ export class VacancyScanService {
     // страницах большинство позиций уже в БД, и повторный ИИ-запрос по уже известному
     // названию — потерянные токены; last_seen_at при этом обновляется у КАЖДОГО
     // известного лида страницы, а не только у тех, что прошли бы ИИ.
-    const existingByKey = await this.leadsService.findExistingKeys(
-      provider.source,
-      survivors.map((survivor) => survivor.dedupKey),
-    );
+    const existingIds = await this.findExistingLeadIds(provider, survivors);
     const duplicateIds: string[] = [];
     const fresh: VacancyScanSurvivor[] = [];
 
-    for (const survivor of survivors) {
-      const existingId = existingByKey.get(serializeDedupKey(survivor.dedupKey));
+    for (let index = 0; index < survivors.length; index += 1) {
+      const survivor = survivors[index];
+
+      if (survivor === undefined) {
+        // Недостижимо на практике: existingIds строится map()'ом по survivors, длины
+        // равны по построению — проверка нужна только из-за noUncheckedIndexedAccess.
+        continue;
+      }
+
+      const existingId = existingIds[index];
 
       if (existingId !== undefined) {
         handle.increment('duplicates');
@@ -852,7 +909,7 @@ export class VacancyScanService {
     provider: VacancyLeadSearchProvider,
     handle: ScanRunHandle,
   ): Promise<ScanStoppedReason | null> {
-    const descriptionResult = await provider.fetchVacancyDescription(decision.item.externalId);
+    const descriptionResult = await provider.fetchVacancyDescription(decision.item);
 
     if (!descriptionResult.ok) {
       // §4.11.7: fail-closed — вакансия не сохраняется, следующий прогон встретит её снова.
@@ -865,7 +922,7 @@ export class VacancyScanService {
     const excludedInDescription = findExcludedInDescription(
       descriptionResult.description,
       settings,
-      this.prefilterMode,
+      this.resolvePrefilterMode(provider),
     );
 
     if (excludedInDescription.length > 0) {

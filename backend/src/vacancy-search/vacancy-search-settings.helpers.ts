@@ -1,4 +1,5 @@
 import { VACANCY_SOURCE } from '../applications/applications.constants';
+import { COMPANY_SITE_SEARCH_URL_TEMPLATE_SENTINEL } from '../company-sites/company-sites.constants';
 import {
   hasGeekjobSearchPagePlaceholder,
   isAllowedGeekjobSearchUrlOrigin,
@@ -34,6 +35,9 @@ export function buildSearchUrlTemplateBySource(
     [VACANCY_SOURCE.HH]: entity.searchUrlTemplate,
     [VACANCY_SOURCE.IT_VACANCIES]: entity.itVacanciesSearchUrlTemplate,
     [VACANCY_SOURCE.GEEKJOB]: entity.geekjobSearchUrlTemplate,
+    // §4.14: сайты компаний не читают настройки — нет своей колонки шаблона, фиксированный
+    // сентинел вместо неё (isValidSearchUrlTemplate ниже).
+    [VACANCY_SOURCE.COMPANY_SITE]: COMPANY_SITE_SEARCH_URL_TEMPLATE_SENTINEL,
   };
 }
 
@@ -47,6 +51,12 @@ export function isValidSearchUrlTemplate(
   template: string,
   source: VacancyLeadSearchSource,
 ): boolean {
+  if (source === VACANCY_SOURCE.COMPANY_SITE) {
+    // §4.14: единственное допустимое значение — сам сентинел, никакая реальная
+    // ссылка сюда не пишется (нет settings-колонки, нет диалога редактирования).
+    return template === COMPANY_SITE_SEARCH_URL_TEMPLATE_SENTINEL;
+  }
+
   if (source === VACANCY_SOURCE.IT_VACANCIES) {
     return (
       hasItVacanciesSearchPagePlaceholder(template) && isAllowedItVacanciesSearchUrlOrigin(template)

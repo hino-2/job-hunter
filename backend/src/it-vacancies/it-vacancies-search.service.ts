@@ -14,6 +14,7 @@ import {
 import type {
   VacancyLeadSearchProvider,
   VacancyRequestAttempt,
+  VacancySearchItem,
   VacancySearchPageRequest,
 } from '../vacancies/vacancies.interfaces';
 import type {
@@ -54,6 +55,9 @@ import {
 export class ItVacanciesSearchService implements VacancyLeadSearchProvider {
   readonly source: VacancySource = VACANCY_SOURCE.IT_VACANCIES;
 
+  /** §4.11.4/§4.14: it-vacancies.ru отдаёт дату публикации выдачи как есть. */
+  readonly publicationDateKnown = true;
+
   private readonly logger = new Logger(ItVacanciesSearchService.name);
   private readonly maxRetries: number;
   private readonly siteBaseUrl: string;
@@ -93,7 +97,8 @@ export class ItVacanciesSearchService implements VacancyLeadSearchProvider {
     );
   }
 
-  fetchVacancyDescription(externalId: string): Promise<VacancyDescriptionResult> {
+  fetchVacancyDescription(item: VacancySearchItem): Promise<VacancyDescriptionResult> {
+    const { externalId } = item;
     const path = `${IT_VACANCIES_VACANCY_PAGE_PATH}/${encodeURIComponent(externalId)}/`;
 
     return fetchWithRetries<VacancyDescriptionResult>(

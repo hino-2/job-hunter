@@ -14,6 +14,7 @@ import {
 import type {
   VacancyLeadSearchProvider,
   VacancyRequestAttempt,
+  VacancySearchItem,
   VacancySearchPageRequest,
 } from '../vacancies/vacancies.interfaces';
 import type {
@@ -49,6 +50,9 @@ import { countGeekjobSearchSignals, parseGeekjobSearchPage } from './geekjob-sea
 @Injectable()
 export class GeekjobSearchService implements VacancyLeadSearchProvider {
   readonly source: VacancySource = VACANCY_SOURCE.GEEKJOB;
+
+  /** §4.11.4/§4.14: geekjob.ru отдаёт дату публикации выдачи как есть. */
+  readonly publicationDateKnown = true;
 
   private readonly logger = new Logger(GeekjobSearchService.name);
   private readonly maxRetries: number;
@@ -89,7 +93,8 @@ export class GeekjobSearchService implements VacancyLeadSearchProvider {
     );
   }
 
-  fetchVacancyDescription(externalId: string): Promise<VacancyDescriptionResult> {
+  fetchVacancyDescription(item: VacancySearchItem): Promise<VacancyDescriptionResult> {
+    const { externalId } = item;
     const path = `${GEEKJOB_VACANCY_PAGE_PATH}/${encodeURIComponent(externalId)}`;
 
     return fetchWithRetries<VacancyDescriptionResult>(

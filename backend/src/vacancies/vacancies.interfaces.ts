@@ -110,9 +110,16 @@ export interface VacancyRetryOptions<TResult> {
   onRetry(pauseMs: number, attempt: number, result: TResult): void;
 }
 
-/** Имена env-переменных, из которых собираются опции axios конкретного источника. */
+/**
+ * Имена env-переменных, из которых собираются опции axios конкретного источника.
+ *
+ * baseUrl опционален (§4.14): у company-sites/ нет единого базового хоста — каждый
+ * парсер сайта компании ходит на свой константный хост (либо, у hh-search, на
+ * абсолютный URL строки CompanyCareerSite), поэтому buildVacancyHttpOptions не
+ * обязана вызывать configService.getOrThrow за отсутствующим ключом.
+ */
 export interface VacancyHttpEnvKeys {
-  baseUrl: string;
+  baseUrl?: string;
   timeoutMs: string;
   userAgent: string;
 }
@@ -196,9 +203,10 @@ export interface VacancySearchPage {
 
 /**
  * §4.11.1: контракт источника поиска лидов — вторая, независимая от §4.3 роль
- * источника. Реализуют HhSearchService и ItVacanciesSearchService; getmatch.ru
- * сознательно вне списка (VACANCY_LEAD_SEARCH_SOURCES) — у него есть только
- * синхронизация одной вакансии по ссылке.
+ * источника. Реализуют HhSearchService, ItVacanciesSearchService, GeekjobSearchService
+ * и (§4.14) CompanySiteSearchService; getmatch.ru сознательно вне списка
+ * (VACANCY_LEAD_SEARCH_SOURCES) — у него есть только синхронизация одной вакансии
+ * по ссылке.
  *
  * acquireRequestSlot обязателен, в отличие от VacancySourceProvider: прогон поиска
  * делает десятки запросов подряд, и источник без лимита частоты тут недопустим.
@@ -206,8 +214,25 @@ export interface VacancySearchPage {
 export interface VacancyLeadSearchProvider {
   readonly source: VacancySource;
   readonly acquireRequestSlot: () => Promise<void>;
+  /**
+   * §4.11.4/§4.14: false — дата выдачи источника недостоверна (сайты компаний, §4.14):
+   * нет отсечки по возрасту (§4.11.6), дедупликация эшелона 2 идёт по external_id, а не
+   * по (компания, должность, дата), а этапы 0 и 3.5 работают в режиме 'full' независимо
+   * от VACANCY_PREFILTER_MODE — ключевые слова заменяют собой поисковый запрос,
+   * которого у company-sites/ нет. true у остальных трёх источников: hh.ru,
+   * it-vacancies.ru и geekjob.ru отдают publicationTime страницы выдачи как есть.
+   */
+  readonly publicationDateKnown: boolean;
   /** Исключений наружу не выпускает: любой сбой — { ok: false, message }. */
   fetchSearchPage(request: VacancySearchPageRequest): Promise<VacancySearchPageResult>;
-  /** Исключений наружу не выпускает: любой сбой — { ok: false, message }. */
-  fetchVacancyDescription(externalId: string): Promise<VacancyDescriptionResult>;
+  /**
+   * §4.14: принимает весь элемент выдачи, а не голый externalId (D5 блюпринта) —
+   * CompanySiteSearchService дальше диспетчерит по item.vacancyUrl (хост строки
+   * определяет парсер), а не по externalId, который для сайтов компаний — md5 URL.
+   * Остальные три источника используют только item.externalId, деструктурируя его
+   * первой строкой тела.
+   *
+   * Исключений наружу не выпускает: любой сбой — { ok: false, message }.
+   */
+  fetchVacancyDescription(item: VacancySearchItem): Promise<VacancyDescriptionResult>;
 }

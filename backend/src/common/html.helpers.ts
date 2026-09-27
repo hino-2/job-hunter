@@ -6,6 +6,9 @@ import {
   HTML_DIV_TOKEN_PATTERN,
   HTML_ENTITY_REPLACEMENTS,
   HTML_INLINE_WHITESPACE_PATTERN,
+  HTML_NUMERIC_ENTITY_DECIMAL_GROUP,
+  HTML_NUMERIC_ENTITY_HEX_GROUP,
+  HTML_NUMERIC_ENTITY_PATTERN,
 } from './common.constants';
 
 /**
@@ -44,6 +47,42 @@ export function htmlToPlainText(html: string): string {
     .join('\n');
 
   return collapsedLines.replace(HTML_BLANK_LINE_RUN_PATTERN, '\n').trim();
+}
+
+/**
+ * §4.14: снимает числовые HTML-сущности (&#160; десятичная, &#xA0; шестнадцатеричная),
+ * которыми размечены сайты компаний — именованные сущности (&nbsp; и т.п.) уже
+ * снимает unescapeHtmlEntities выше, эта функция дополняет её, а не заменяет
+ * (аддитивно: разбор hh.ru/it-vacancies.ru/geekjob.ru её не вызывает и не меняется).
+ *
+ * Невалидный или выходящий за пределы code point (String.fromCodePoint бросает
+ * RangeError на значениях вне 0..0x10FFFF) оставляет совпадение как есть — не
+ * бросает наружу, просто не декодирует то, что декодировать нельзя.
+ */
+export function decodeNumericHtmlEntities(value: string): string {
+  let result = '';
+  let lastIndex = 0;
+
+  for (const match of value.matchAll(HTML_NUMERIC_ENTITY_PATTERN)) {
+    const hex = match[HTML_NUMERIC_ENTITY_HEX_GROUP];
+    const decimal = match[HTML_NUMERIC_ENTITY_DECIMAL_GROUP];
+    const codePoint = hex !== undefined ? parseInt(hex, 16) : parseInt(decimal ?? '', 10);
+    const index = match.index ?? lastIndex;
+
+    result += value.slice(lastIndex, index);
+
+    try {
+      result += String.fromCodePoint(codePoint);
+    } catch {
+      result += match[0];
+    }
+
+    lastIndex = index + match[0].length;
+  }
+
+  result += value.slice(lastIndex);
+
+  return result;
 }
 
 /**

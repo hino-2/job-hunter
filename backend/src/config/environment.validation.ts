@@ -17,6 +17,10 @@ import {
   DEFAULT_API_PORT,
   DEFAULT_COMPANY_LOGO_DIR,
   DEFAULT_COMPANY_LOGO_REQUEST_TIMEOUT_MS,
+  DEFAULT_COMPANY_SITE_MAX_REQUESTS_PER_SECOND,
+  DEFAULT_COMPANY_SITE_MAX_RETRIES,
+  DEFAULT_COMPANY_SITE_REQUEST_TIMEOUT_MS,
+  DEFAULT_COMPANY_SITE_USER_AGENT,
   DEFAULT_DATABASE_PORT,
   DEFAULT_GEEKJOB_MAX_REQUESTS_PER_SECOND,
   DEFAULT_GEEKJOB_MAX_RETRIES,
@@ -402,6 +406,36 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1)
   VACANCY_AI_DESCRIPTION_MAX_CHARS: number = DEFAULT_VACANCY_AI_DESCRIPTION_MAX_CHARS;
+
+  /**
+   * §4.14: company-sites/ — как и у getmatch.ru/it-vacancies.ru/geekjob.ru, все ключи
+   * опциональны с безопасными дефолтами; своего SITE_BASE_URL нет (§4.14/B1).
+   */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  COMPANY_SITE_USER_AGENT: string = DEFAULT_COMPANY_SITE_USER_AGENT;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(REQUEST_TIMEOUT_MIN_MS)
+  @Max(REQUEST_TIMEOUT_MAX_MS)
+  COMPANY_SITE_REQUEST_TIMEOUT_MS: number = DEFAULT_COMPANY_SITE_REQUEST_TIMEOUT_MS;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(MAX_RETRIES_MAX)
+  COMPANY_SITE_MAX_RETRIES: number = DEFAULT_COMPANY_SITE_MAX_RETRIES;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(HH_MAX_REQUESTS_PER_SECOND_MIN)
+  @Max(HH_MAX_REQUESTS_PER_SECOND_MAX)
+  COMPANY_SITE_MAX_REQUESTS_PER_SECOND: number = DEFAULT_COMPANY_SITE_MAX_REQUESTS_PER_SECOND;
 }
 
 export function validateEnvironment(raw: Record<string, unknown>): EnvironmentVariables {

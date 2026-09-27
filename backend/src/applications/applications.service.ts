@@ -115,6 +115,21 @@ export class ApplicationsService {
   }
 
   /**
+   * §4.14/§5.7: точное совпадение vacancy_url — единственный устойчивый признак «отклик
+   * уже создан» для лидов COMPANY_SITE. resolveVacancyRef ниже распознаёт хост ссылки
+   * только у HH/GETMATCH/IT_VACANCIES/GEEKJOB (VacancyProviderRegistry.resolveByUrl) —
+   * для хоста сайта компании (kontur.ru, x5.tech и т.п.) он не резолвится вовсе, и
+   * запись получает vacancySource: null, а не (COMPANY_SITE, md5(vacancyUrl)). vacancyUrl
+   * при этом хранится буквально тем же значением, что и лид (VacancyLeadApplicationService
+   * передаёт lead.vacancyUrl без изменений, а company-sites/ строит его канонически на
+   * каждом прогоне — kontur/x5 из константного хоста + id, hh-search той же логикой,
+   * что и обычный HH-лид), поэтому равенство строки надёжно.
+   */
+  findOneByVacancyUrl(vacancyUrl: string): Promise<Application | null> {
+    return this.applications.findOneBy({ vacancyUrl });
+  }
+
+  /**
    * §5.7: все пары (vacancy_source, vacancy_external_id) уже созданных откликов — питает
    * признак hasApplication в списке лидов (VacancyLeadApplicationService.findAppliedRefKeys).
    *
@@ -140,6 +155,28 @@ export class ApplicationsService {
     }
 
     return refs;
+  }
+
+  /**
+   * §4.14/§5.7: все vacancy_url уже созданных откликов — питает признак hasApplication
+   * для лидов COMPANY_SITE в списке лидов (VacancyLeadApplicationService.findAppliedKeys),
+   * параллельно findAppliedVacancyRefs выше (та обслуживает остальные три источника,
+   * где vacancy_source/vacancy_external_id резолвятся штатно).
+   */
+  async findAppliedVacancyUrls(): Promise<ReadonlySet<string>> {
+    const rows = await this.applications.find({
+      select: { vacancyUrl: true },
+      where: { vacancyUrl: Not(IsNull()) },
+    });
+    const urls = new Set<string>();
+
+    for (const row of rows) {
+      if (row.vacancyUrl !== null) {
+        urls.add(row.vacancyUrl);
+      }
+    }
+
+    return urls;
   }
 
   async create(dto: CreateApplicationDto): Promise<Application> {

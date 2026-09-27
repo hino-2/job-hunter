@@ -8,7 +8,7 @@ import {
   LOGO_CACHE_CONTROL_VALUE,
 } from '../logos/company-logo.constants';
 import { CompanyLogoService } from '../logos/company-logo.service';
-import { isVacancySource } from './source-icon.helpers';
+import { hasSourceIcon, isVacancySource } from './source-icon.helpers';
 import {
   SOURCE_ICON_PARAM,
   SOURCE_ICON_ROUTE,
@@ -39,7 +39,9 @@ export class SourceIconsController {
       throw new BadRequestException(SOURCE_ICON_UNKNOWN_SOURCE_MESSAGE);
     }
 
-    const fileName = await this.sourceIconService.resolveFileName(source);
+    // §5.8/§4.14: COMPANY_SITE — единственный признанный источник без иконки (нет
+    // единого сайта-источника) — 404 без похода в SourceIconService, фронт показывает бейдж.
+    const fileName = hasSourceIcon(source) ? await this.sourceIconService.resolveFileName(source) : null;
 
     return readCompanyLogoOrFail(this.companyLogoService, fileName, SOURCE_ICON_UNAVAILABLE_MESSAGE);
   }

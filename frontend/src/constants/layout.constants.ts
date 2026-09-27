@@ -209,6 +209,13 @@ export const VACANCY_LEAD_FIELD_FLEX = {
 /** Диалог настроек поиска (§7.9.4) шире стандартного 'sm': два многострочных промпта. */
 export const SETTINGS_DIALOG_MAX_WIDTH = 'md' as const;
 
+/**
+ * §7.9, §4.14: строка добавления в таблице «Сайты компаний» — кнопка «Добавить»
+ * растянута на две последние колонки (иконка-предупреждение и удаление ещё не нужны
+ * для строки, которой пока нет).
+ */
+export const COMPANY_CAREER_SITE_ADD_ROW_COL_SPAN = 2;
+
 /** Многострочные поля промптов — выше, чем заметки отклика: текст длиннее (до 8000 симв.). */
 export const MULTILINE_MIN_ROWS_PROMPT = 3;
 export const MULTILINE_MAX_ROWS_PROMPT = 8;

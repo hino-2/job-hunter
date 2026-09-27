@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ApplicationsModule } from '../applications/applications.module';
+import { CompanySitesModule } from '../company-sites/company-sites.module';
 import { GeekjobModule } from '../geekjob/geekjob.module';
 import { HhModule } from '../hh/hh.module';
 import { ItVacanciesModule } from '../it-vacancies/it-vacancies.module';
@@ -34,7 +35,11 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
  * ItVacanciesModule, GeekjobModule, VacancyAiModule, LogosModule, ApplicationsModule } —
  * циклов нет: ни hh/, ни it-vacancies/, ни geekjob/, ни vacancy-ai/, ни logos/, ни
  * applications/ не импортируют vacancy-search/. ItVacanciesModule и GeekjobModule
- * добавлены ради второго и третьего источника поиска лидов (§4.11, §4.13):
+ * добавлены ради второго и третьего источника поиска лидов (§4.11, §4.13);
+ * CompanySitesModule (§4.14) — ради четвёртого (COMPANY_SITE): он же по пути
+ * регистрирует свой собственный контроллер CompanyCareerSitesController
+ * (/api/company-career-sites, §5.9) — VacancySearchModule этот контроллер не
+ * перечисляет, он приезжает вместе с импортом модуля.
  * VacancyLeadSearchRegistry диспетчеризует прогон по source, а сам конвейер знает
  * только контракт VacancyLeadSearchProvider. LogosModule
  * добавлен шагом №26 (§14, §4.10) — CompanyLogoService нужен VacancyScanService для
@@ -48,6 +53,7 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
     HhModule,
     ItVacanciesModule,
     GeekjobModule,
+    CompanySitesModule,
     VacancyAiModule,
     LogosModule,
     ApplicationsModule,

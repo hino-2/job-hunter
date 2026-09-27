@@ -62,12 +62,17 @@ export const SYNC_OUTCOME = {
   ERROR: 'ERROR',
 } as const;
 
-/** §4.8 */
+/**
+ * §4.8, §4.14: COMPANY_SITE — источник только для поиска лидов (свои карьерные сайты
+ * компаний), синхронизации отклика у него нет — ручная копия backend/src/vacancies/
+ * vacancies.constants.ts (§3.4).
+ */
 export const VACANCY_SOURCE = {
   HH: 'HH',
   GETMATCH: 'GETMATCH',
   IT_VACANCIES: 'IT_VACANCIES',
   GEEKJOB: 'GEEKJOB',
+  COMPANY_SITE: 'COMPANY_SITE',
 } as const;
 
 /**
@@ -258,6 +263,7 @@ export const VACANCY_SOURCE_LABELS: Record<VacancySource, string> = {
   GETMATCH: 'getmatch.ru',
   IT_VACANCIES: 'it-vacancies.ru',
   GEEKJOB: 'geekjob.ru',
+  COMPANY_SITE: 'Сайты компаний',
 };
 
 export const VACANCY_SOURCE_UNKNOWN_LABEL = 'Источник не определён';

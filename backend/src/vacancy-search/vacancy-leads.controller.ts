@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { VACANCY_SOURCE } from '../applications/applications.constants';
 import { ApplicationDto } from '../applications/dto/application.dto';
 import { readCompanyLogoOrFail } from '../logos/company-logo-response.helpers';
 import {
@@ -36,7 +37,9 @@ import { VacancyScanStateService } from './vacancy-scan-state.service';
 import { VacancyScanService } from './vacancy-scan.service';
 import { VacancyLeadApplicationService } from './vacancy-lead-application.service';
 import { serializeVacancyRefKey } from './vacancy-lead-key.helpers';
+import type { VacancyLead } from './vacancy-lead.entity';
 import { VacancyLeadsService } from './vacancy-leads.service';
+import type { VacancyLeadAppliedKeys } from './vacancy-search.interfaces';
 import { VacancySearchSettingsService } from './vacancy-search-settings.service';
 import {
   DEFAULT_SCAN_MODE,
@@ -81,16 +84,25 @@ export class VacancyLeadsController {
   async findAll(@Query() query: FindVacancyLeadsQueryDto): Promise<VacancyLeadDto[]> {
     const [entities, appliedKeys] = await Promise.all([
       this.leadsService.findAll(query),
-      this.leadApplicationService.findAppliedRefKeys(),
+      this.leadApplicationService.findAppliedKeys(),
     ]);
 
-    return entities.map((entity) =>
-      VacancyLeadDto.fromEntity(
-        entity,
-        appliedKeys.has(
-          serializeVacancyRefKey({ source: entity.source, externalId: entity.externalId }),
-        ),
-      ),
+    return entities.map((entity) => VacancyLeadDto.fromEntity(entity, this.isApplied(entity, appliedKeys)));
+  }
+
+  /**
+   * §4.14: лид COMPANY_SITE резолвится в отклик с vacancySource: null (хосты сайтов
+   * компаний не входят в VacancyProviderRegistry) — признак «уже создан» для него
+   * проверяется по vacancy_url, а не по паре (source, externalId), см.
+   * VacancyLeadApplicationService.findExistingApplication.
+   */
+  private isApplied(entity: VacancyLead, appliedKeys: VacancyLeadAppliedKeys): boolean {
+    if (entity.source === VACANCY_SOURCE.COMPANY_SITE) {
+      return appliedKeys.urls.has(entity.vacancyUrl);
+    }
+
+    return appliedKeys.refKeys.has(
+      serializeVacancyRefKey({ source: entity.source, externalId: entity.externalId }),
     );
   }
 

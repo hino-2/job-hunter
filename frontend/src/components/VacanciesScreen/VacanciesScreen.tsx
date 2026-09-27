@@ -37,6 +37,7 @@ import type { ScanSourceSelection } from '../../types/vacancy-search.type';
 import { extractApiErrorMessage } from '../../utils/error.utils';
 import { isVacancyLeadsSearchActive } from '../../utils/vacancy-lead.utils';
 import { selectScanResumeState } from '../../utils/vacancy-scan.utils';
+import { CompanyCareerSitesSection } from '../CompanyCareerSitesSection/CompanyCareerSitesSection';
 import { ScanStatusAlert } from '../ScanStatusAlert/ScanStatusAlert';
 import { SearchSettingsDialog } from '../SearchSettingsDialog/SearchSettingsDialog';
 import { VacancyLeadsFilterBar } from '../VacancyLeadsFilterBar/VacancyLeadsFilterBar';
@@ -224,6 +225,8 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
             resume={resume}
             onOpenSettings={handleOpenSettings}
           />
+
+          <CompanyCareerSitesSection onError={notification.notifyError} />
 
           {showScanAlert && scanStatus.data !== undefined ? (
             <ScanStatusAlert status={scanStatus.data} />

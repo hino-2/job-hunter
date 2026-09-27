@@ -16,6 +16,7 @@ import { htmlToPlainText } from '../common/html.helpers';
 import type {
   VacancyLeadSearchProvider,
   VacancyRequestAttempt,
+  VacancySearchItem,
   VacancySearchPageRequest,
 } from '../vacancies/vacancies.interfaces';
 import type {
@@ -55,6 +56,9 @@ import { parseHhSearchPage } from './hh-search.parser';
 @Injectable()
 export class HhSearchService implements VacancyLeadSearchProvider {
   readonly source: VacancySource = VACANCY_SOURCE.HH;
+
+  /** §4.11.4/§4.14: hh.ru отдаёт publicationTime страницы выдачи как есть. */
+  readonly publicationDateKnown = true;
 
   private readonly logger = new Logger(HhSearchService.name);
   private readonly maxRetries: number;
@@ -97,7 +101,8 @@ export class HhSearchService implements VacancyLeadSearchProvider {
     );
   }
 
-  fetchVacancyDescription(externalId: string): Promise<VacancyDescriptionResult> {
+  fetchVacancyDescription(item: VacancySearchItem): Promise<VacancyDescriptionResult> {
+    const { externalId } = item;
     const path = `${HH_VACANCY_PAGE_PATH}/${encodeURIComponent(externalId)}`;
 
     return fetchWithRetries<VacancyDescriptionResult>(

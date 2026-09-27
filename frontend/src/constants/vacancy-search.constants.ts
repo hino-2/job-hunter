@@ -74,11 +74,14 @@ export const SCAN_MODE = {
  * §5.7: источники, у которых есть поиск лидов — ручная копия VACANCY_LEAD_SEARCH_SOURCES
  * бэкенда. getmatch.ru сюда намеренно не входит: у него есть только синхронизация отклика
  * (§4.8), поиска по выдаче нет, и сервер отвергнет такое значение поля source 400-й ошибкой.
+ * COMPANY_SITE (§4.14) добавлен последним — пункт выпадающего списка «Источник» (§7.9.2)
+ * выводится из этого списка, отдельно дублировать его не нужно.
  */
 export const VACANCY_LEAD_SEARCH_SOURCES = [
   VACANCY_SOURCE.HH,
   VACANCY_SOURCE.IT_VACANCIES,
   VACANCY_SOURCE.GEEKJOB,
+  VACANCY_SOURCE.COMPANY_SITE,
 ] as const;
 
 /**

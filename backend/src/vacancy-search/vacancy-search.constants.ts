@@ -7,7 +7,7 @@
  */
 
 import { VACANCY_LEAD_SEARCH_SOURCES } from '../vacancies/vacancies.constants';
-import type { ScanStoppedReason } from './vacancy-search.type';
+import type { ScanStoppedReason, VacancyPrefilterMode } from './vacancy-search.type';
 
 export const VACANCY_LEADS_TABLE = 'vacancy_leads';
 
@@ -394,6 +394,14 @@ export const VACANCY_SCAN_POSITION_MISSING_MESSAGE =
   'Позиция прогона поиска не найдена: миграция не выполнена или строка удалена вручную';
 export const VACANCY_SCAN_POSITION_SAVE_FAILED_MESSAGE =
   'Не удалось сохранить позицию прогона поиска';
+
+/**
+ * §4.11.4/§4.14: у company-sites/ нет своего поискового запроса — ключевые слова
+ * профиля заменяют его целиком, поэтому эффективный режим этапов 0 и 3.5 всегда
+ * 'full' для источников с publicationDateKnown = false, независимо от глобального
+ * VACANCY_PREFILTER_MODE (resolvePrefilterMode, vacancy-scan.service.ts).
+ */
+export const VACANCY_PREFILTER_MODE_WITHOUT_SEARCH_QUERY: VacancyPrefilterMode = 'full';
 
 /** §4.11: источник запрошен, но провайдера поиска для него нет — рассинхронизация реестра, не плохой запрос. */
 export const VACANCY_LEAD_SEARCH_PROVIDER_MISSING_MESSAGE =

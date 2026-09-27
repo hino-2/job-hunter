@@ -45,5 +45,8 @@ export const VACANCY_SCAN_STATUS_QUERY_KEY = ['vacancy-scan-status'] as const;
 
 export const VACANCY_SEARCH_SETTINGS_QUERY_KEY = ['vacancy-search-settings'] as const;
 
+/** §5.9: список сайтов компаний целиком — записей не больше нескольких десятков (§4.14). */
+export const COMPANY_CAREER_SITES_QUERY_KEY = ['company-career-sites'] as const;
+
 /** §7.9.2: пока прогон RUNNING, статус опрашивается раз в 2 секунды. */
 export const SCAN_STATUS_POLL_INTERVAL_MS = 2000;

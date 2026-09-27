@@ -10,6 +10,7 @@ export const SOURCE_BADGE_ABBREVIATIONS: Record<VacancySource, string> = {
   GETMATCH: 'GM',
   IT_VACANCIES: 'IT',
   GEEKJOB: 'GJ',
+  COMPANY_SITE: 'CO',
 };
 
 /** Каждый цвет проверен на контраст ≥5:1 к белому тексту — не осветлять без повторной проверки. */
@@ -18,6 +19,9 @@ export const SOURCE_BADGE_COLORS: Record<VacancySource, string> = {
   GETMATCH: '#1A5FD0',
   IT_VACANCIES: '#6244D6',
   GEEKJOB: '#0B7A54',
+  // §4.14, §5.8: у COMPANY_SITE нет единого сайта-источника (GET …/icon отвечает 404),
+  // поэтому Avatar всегда падает на этот фолбэк-цвет — контраст ≈6.8:1 к белому тексту.
+  COMPANY_SITE: '#8A4B00',
 };
 
 // ACCENT_CONTRAST_TEXT_COLOR (#262626, theme.constants.ts) здесь не годится: он тёмный

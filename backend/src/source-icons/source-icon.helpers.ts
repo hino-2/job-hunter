@@ -1,5 +1,7 @@
+import { VACANCY_SOURCE } from '../applications/applications.constants';
 import { VACANCY_SOURCE_ORDER } from '../vacancies/vacancies.constants';
 import { SOURCE_ICON_ALLOWED_HOST_PATTERNS, SOURCE_ICON_PATHS } from './source-icon.constants';
+import type { SourceIconSource } from './source-icon.type';
 import type { VacancySource } from '../applications/applications.type';
 
 /**
@@ -11,12 +13,21 @@ export function isVacancySource(value: string): value is VacancySource {
 }
 
 /**
+ * §5.8/§4.14: COMPANY_SITE — единственное значение VacancySource, у которого нет
+ * своей иконки (нет единого сайта-источника, §4.14) — контроллер отвечает 404 без
+ * похода в SourceIconService, а фронт показывает бейдж-заглушку.
+ */
+export function hasSourceIcon(source: VacancySource): source is SourceIconSource {
+  return source !== VACANCY_SOURCE.COMPANY_SITE;
+}
+
+/**
  * Абсолютный URL иконки источника либо null (§5.8) — защита в глубину, зеркало
  * resolveVacancyLogoUrl (vacancies/vacancy-logo-url.helpers.ts): хост, полученный из
  * SOURCE_ICON_PATHS + siteBaseUrl, перепроверяется allow-list'ом того же источника
  * ещё раз, до похода в сеть.
  */
-export function buildSourceIconUrl(siteBaseUrl: string, source: VacancySource): string | null {
+export function buildSourceIconUrl(siteBaseUrl: string, source: SourceIconSource): string | null {
   let url: URL;
 
   try {

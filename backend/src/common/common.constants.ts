@@ -115,3 +115,16 @@ export const HTML_BLANK_LINE_RUN_PATTERN = /\n{2,}/g;
 export const HTML_DIV_TOKEN_PATTERN = /<div\b|<\/div\s*>/gi;
 
 export const HTML_DIV_CLOSE_TOKEN_PREFIX = '</';
+
+/**
+ * §4.14: числовые HTML-сущности (десятичные &#160; и шестнадцатеричные &#xA0;) —
+ * ими размечены сайты компаний (kontur.ru, x5.tech), в отличие от именованных
+ * сущностей hh.ru/it-vacancies.ru/geekjob.ru, которые уже покрывает
+ * HTML_ENTITY_REPLACEMENTS/unescapeHtmlEntities. Отдельная функция
+ * (decodeNumericHtmlEntities, html.helpers.ts), а не расширение
+ * unescapeHtmlEntities — та переиспользуется в разборе встроенного JSON-состояния
+ * hh.ru, где числовых entity нет, и не должна тратить лишний проход по строке.
+ */
+export const HTML_NUMERIC_ENTITY_PATTERN = /&#(?:x([0-9a-f]+)|(\d+));/gi;
+export const HTML_NUMERIC_ENTITY_HEX_GROUP = 1;
+export const HTML_NUMERIC_ENTITY_DECIMAL_GROUP = 2;

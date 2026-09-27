@@ -56,12 +56,18 @@ export const VACANCY_RETRY_MAX_DELAY_MS = 10_000;
  * Порядок опроса провайдеров в resolveByUrl. Наборы хостов не пересекаются — порядок
  * не критичен, но список обязан покрывать все значения VACANCY_SOURCE: источник,
  * забытый здесь, молча перестал бы распознаваться в ссылках.
+ *
+ * COMPANY_SITE (§4.14) добавлен в список ради isVacancySource (source-icons/, §5.8):
+ * у него нет провайдера синхронизации, поэтому resolveByUrl его пропускает так же,
+ * как пропустила бы любой источник без записи в byId — по построению, без отдельной
+ * ветки кода.
  */
 export const VACANCY_SOURCE_ORDER = [
   VACANCY_SOURCE.HH,
   VACANCY_SOURCE.GETMATCH,
   VACANCY_SOURCE.IT_VACANCIES,
   VACANCY_SOURCE.GEEKJOB,
+  VACANCY_SOURCE.COMPANY_SITE,
 ] as const;
 
 /**
@@ -69,11 +75,16 @@ export const VACANCY_SOURCE_ORDER = [
  * сознательно — у него есть только синхронизация одной вакансии по ссылке.
  * Отдельный список, а не VACANCY_SOURCE_ORDER: тем же значением параметризуется
  * прогон (POST /scan), таблица позиций и карта шаблонов ссылок на выдачу.
+ *
+ * COMPANY_SITE (§4.14) — последним: он не источник в обычном смысле (нет своего
+ * сайта, нет settings-колонки шаблона), а сборный список сайтов компаний — четвёртая
+ * «нога» мультипрогона добавляется в конец очереди, ничего не переставляя у первых трёх.
  */
 export const VACANCY_LEAD_SEARCH_SOURCES = [
   VACANCY_SOURCE.HH,
   VACANCY_SOURCE.IT_VACANCIES,
   VACANCY_SOURCE.GEEKJOB,
+  VACANCY_SOURCE.COMPANY_SITE,
 ] as const;
 
 export const VACANCY_SKIPPED_UNSUPPORTED_MESSAGE =
