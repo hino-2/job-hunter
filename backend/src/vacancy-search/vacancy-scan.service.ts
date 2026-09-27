@@ -397,9 +397,12 @@ export class VacancyScanService {
         );
 
         if (result.reason === SCAN_STOPPED_REASON.ERROR) {
-          // §4.11.11: сбой ОДНОЙ страницы результатов не отменяет соседние источники —
-          // ошибка запоминается, и цикл переходит к следующей ноге; префикс с именем
-          // источника появляется только в мультипрогоне, где иначе не понять, чья ошибка.
+          // §4.11.3/§4.11.11: ERROR теперь приходит только от неожиданного исключения
+          // внутри ноги (одна неудачная страница выдачи сама по себе больше не
+          // прерывает ногу — она пропускается и считается в pagesFailed). Такое
+          // исключение не отменяет соседние источники — ошибка запоминается, и цикл
+          // переходит к следующей ноге; префикс с именем источника появляется только
+          // в мультипрогоне, где иначе не понять, чья ошибка.
           errors.push(
             isMultiSource
               ? `${leg.source}${VACANCY_SCAN_SOURCE_MESSAGE_SEPARATOR}${result.message ?? ''}`
@@ -491,10 +494,16 @@ export class VacancyScanService {
         const pageResult = await provider.fetchSearchPage({ searchUrlTemplate, page });
 
         if (!pageResult.ok) {
-          // §4.11.3: неразбираемая страница выдачи — fail-loud, останов этой ноги.
-          outcome = SCAN_STOPPED_REASON.ERROR;
-          message = pageResult.message;
-          break;
+          // §4.11.3/§4.11.11: одна неудачная страница (таймаут/5xx/неразбираемый ответ)
+          // больше не обрывает ногу — она пропускается и учитывается в pagesFailed,
+          // листание продолжается со следующей страницы.
+          // ponytail: нет потолка подряд идущих сбоев — худший случай VACANCY_SCAN_MAX_PAGES × (таймаут × попытки)
+          // в пределах дедлайна прогона; добавить счётчик подряд идущих сбоев, если источник лежит целиком.
+          handle.increment('pagesFailed');
+          this.logger.warn(`Страница выдачи ${source} (page=${page}) пропущена: ${pageResult.message}`);
+          resumePage = page + 1;
+          await this.position.save(source, resumePage, searchUrlTemplate);
+          continue;
         }
 
         handle.increment('pagesFetched');

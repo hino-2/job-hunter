@@ -19,6 +19,7 @@ import type { ScanSourceSelection, ScanStatus, ScanStoppedReason } from './vacan
 function createEmptyProgress(): VacancyScanProgress {
   return {
     pagesFetched: 0,
+    pagesFailed: 0,
     itemsSeen: 0,
     skippedInvalid: 0,
     skippedOld: 0,

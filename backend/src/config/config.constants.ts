@@ -135,15 +135,22 @@ export const HH_MAX_REQUESTS_PER_SECOND_MIN = 0.1;
 export const HH_MAX_REQUESTS_PER_SECOND_MAX = 50;
 
 /**
- * §4.11.8: бюджеты одного прогона поиска. Дефолт 40 совпадает с собственным
- * потолком hh.ru (paging.lastPage.page = 39, §4.11.1) — прогон по умолчанию
- * вычерпывает всю доступную выдачу, MAX_PAGES и LAST_PAGE на полном прогоне
- * теперь совпадают.
+ * §4.11.1/§4.11.8/§4.11.11: бюджет одного прогона поиска. hh.ru по-прежнему
+ * ограничен собственным потолком (paging.lastPage.page = 39) и до него не
+ * дотягивает даже при 400 — LAST_PAGE сработает раньше MAX_PAGES. Дефолт 400
+ * рассчитан на источники без lastPage (it-vacancies.ru) и на COMPANY_SITE, где
+ * страница — это индекс компании: раз неудачная страница больше не обрывает
+ * ногу (пропускается и считается в pagesFailed), бюджет страниц должен
+ * покрывать весь список компаний, а не только глубину одной выдачи hh.ru.
  */
-export const DEFAULT_VACANCY_SCAN_MAX_PAGES = 40;
+export const DEFAULT_VACANCY_SCAN_MAX_PAGES = 400;
 export const VACANCY_SCAN_MAX_PAGES_MIN = 1;
-/** У hh.ru своя отсечка на 40-й странице (paging.lastPage.page = 39, §4.11.1). */
-export const VACANCY_SCAN_MAX_PAGES_MAX = 40;
+/**
+ * Потолок диапазона поднят с 40 (старая отсечка hh.ru) до 1000 — источники без
+ * lastPage и постраничные компании требуют большего запаса, чем глубина одной
+ * выдачи hh.ru.
+ */
+export const VACANCY_SCAN_MAX_PAGES_MAX = 1000;
 
 export const DEFAULT_VACANCY_SCAN_MAX_AGE_DAYS = 30;
 /**

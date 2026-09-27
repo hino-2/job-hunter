@@ -247,6 +247,8 @@ export const SCAN_PROGRESS_PERCENT_SCALE = 100;
 export const SCAN_AI_WARM_UP_LABEL = 'запуск модели...';
 
 export const SCAN_PROGRESS_PAGES_LABEL = 'страниц';
+/** §4.11.11: пропущенные страницы выдачи — сводка показывает счётчик всегда, даже при нуле. */
+export const SCAN_PROGRESS_PAGES_FAILED_LABEL = 'страниц с ошибкой';
 export const SCAN_PROGRESS_SEEN_LABEL = 'просмотрено';
 export const SCAN_PROGRESS_CREATED_LABEL = 'найдено';
 export const SCAN_PROGRESS_DUPLICATES_LABEL = 'дублей';

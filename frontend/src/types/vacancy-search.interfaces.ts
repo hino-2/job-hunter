@@ -95,6 +95,8 @@ export interface ScanStopAcceptedResponse {
  */
 export interface ScanProgress {
   pagesFetched: number;
+  /** §4.11.11: страница, чей запрос или разбор не удался — пропущена, прогон продолжается. */
+  pagesFailed: number;
   itemsSeen: number;
   skippedInvalid: number;
   skippedOld: number;

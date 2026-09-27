@@ -12,6 +12,7 @@ import {
   SCAN_PROGRESS_FAILED_LABEL,
   SCAN_PROGRESS_AI_SKIPPED_LABEL,
   SCAN_PROGRESS_PAGES_LABEL,
+  SCAN_PROGRESS_PAGES_FAILED_LABEL,
   SCAN_PROGRESS_PERCENT_SCALE,
   SCAN_PROGRESS_REJECTED_LABEL,
   SCAN_PROGRESS_SEEN_LABEL,
@@ -61,18 +62,20 @@ export function formatScanSourceLabel(status: ScanStatusResponse): string {
 }
 
 /**
- * «hh.ru · страниц 3 · просмотрено 40 · найдено 2 · дублей 5 · отклонено моделью 12 ·
- * ошибок 0 · пропущено моделью 1». Источник идёт первым: прогон один на все источники
- * (§4.11.12), и по одним счётчикам не понять, чью выдачу сейчас разбирают.
- * После смены порядка эшелонов дедупликации (§4.11.4, §4.11.5) «дублей» считает лидов,
- * узнанных ещё ДО ИИ по названию (эшелон 2 по БД), а «отклонено моделью» — только тех,
- * кто дедупликацию уже прошёл.
+ * «hh.ru · страниц 3 · страниц с ошибкой 0 · просмотрено 40 · найдено 2 · дублей 5 ·
+ * отклонено моделью 12 · ошибок 0 · пропущено моделью 1». Источник идёт первым: прогон
+ * один на все источники (§4.11.12), и по одним счётчикам не понять, чью выдачу сейчас
+ * разбирают. После смены порядка эшелонов дедупликации (§4.11.4, §4.11.5) «дублей» считает
+ * лидов, узнанных ещё ДО ИИ по названию (эшелон 2 по БД), а «отклонено моделью» — только
+ * тех, кто дедупликацию уже прошёл. «страниц с ошибкой» (§4.11.11) показывается всегда,
+ * даже при нуле, той же логикой, что и «ошибок».
  */
 export function formatScanProgressText(progress: ScanProgress, sourceLabel: string): string {
   const rejectedByModel = progress.rejectedTitle + progress.rejectedDescription;
   const parts = [
     sourceLabel,
     `${SCAN_PROGRESS_PAGES_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.pagesFetched}`,
+    `${SCAN_PROGRESS_PAGES_FAILED_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.pagesFailed}`,
     `${SCAN_PROGRESS_SEEN_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.itemsSeen}`,
     `${SCAN_PROGRESS_CREATED_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.created}`,
     `${SCAN_PROGRESS_DUPLICATES_LABEL}${SCAN_SUMMARY_VALUE_SEPARATOR}${progress.duplicates}`,

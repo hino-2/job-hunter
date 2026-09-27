@@ -46,6 +46,8 @@ export interface VacancyLeadDedupKey {
 /** §4.11.11: счётчики сводки прогона — те же поля отдаёт GET .../scan/status во время прогона. */
 export interface VacancyScanProgress {
   pagesFetched: number;
+  /** §4.11.11: страница, чей запрос или разбор провалился — пропущена, нога продолжается. */
+  pagesFailed: number;
   itemsSeen: number;
   skippedInvalid: number;
   skippedOld: number;
