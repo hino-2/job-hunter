@@ -37,7 +37,8 @@ export function buildVacancyHttpOptions(
     // §4.14: baseUrl опционален — company-sites/ не задаёт его вовсе (нет единого
     // базового хоста), тогда axios просто не получает baseURL, и каждый парсер
     // обязан ходить по абсолютному URL.
-    baseURL: keys.baseUrl === undefined ? undefined : configService.getOrThrow<string>(keys.baseUrl),
+    baseURL:
+      keys.baseUrl === undefined ? undefined : configService.getOrThrow<string>(keys.baseUrl),
     timeout: configService.getOrThrow<number>(keys.timeoutMs),
     headers: {
       [USER_AGENT_HEADER]: configService.getOrThrow<string>(keys.userAgent),

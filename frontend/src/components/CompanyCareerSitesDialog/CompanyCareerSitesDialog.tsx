@@ -1,9 +1,9 @@
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Table,
   TableBody,
   TableCell,
@@ -24,14 +24,13 @@ import {
   COMPANY_CAREER_SITES_COUNT_PREFIX,
   COMPANY_CAREER_SITES_COUNT_SUFFIX,
   COMPANY_CAREER_SITES_LOAD_ERROR_MESSAGE,
-  COMPANY_CAREER_SITES_SECTION_TITLE,
+  COMPANY_CAREER_SITES_TITLE,
   EMPTY_COMPANY_CAREER_SITES,
 } from '../../constants/company-career-site.constants';
 import {
-  ACCORDION_ELEVATION,
   COMPANY_CAREER_SITE_ADD_ROW_COL_SPAN,
+  COMPANY_CAREER_SITES_DIALOG_MAX_WIDTH,
   COMPANY_CAREER_SITES_TABLE_SX,
-  SUMMARY_PADDING_X,
 } from '../../constants/layout.constants';
 import { useCompanyCareerSites } from '../../hooks/useCompanyCareerSites';
 import { useCreateCompanyCareerSite } from '../../hooks/useCreateCompanyCareerSite';
@@ -41,15 +40,14 @@ import {
   validateCompanyCareerSiteUrl,
 } from '../../utils/company-career-site.utils';
 import { CompanyCareerSiteRow } from '../CompanyCareerSiteRow/CompanyCareerSiteRow';
-import type { CompanyCareerSitesSectionProps } from './company-career-sites-section.interfaces';
+import type { CompanyCareerSitesDialogProps } from './company-career-sites-dialog.interfaces';
 
 /**
- * Раздел «Сайты компаний» (§7.9, §4.14) — свёрнутый по умолчанию Accordion между
- * панелью фильтров и Alert'ом прогона. Неконтролируемый (нет прокинутого expanded/
- * onChange, §10 D13): раскрытость — забота самого Accordion, отдельный useState
- * экрану не нужен, как и во внешнем состоянии VacanciesScreen.
+ * Диалог «Сайты компаний» (§7.9.5, §4.14), открывается кнопкой рядом с «Настройки
+ * поиска». Монтируется условно из VacanciesScreen: свежий монтаж сам сбрасывает
+ * черновики строки добавления, как у SearchSettingsDialog.
  */
-export function CompanyCareerSitesSection({ onError }: CompanyCareerSitesSectionProps) {
+export function CompanyCareerSitesDialog({ onClose, onError }: CompanyCareerSitesDialogProps) {
   const [nameDraft, setNameDraft] = useState('');
   const [urlDraft, setUrlDraft] = useState('');
   const [isNameTouched, setNameTouched] = useState(false);
@@ -97,18 +95,26 @@ export function CompanyCareerSitesSection({ onError }: CompanyCareerSitesSection
     createSite.mutate({ name: nameDraft.trim(), url: urlDraft.trim() });
   };
 
-  return (
-    <Accordion disableGutters elevation={ACCORDION_ELEVATION}>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: SUMMARY_PADDING_X }}>
-        <Typography>
-          {COMPANY_CAREER_SITES_SECTION_TITLE}
-          {COMPANY_CAREER_SITES_COUNT_PREFIX}
-          {sites.length}
-          {COMPANY_CAREER_SITES_COUNT_SUFFIX}
-        </Typography>
-      </AccordionSummary>
+  // Escape закрывает диалог без blur: черновик строки, ещё не ушедший PATCH'ем по
+  // blur (§7.3), пропал бы вместе с размонтированием — снимаем фокус сами.
+  const handleClose = () => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
 
-      <AccordionDetails>
+    onClose();
+  };
+
+  return (
+    <Dialog open fullWidth maxWidth={COMPANY_CAREER_SITES_DIALOG_MAX_WIDTH} onClose={handleClose}>
+      <DialogTitle>
+        {COMPANY_CAREER_SITES_TITLE}
+        {COMPANY_CAREER_SITES_COUNT_PREFIX}
+        {sites.length}
+        {COMPANY_CAREER_SITES_COUNT_SUFFIX}
+      </DialogTitle>
+
+      <DialogContent>
         {sitesQuery.isError ? (
           <Typography color="error">{COMPANY_CAREER_SITES_LOAD_ERROR_MESSAGE}</Typography>
         ) : (
@@ -173,7 +179,11 @@ export function CompanyCareerSitesSection({ onError }: CompanyCareerSitesSection
             </TableBody>
           </Table>
         )}
-      </AccordionDetails>
-    </Accordion>
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={handleClose}>Закрыть</Button>
+      </DialogActions>
+    </Dialog>
   );
 }

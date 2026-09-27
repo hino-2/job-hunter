@@ -87,7 +87,9 @@ export class VacancyLeadsController {
       this.leadApplicationService.findAppliedKeys(),
     ]);
 
-    return entities.map((entity) => VacancyLeadDto.fromEntity(entity, this.isApplied(entity, appliedKeys)));
+    return entities.map((entity) =>
+      VacancyLeadDto.fromEntity(entity, this.isApplied(entity, appliedKeys)),
+    );
   }
 
   /**

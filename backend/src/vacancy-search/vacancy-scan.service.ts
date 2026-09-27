@@ -501,7 +501,9 @@ export class VacancyScanService {
           // ponytail: нет потолка подряд идущих сбоев — худший случай VACANCY_SCAN_MAX_PAGES × (таймаут × попытки)
           // в пределах дедлайна прогона; добавить счётчик подряд идущих сбоев, если источник лежит целиком.
           handle.increment('pagesFailed');
-          this.logger.warn(`Страница выдачи ${source} (page=${page}) пропущена: ${pageResult.message}`);
+          this.logger.warn(
+            `Страница выдачи ${source} (page=${page}) пропущена: ${pageResult.message}`,
+          );
           resumePage = page + 1;
           await this.position.save(source, resumePage, searchUrlTemplate);
           continue;

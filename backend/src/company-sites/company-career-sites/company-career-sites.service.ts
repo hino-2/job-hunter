@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { COMPANY_CAREER_SITE_NOT_FOUND_MESSAGE, COMPANY_CAREER_SITES_ORDER } from '../company-sites.constants';
+import {
+  COMPANY_CAREER_SITE_NOT_FOUND_MESSAGE,
+  COMPANY_CAREER_SITES_ORDER,
+} from '../company-sites.constants';
 import { CompanyCareerSite } from './company-career-site.entity';
 import type { CreateCompanyCareerSiteDto } from './dto/create-company-career-site.dto';
 import type { UpdateCompanyCareerSiteDto } from './dto/update-company-career-site.dto';

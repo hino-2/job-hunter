@@ -71,7 +71,9 @@ export class SourceIconService {
   }
 
   private async download(source: SourceIconSource): Promise<string | null> {
-    const siteBaseUrl = this.configService.getOrThrow<string>(SOURCE_SITE_BASE_URL_ENV_KEYS[source]);
+    const siteBaseUrl = this.configService.getOrThrow<string>(
+      SOURCE_SITE_BASE_URL_ENV_KEYS[source],
+    );
     const iconUrl = buildSourceIconUrl(siteBaseUrl, source);
 
     if (iconUrl === null) {

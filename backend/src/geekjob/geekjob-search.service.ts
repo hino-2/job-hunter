@@ -227,7 +227,8 @@ export class GeekjobSearchService implements VacancyLeadSearchProvider {
           ok: true,
           description: parsed.description,
           logoUrl: parsed.logoUrl,
-          logoAllowedHostPattern: parsed.logoUrl === null ? null : GEEKJOB_LOGO_ALLOWED_HOST_PATTERN,
+          logoAllowedHostPattern:
+            parsed.logoUrl === null ? null : GEEKJOB_LOGO_ALLOWED_HOST_PATTERN,
         },
         retryable: false,
       };

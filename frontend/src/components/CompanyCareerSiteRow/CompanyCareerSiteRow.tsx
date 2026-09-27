@@ -103,7 +103,10 @@ export function CompanyCareerSiteRow({ site, onError }: CompanyCareerSiteRowProp
           onChange={handleNameChange}
           onBlur={handleNameBlur}
           slotProps={{
-            htmlInput: { maxLength: COMPANY_MAX_LENGTH, 'aria-label': COMPANY_CAREER_SITE_NAME_LABEL },
+            htmlInput: {
+              maxLength: COMPANY_MAX_LENGTH,
+              'aria-label': COMPANY_CAREER_SITE_NAME_LABEL,
+            },
           }}
         />
       </TableCell>

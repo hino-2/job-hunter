@@ -143,7 +143,9 @@ export class DodoSiteParser implements CompanySiteParser {
       return { ok: false, message: DODO_VACANCY_ID_MISSING_MESSAGE };
     }
 
-    const jsonResult = await this.httpClient.getJson(`${DODO_API_BASE_URL}${DODO_DETAIL_PATH}/${id}`);
+    const jsonResult = await this.httpClient.getJson(
+      `${DODO_API_BASE_URL}${DODO_DETAIL_PATH}/${id}`,
+    );
 
     if (!jsonResult.ok) {
       return { ok: false, message: jsonResult.message };

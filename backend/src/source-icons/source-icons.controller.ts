@@ -1,4 +1,11 @@
-import { BadRequestException, Controller, Get, Header, Param, StreamableFile } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Header,
+  Param,
+  StreamableFile,
+} from '@nestjs/common';
 
 import { readCompanyLogoOrFail } from '../logos/company-logo-response.helpers';
 import {
@@ -41,8 +48,14 @@ export class SourceIconsController {
 
     // §5.8/§4.14: COMPANY_SITE — единственный признанный источник без иконки (нет
     // единого сайта-источника) — 404 без похода в SourceIconService, фронт показывает бейдж.
-    const fileName = hasSourceIcon(source) ? await this.sourceIconService.resolveFileName(source) : null;
+    const fileName = hasSourceIcon(source)
+      ? await this.sourceIconService.resolveFileName(source)
+      : null;
 
-    return readCompanyLogoOrFail(this.companyLogoService, fileName, SOURCE_ICON_UNAVAILABLE_MESSAGE);
+    return readCompanyLogoOrFail(
+      this.companyLogoService,
+      fileName,
+      SOURCE_ICON_UNAVAILABLE_MESSAGE,
+    );
   }
 }

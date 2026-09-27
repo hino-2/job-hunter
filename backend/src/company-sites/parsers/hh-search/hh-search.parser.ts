@@ -114,6 +114,11 @@ export class HhSearchSiteParser implements CompanySiteParser {
 
     // §4.14/D9: логотип не качается через троттл сайтов компаний — hh.ru-логотип уже
     // покрыт своим источником (лид HH), повторное скачивание тем же файлом было бы лишним.
-    return { ok: true, description: result.description, logoUrl: null, logoAllowedHostPattern: null };
+    return {
+      ok: true,
+      description: result.description,
+      logoUrl: null,
+      logoAllowedHostPattern: null,
+    };
   }
 }

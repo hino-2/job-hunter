@@ -260,7 +260,8 @@ export function withInterviewStatus(
     return patch;
   }
 
-  const hr = patch.hrInterviewAt !== undefined ? patch.hrInterviewAt : (cached?.hrInterviewAt ?? null);
+  const hr =
+    patch.hrInterviewAt !== undefined ? patch.hrInterviewAt : (cached?.hrInterviewAt ?? null);
   const tech =
     patch.techInterviewAt !== undefined ? patch.techInterviewAt : (cached?.techInterviewAt ?? null);
 

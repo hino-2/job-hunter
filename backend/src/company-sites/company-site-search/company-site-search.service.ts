@@ -88,7 +88,10 @@ export class CompanySiteSearchService implements VacancyLeadSearchProvider {
         page: { items: list.items, lastPage, skippedInvalid: list.skippedInvalid },
       };
     } catch (error) {
-      return { ok: false, message: describeTransportError(COMPANY_SITE_LIST_FAILED_MESSAGE, error) };
+      return {
+        ok: false,
+        message: describeTransportError(COMPANY_SITE_LIST_FAILED_MESSAGE, error),
+      };
     }
   }
 

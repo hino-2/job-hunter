@@ -9,10 +9,7 @@ import {
   RATE_LIMITED_STATUS,
   SERVER_ERROR_MIN_STATUS,
 } from '../common/common.constants';
-import {
-  ACCEPT_HEADER,
-  VACANCY_ACCEPT_HEADER_VALUE,
-} from '../vacancies/vacancies.constants';
+import { ACCEPT_HEADER, VACANCY_ACCEPT_HEADER_VALUE } from '../vacancies/vacancies.constants';
 import type { VacancyRequestAttempt } from '../vacancies/vacancies.interfaces';
 import { describeTransportError, fetchWithRetries } from '../vacancies/vacancy-retry.helpers';
 import {

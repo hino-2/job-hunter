@@ -41,4 +41,5 @@ export const RZD_FIELD = {
 } as const;
 
 export const RZD_NOT_LIST_MESSAGE = 'Ответ team.rzd.ru не список вакансий';
-export const RZD_VACANCY_ID_MISSING_MESSAGE = 'Не удалось определить id вакансии team.rzd.ru по ссылке';
+export const RZD_VACANCY_ID_MISSING_MESSAGE =
+  'Не удалось определить id вакансии team.rzd.ru по ссылке';

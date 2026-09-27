@@ -120,8 +120,9 @@ npm run ps      # service status
   progress and then the final summary.
 - «⚙ Настройки поиска» opens a dialog with the keywords, the stop-words, one results-page link per
   search source, the two model prompts and the «Использовать ИИ-отбор» switch.
-- The «Сайты компаний» section holds the editable list of companies' own career pages that the
-  `COMPANY_SITE` search source walks — add, edit inline and delete a row without leaving the screen.
+- «Сайты компаний» (next to «⚙ Настройки поиска») opens a dialog with the editable list of
+  companies' own career pages that the `COMPANY_SITE` search source walks — add, edit inline and
+  delete a row.
 - Each found vacancy is an accordion. A click on the collapsed row opens the vacancy in a new tab;
   expansion lives on the arrow at the right. «Отклик» creates an application from the lead in one
   click, «Скрыть» removes the lead from the list, and the «Скрытые» toggle switches to the hidden

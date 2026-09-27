@@ -5,8 +5,7 @@ export type CompanySiteHtmlResult = { ok: true; html: string } | { ok: false; me
 
 /** §4.14: результат сбора всего списка вакансий компании (все страницы разом). */
 export type CompanySiteListResult =
-  | { ok: true; items: VacancySearchItem[]; skippedInvalid: number }
-  | { ok: false; message: string };
+  { ok: true; items: VacancySearchItem[]; skippedInvalid: number } | { ok: false; message: string };
 
 /** §4.14: результат одной страницы списка внутри collectPagedVacancies. */
 export type CompanySitePageResult =
@@ -21,4 +20,5 @@ export type CompanySiteJsonResult = { ok: true; json: unknown } | { ok: false; m
  * getHtml/getJson параметризуют её своим TSuccess (html: string / json: unknown), не
  * дублируя ветку неудачи ({ ok: false; message }), которая у обоих одинакова.
  */
-export type CompanySiteFetchResult<TSuccess> = ({ ok: true } & TSuccess) | { ok: false; message: string };
+export type CompanySiteFetchResult<TSuccess> =
+  ({ ok: true } & TSuccess) | { ok: false; message: string };

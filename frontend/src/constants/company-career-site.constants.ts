@@ -1,14 +1,14 @@
 import { COMPANY_MAX_LENGTH, URL_MAX_LENGTH } from './application.constants';
 
 /**
- * Подписи и сообщения раздела «Сайты компаний» (§7.9, §4.14): собственная таблица
+ * Подписи и сообщения диалога «Сайты компаний» (§7.9, §4.14): собственная таблица
  * поверх CompanyCareerSite, а не Application, — отдельный набор констант вместо
  * переиспользования подписей application.constants.ts. Ограничения длины (§5.9)
  * совпадают с полями отклика (varchar(255)/varchar(2048)) — COMPANY_MAX_LENGTH
  * и URL_MAX_LENGTH переиспользуются напрямую из application.constants.ts, а не
  * дублируются здесь под новым именем (§10).
  */
-export const COMPANY_CAREER_SITES_SECTION_TITLE = 'Сайты компаний';
+export const COMPANY_CAREER_SITES_TITLE = 'Сайты компаний';
 
 export const COMPANY_CAREER_SITE_NAME_LABEL = 'Компания';
 export const COMPANY_CAREER_SITE_URL_LABEL = 'Ссылка на вакансии';

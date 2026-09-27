@@ -1,4 +1,10 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 import { COMPANY_MAX_LENGTH, URL_MAX_LENGTH } from '../../applications/applications.constants';
 import { COLUMN_TYPE, PRIMARY_KEY_STRATEGY } from '../../database/database.constants';

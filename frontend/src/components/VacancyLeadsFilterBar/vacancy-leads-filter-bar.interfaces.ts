@@ -19,4 +19,5 @@ export interface VacancyLeadsFilterBarProps {
   /** §4.11.12: доступность «Продолжить» и номер страницы в её подписи — срез выбранного источника. */
   resume: ScanResumeState;
   onOpenSettings: () => void;
+  onOpenCompanySites: () => void;
 }

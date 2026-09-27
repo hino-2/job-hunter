@@ -37,7 +37,7 @@ import type { ScanSourceSelection } from '../../types/vacancy-search.type';
 import { extractApiErrorMessage } from '../../utils/error.utils';
 import { isVacancyLeadsSearchActive } from '../../utils/vacancy-lead.utils';
 import { selectScanResumeState } from '../../utils/vacancy-scan.utils';
-import { CompanyCareerSitesSection } from '../CompanyCareerSitesSection/CompanyCareerSitesSection';
+import { CompanyCareerSitesDialog } from '../CompanyCareerSitesDialog/CompanyCareerSitesDialog';
 import { ScanStatusAlert } from '../ScanStatusAlert/ScanStatusAlert';
 import { SearchSettingsDialog } from '../SearchSettingsDialog/SearchSettingsDialog';
 import { VacancyLeadsFilterBar } from '../VacancyLeadsFilterBar/VacancyLeadsFilterBar';
@@ -64,6 +64,7 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   const expanded = useExpandedIds();
   const scanStatus = useVacancyScanStatus();
   const [isSettingsOpen, setSettingsOpen] = useState(false);
+  const [isCompanySitesOpen, setCompanySitesOpen] = useState(false);
   // §5.7: источник следующего прогона. Локальное состояние экрана, а не часть filters:
   // на выдачу лидов он не влияет вовсе — только на тело POST …/scan и на то, чей срез
   // resumeBySource читает «Продолжить».
@@ -85,6 +86,14 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
 
   const handleCloseSettings = useCallback(() => {
     setSettingsOpen(false);
+  }, []);
+
+  const handleOpenCompanySites = useCallback(() => {
+    setCompanySitesOpen(true);
+  }, []);
+
+  const handleCloseCompanySites = useCallback(() => {
+    setCompanySitesOpen(false);
   }, []);
 
   const handleSettingsSaved = useCallback(() => {
@@ -224,9 +233,8 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
             isStopPending={stopScan.isPending}
             resume={resume}
             onOpenSettings={handleOpenSettings}
+            onOpenCompanySites={handleOpenCompanySites}
           />
-
-          <CompanyCareerSitesSection onError={notification.notifyError} />
 
           {showScanAlert && scanStatus.data !== undefined ? (
             <ScanStatusAlert status={scanStatus.data} />
@@ -255,6 +263,13 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
           onClose={handleCloseSettings}
           onSaved={handleSettingsSaved}
           onSaveFailed={handleSettingsSaveFailed}
+        />
+      ) : null}
+
+      {isCompanySitesOpen ? (
+        <CompanyCareerSitesDialog
+          onClose={handleCloseCompanySites}
+          onError={notification.notifyError}
         />
       ) : null}
     </>

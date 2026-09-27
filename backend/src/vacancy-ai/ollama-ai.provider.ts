@@ -127,7 +127,10 @@ export class OllamaAiProvider implements AiProvider {
 
       return this.interpretWarmUpResponse(response.status);
     } catch (error) {
-      return { ok: false, reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error) };
+      return {
+        ok: false,
+        reason: describeTransportError(VACANCY_AI_TRANSPORT_ERROR_MESSAGE, error),
+      };
     }
   }
 

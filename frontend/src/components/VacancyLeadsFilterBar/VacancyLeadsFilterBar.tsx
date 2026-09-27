@@ -1,3 +1,4 @@
+import BusinessIcon from '@mui/icons-material/Business';
 import ClearIcon from '@mui/icons-material/Clear';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SearchIcon from '@mui/icons-material/Search';
@@ -18,6 +19,7 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import type { ChangeEvent } from 'react';
 
+import { COMPANY_CAREER_SITES_TITLE } from '../../constants/company-career-site.constants';
 import {
   FIELD_GAP,
   SCAN_SOURCE_FIELD_WIDTH_PX,
@@ -41,9 +43,9 @@ import type { VacancyLeadsFilterBarProps } from './vacancy-leads-filter-bar.inte
 
 /**
  * Панель фильтров экрана «Вакансии» (§7.9.1, §7.9.2, §4.11.12): выбор источника выдачи,
- * три кнопки прогона («Начать поиск», «Продолжить», «Остановить»), настройки, поиск,
- * «Скрытые». Кнопки видимы всегда — доступность решают только описанные ниже правила,
- * никакой другой логики в компоненте нет (owner decision).
+ * три кнопки прогона («Начать поиск», «Продолжить», «Остановить»), настройки, «Сайты
+ * компаний», поиск, «Скрытые». Кнопки видимы всегда — доступность решают только описанные
+ * ниже правила, никакой другой логики в компоненте нет (owner decision).
  */
 export function VacancyLeadsFilterBar({
   filters,
@@ -59,6 +61,7 @@ export function VacancyLeadsFilterBar({
   isStopPending,
   resume,
   onOpenSettings,
+  onOpenCompanySites,
 }: VacancyLeadsFilterBarProps) {
   const handleScanSourceChange = (event: SelectChangeEvent<ScanSourceSelection>) => {
     onScanSourceChange(event.target.value);
@@ -134,6 +137,10 @@ export function VacancyLeadsFilterBar({
 
       <Button variant="outlined" startIcon={<SettingsIcon />} onClick={onOpenSettings}>
         {SETTINGS_BUTTON_LABEL}
+      </Button>
+
+      <Button variant="outlined" startIcon={<BusinessIcon />} onClick={onOpenCompanySites}>
+        {COMPANY_CAREER_SITES_TITLE}
       </Button>
 
       <TextField

@@ -5,8 +5,14 @@
  * только карты «источник → …» и маршрут.
  */
 
-import { GEEKJOB_ALLOWED_HOST_PATTERN, GEEKJOB_SITE_BASE_URL_ENV_KEY } from '../geekjob/geekjob.constants';
-import { GETMATCH_ALLOWED_HOST_PATTERN, GETMATCH_SITE_BASE_URL_ENV_KEY } from '../getmatch/getmatch.constants';
+import {
+  GEEKJOB_ALLOWED_HOST_PATTERN,
+  GEEKJOB_SITE_BASE_URL_ENV_KEY,
+} from '../geekjob/geekjob.constants';
+import {
+  GETMATCH_ALLOWED_HOST_PATTERN,
+  GETMATCH_SITE_BASE_URL_ENV_KEY,
+} from '../getmatch/getmatch.constants';
 import { HH_LOGO_ALLOWED_HOST_PATTERN, HH_SITE_BASE_URL_ENV_KEY } from '../hh/hh.constants';
 import {
   IT_VACANCIES_ALLOWED_HOST_PATTERN,

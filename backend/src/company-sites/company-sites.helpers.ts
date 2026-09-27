@@ -196,9 +196,7 @@ export function readArray(source: Record<string, unknown>, key: string): unknown
  * затем decodeNumericHtmlEntities.
  */
 export function joinDescriptionParts(parts: readonly (string | null)[]): string | null {
-  const nonEmpty = parts.filter(
-    (part): part is string => part !== null && part.trim().length > 0,
-  );
+  const nonEmpty = parts.filter((part): part is string => part !== null && part.trim().length > 0);
 
   if (nonEmpty.length === 0) {
     return null;

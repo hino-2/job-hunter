@@ -20,7 +20,13 @@ async function fetchWithRetry(url, init) {
       return await fetch(url, { ...init, signal: AbortSignal.timeout(120000) });
     } catch (error) {
       lastError = error;
-      console.log('  сеть: попытка ' + attempt + ' не прошла (' + (error.cause?.code ?? error.name) + '), повтор');
+      console.log(
+        '  сеть: попытка ' +
+          attempt +
+          ' не прошла (' +
+          (error.cause?.code ?? error.name) +
+          '), повтор',
+      );
       await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
     }
   }
@@ -139,15 +145,38 @@ const EMPLOYERS = [
   ['Почта России', /Почт[аеы] России/gi],
   ['Банк Нейва', /Нейв[аеы]/gi],
 ];
-const FORBIDDEN = ['Next.js', 'Hono', 'Drizzle', 'ClickHouse', 'Kubernetes', 'K8S', 'мультитенант', 'unit-тест', 'e2e', 'Python'];
-const REQUIRED = ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'Redis', 'Docker', 'Kafka', 'Claude Code'];
+const FORBIDDEN = [
+  'Next.js',
+  'Hono',
+  'Drizzle',
+  'ClickHouse',
+  'Kubernetes',
+  'K8S',
+  'мультитенант',
+  'unit-тест',
+  'e2e',
+  'Python',
+];
+const REQUIRED = [
+  'TypeScript',
+  'React',
+  'Node.js',
+  'PostgreSQL',
+  'Redis',
+  'Docker',
+  'Kafka',
+  'Claude Code',
+];
 
 function audit(text) {
   const sentences = text.split(/(?<=[.!?])\s+/).filter((s) => s.trim());
   const mixed = [];
 
   for (const sentence of sentences) {
-    const hits = EMPLOYERS.filter(([, re]) => { re.lastIndex = 0; return re.test(sentence); }).map(([n]) => n);
+    const hits = EMPLOYERS.filter(([, re]) => {
+      re.lastIndex = 0;
+      return re.test(sentence);
+    }).map(([n]) => n);
 
     if (hits.length > 1) {
       mixed.push(`[${hits.join(' + ')}] ${sentence.trim().slice(0, 160)}`);
@@ -159,18 +188,92 @@ function audit(text) {
   const company = (text.match(/Clear Mind/gi) ?? []).length;
 
   const missing = REQUIRED.filter((t) => !text.toLowerCase().includes(t.toLowerCase()));
-  const FILLER = ['идеальную среду', 'идеальная среда', 'дальнейшего роста', 'качественный и востребованный', 'помогут вам создать', 'помогу вам создать', 'новым вызовом', 'ваш подход мне близок', 'будет полезен вашей', 'на новом уровне', 'стать частью вашей команды', 'внести свой вклад', 'внести пользу', 'привлекает меня своей ориентацией', 'заинтересовала меня своей идеей', 'идеально подходит под ваши требования', 'спасибо за внимание', 'продукт будущего', 'интересные задачи', 'развиваться вместе'];
+  const FILLER = [
+    'идеальную среду',
+    'идеальная среда',
+    'дальнейшего роста',
+    'качественный и востребованный',
+    'помогут вам создать',
+    'помогу вам создать',
+    'новым вызовом',
+    'ваш подход мне близок',
+    'будет полезен вашей',
+    'на новом уровне',
+    'стать частью вашей команды',
+    'внести свой вклад',
+    'внести пользу',
+    'привлекает меня своей ориентацией',
+    'заинтересовала меня своей идеей',
+    'идеально подходит под ваши требования',
+    'спасибо за внимание',
+    'продукт будущего',
+    'интересные задачи',
+    'развиваться вместе',
+  ];
   const filler = FILLER.filter((f) => text.toLowerCase().includes(f));
-  const OWNERSHIP = [/возглавил/gi, /веду[щш]им разработчиком/gi, /руководил/gi, /вёл команду/gi, /был архитектором/gi, /отвечал за весь проект/gi, /выстроил всю/gi, /внедрил целую/gi, /под моим руководством/gi];
-  const ownership = OWNERSHIP.filter((re) => { re.lastIndex = 0; return re.test(text); }).map((re) => re.source);
-  const YEARS = /(\d+|один|два|три|четыре|пять|шесть|семь|восемь|девять|десять|одиннадцать|двенадцать|тринадцать|четырнадцать|пятнадцать)\s+(лет|год[аы]?)/gi;
+  const OWNERSHIP = [
+    /возглавил/gi,
+    /веду[щш]им разработчиком/gi,
+    /руководил/gi,
+    /вёл команду/gi,
+    /был архитектором/gi,
+    /отвечал за весь проект/gi,
+    /выстроил всю/gi,
+    /внедрил целую/gi,
+    /под моим руководством/gi,
+  ];
+  const ownership = OWNERSHIP.filter((re) => {
+    re.lastIndex = 0;
+    return re.test(text);
+  }).map((re) => re.source);
+  const YEARS =
+    /(\d+|один|два|три|четыре|пять|шесть|семь|восемь|девять|десять|одиннадцать|двенадцать|тринадцать|четырнадцать|пятнадцать)\s+(лет|год[аы]?)/gi;
   const years = (text.match(YEARS) ?? []).filter((m) => !/^(11|одиннадцать|15)\s/i.test(m));
-  const CLICHE = ['богатый опыт', 'глубокие знания', 'широкий спектр', 'успешный опыт', 'внести значительный вклад', 'внести вклад в развитие', 'яркий пример', 'данный подход', 'является', 'осуществлял', 'позволило значительно повысить', 'готов поделиться своим опытом'];
+  const CLICHE = [
+    'богатый опыт',
+    'глубокие знания',
+    'широкий спектр',
+    'успешный опыт',
+    'внести значительный вклад',
+    'внести вклад в развитие',
+    'яркий пример',
+    'данный подход',
+    'является',
+    'осуществлял',
+    'позволило значительно повысить',
+    'готов поделиться своим опытом',
+  ];
   const cliches = CLICHE.filter((c) => text.toLowerCase().includes(c));
-  const WORDING = [/модел[ьи]s+Claude Code/gi, /нейросет[ьи]s+Claude Code/gi, /ИИs+Claude Code/gi, /совместно с ним/gi, /мы с Claude Code/gi, /(модель|инструмент) помога/gi, /KARI/g, /Kari/g, /AI-first/gi, /AI-driven/gi, /AI-powered/gi];
-  const wording = WORDING.filter((re) => { re.lastIndex = 0; return re.test(text); }).map((re) => re.source);
+  const WORDING = [
+    /модел[ьи]s+Claude Code/gi,
+    /нейросет[ьи]s+Claude Code/gi,
+    /ИИs+Claude Code/gi,
+    /совместно с ним/gi,
+    /мы с Claude Code/gi,
+    /(модель|инструмент) помога/gi,
+    /KARI/g,
+    /Kari/g,
+    /AI-first/gi,
+    /AI-driven/gi,
+    /AI-powered/gi,
+  ];
+  const wording = WORDING.filter((re) => {
+    re.lastIndex = 0;
+    return re.test(text);
+  }).map((re) => re.source);
 
-  return { words, company, mixed, forbiddenAsExperience, missing, wording, cliches, filler, ownership, years };
+  return {
+    words,
+    company,
+    mixed,
+    forbiddenAsExperience,
+    missing,
+    wording,
+    cliches,
+    filler,
+    ownership,
+    years,
+  };
 }
 
 const token = await getToken();
@@ -179,8 +282,17 @@ for (let i = 1; i <= runs; i += 1) {
   const started = Date.now();
   const response = await fetchWithRetry(CHAT_URL, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature, stream: false }),
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature,
+      stream: false,
+    }),
   });
   const wall = Date.now() - started;
 
@@ -199,14 +311,37 @@ for (let i = 1; i <= runs; i += 1) {
   console.log(`########## ${tag} / ${model} / ПРОГОН ${i} ##########`);
   console.log(content);
   console.log('--- аудит ---');
-  console.log('слов:', report.words, '| Clear Mind:', report.company, '| время:', (wall / 1000).toFixed(1), 'c', '| токены:', usage.prompt_tokens, '+', usage.completion_tokens);
+  console.log(
+    'слов:',
+    report.words,
+    '| Clear Mind:',
+    report.company,
+    '| время:',
+    (wall / 1000).toFixed(1),
+    'c',
+    '| токены:',
+    usage.prompt_tokens,
+    '+',
+    usage.completion_tokens,
+  );
   console.log('СКЛЕЙКА РАБОТОДАТЕЛЕЙ:', report.mixed.length ? report.mixed.join(' || ') : 'НЕТ');
-  console.log('пропущены обязательные:', report.missing.length ? report.missing.join(', ') : 'нет, все на месте');
+  console.log(
+    'пропущены обязательные:',
+    report.missing.length ? report.missing.join(', ') : 'нет, все на месте',
+  );
   console.log('вода:', report.filler.length ? report.filler.join(', ') : 'нет');
   console.log('штампы:', report.cliches.length ? report.cliches.join(', ') : 'нет');
   console.log('присвоение роли:', report.ownership.length ? report.ownership.join(', ') : 'нет');
   console.log('подозрительный срок:', report.years.length ? report.years.join(', ') : 'нет');
-  console.log('запрещённые написания:', report.wording.length ? report.wording.join(', ') : 'корректны');
-  console.log('термины не из резюме:', report.forbiddenAsExperience.length ? report.forbiddenAsExperience.join(', ') + ' (проверить контекст вручную)' : 'нет');
+  console.log(
+    'запрещённые написания:',
+    report.wording.length ? report.wording.join(', ') : 'корректны',
+  );
+  console.log(
+    'термины не из резюме:',
+    report.forbiddenAsExperience.length
+      ? report.forbiddenAsExperience.join(', ') + ' (проверить контекст вручную)'
+      : 'нет',
+  );
   console.log('');
 }
