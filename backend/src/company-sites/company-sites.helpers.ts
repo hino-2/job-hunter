@@ -139,6 +139,62 @@ export function toDescriptionResult(text: string | null): VacancyDescriptionResu
  * размер списка конкретного источника — поднять при появлении источника с более
  * глубокой пагинацией.
  */
+/**
+ * §4.14/Stage 3: тело JSON-ответа сайта компании — та же нормализация, что
+ * coercePayload у geekjob (geekjob-search.parser.ts): HttpModule общего клиента
+ * настроен на responseType: 'text', но axios иногда всё равно приносит уже
+ * распарсенный объект (угадывает по Content-Type ответа), а иногда — сырую строку.
+ * Строка, которая не парсится, — null (источник вернул не JSON), а не исключение.
+ */
+export function parseJsonBody(payload: unknown): unknown {
+  if (typeof payload !== 'string') {
+    return payload;
+  }
+
+  try {
+    return JSON.parse(payload) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/** §4.14/Stage 3: id вакансии в JSON-ответе — непустая строка либо конечное число, приведённое к строке. */
+export function readId(source: Record<string, unknown>, key: string): string | null {
+  const value = source[key];
+
+  if (typeof value === 'string') {
+    return value.length > 0 ? value : null;
+  }
+
+  return typeof value === 'number' && Number.isFinite(value) ? String(value) : null;
+}
+
+/** §4.14/Stage 3: массив внутри JSON-ответа, либо null, если поля нет или оно не массив. */
+export function readArray(source: Record<string, unknown>, key: string): unknown[] | null {
+  const value = source[key];
+
+  return Array.isArray(value) ? value : null;
+}
+
+/**
+ * §4.14/Stage 3: несколько текстовых полей JSON-ответа (rzd: description/
+ * responsibilities/requirements/conditions; wildberries: data.description/duties/
+ * requirements/conditions) → одно описание. Поля этих источников тоже несут
+ * HTML-разметку, поэтому проходят тем же путём, что HTML-парсеры: htmlToPlainText,
+ * затем decodeNumericHtmlEntities.
+ */
+export function joinDescriptionParts(parts: readonly (string | null)[]): string | null {
+  const nonEmpty = parts.filter(
+    (part): part is string => part !== null && part.trim().length > 0,
+  );
+
+  if (nonEmpty.length === 0) {
+    return null;
+  }
+
+  return decodeNumericHtmlEntities(htmlToPlainText(nonEmpty.join('\n\n')));
+}
+
 export async function collectPagedVacancies(
   fetchPage: (index: number) => Promise<CompanySitePageResult>,
 ): Promise<CompanySiteListResult> {

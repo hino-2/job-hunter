@@ -98,6 +98,14 @@ export const COMPANY_SITE_UNEXPECTED_STATUS_MESSAGE = 'Сайт компании
 export const COMPANY_SITE_RATE_LIMITED_MESSAGE = 'Сайт компании ограничил частоту запросов';
 export const COMPANY_SITE_NOT_FOUND_MESSAGE = 'Страница на сайте компании не найдена';
 export const COMPANY_SITE_NOT_HTML_MESSAGE = 'Ответ сайта компании не HTML';
+
+/**
+ * §4.14/Stage 3: JSON-парсеры (aviasales/rzd/wildberries/magnit-tech/dodo) запрашивают
+ * Accept: application/json, а не VACANCY_ACCEPT_HEADER_VALUE (text/html) — некоторые
+ * из этих API отдают иное тело (например, HTML страницу ошибки) без него.
+ */
+export const COMPANY_SITE_JSON_ACCEPT_HEADER_VALUE = 'application/json';
+export const COMPANY_SITE_NOT_JSON_MESSAGE = 'Ответ сайта компании не JSON';
 export const COMPANY_SITE_DESCRIPTION_MISSING_MESSAGE =
   'Не удалось получить описание вакансии с сайта компании';
 export const COMPANY_SITE_PARSER_MISSING_MESSAGE = 'Парсер сайта компании не реализован';

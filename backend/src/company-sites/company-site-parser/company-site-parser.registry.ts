@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
+import { AviasalesSiteParser } from '../parsers/aviasales/aviasales.parser';
+import { DodoSiteParser } from '../parsers/dodo/dodo.parser';
 import { HhSearchSiteParser } from '../parsers/hh-search/hh-search.parser';
 import { KonturSiteParser } from '../parsers/kontur/kontur.parser';
+import { MagnitTechSiteParser } from '../parsers/magnit-tech/magnit-tech.parser';
+import { RzdSiteParser } from '../parsers/rzd/rzd.parser';
+import { WildberriesSiteParser } from '../parsers/wildberries/wildberries.parser';
 import { X5SiteParser } from '../parsers/x5/x5.parser';
 import type { CompanySiteParser } from '../company-sites.interfaces';
 
@@ -16,8 +21,17 @@ import type { CompanySiteParser } from '../company-sites.interfaces';
 export class CompanySiteParserRegistry {
   private readonly parsers: readonly CompanySiteParser[];
 
-  constructor(hhSearch: HhSearchSiteParser, kontur: KonturSiteParser, x5: X5SiteParser) {
-    this.parsers = [hhSearch, kontur, x5];
+  constructor(
+    hhSearch: HhSearchSiteParser,
+    kontur: KonturSiteParser,
+    x5: X5SiteParser,
+    aviasales: AviasalesSiteParser,
+    rzd: RzdSiteParser,
+    wildberries: WildberriesSiteParser,
+    magnitTech: MagnitTechSiteParser,
+    dodo: DodoSiteParser,
+  ) {
+    this.parsers = [hhSearch, kontur, x5, aviasales, rzd, wildberries, magnitTech, dodo];
   }
 
   /** null на любом мусоре или на URL без подходящего парсера — никогда не бросает. */
