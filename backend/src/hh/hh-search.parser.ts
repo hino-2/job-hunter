@@ -5,6 +5,7 @@ import {
   HH_SEARCH_COMPENSATION_FIELD,
   HH_SEARCH_ITEM_FIELD,
   HH_SEARCH_LAST_PAGE_FIELD,
+  HH_SEARCH_SINGLE_PAGE_LAST_INDEX,
   HH_SEARCH_NESTED_NAME_FIELD,
   HH_SEARCH_PAGE_FIELD,
   HH_SEARCH_PAGING_FIELD,
@@ -20,10 +21,11 @@ import type { HhSearchState } from './hh.interfaces';
 
 /**
  * §4.11.3 шаг 3: явный предикат сужения unknown → HhSearchState. Отсутствие
- * vacancies или paging — fail-loud (возврат null из parseHhSearchPage целиком,
- * а не пропуск элементов): без них разбирать нечего. paging.lastPage при этом
- * не проверяется вглубь — он законно бывает null (см. комментарий к HhSearchState
- * в hh.interfaces.ts), читает его отдельно readLastPage с мягкой деградацией.
+ * vacancies или paging иного вида, чем объект либо null, — fail-loud (возврат null
+ * из parseHhSearchPage целиком, а не пропуск элементов): без них разбирать нечего.
+ * paging === null — законная выдача в одну страницу (см. комментарий к HhSearchState
+ * в hh.interfaces.ts), а paging.lastPage вглубь не проверяется — он законно бывает
+ * null, читает его отдельно readLastPage с мягкой деградацией.
  */
 function isHhSearchState(value: unknown): value is HhSearchState {
   if (!isRecord(value)) {
@@ -36,15 +38,24 @@ function isHhSearchState(value: unknown): value is HhSearchState {
     return false;
   }
 
-  return isRecord(searchResult[HH_SEARCH_PAGING_FIELD]);
+  const paging = searchResult[HH_SEARCH_PAGING_FIELD];
+
+  return paging === null || isRecord(paging);
 }
 
 /**
- * §4.11.1/§4.11.3: мягкая деградация в null — проверено на живой выдаче
- * (14.08.2026): при короткой пагинации hh.ru отдаёт paging.lastPage: null,
- * а не объект {page}. «Сколько ещё страниц» не обязательно для разбора текущей.
+ * §4.11.1/§4.11.3: мягкая деградация — проверено на живой выдаче (14.08.2026):
+ * при короткой пагинации hh.ru отдаёт paging.lastPage: null, а не объект {page},
+ * тогда «сколько ещё страниц» неизвестно (null). paging === null (27.09.2026:
+ * выдача в одну страницу, totalResults ≤ 50) означает, что текущая страница —
+ * последняя: HH_SEARCH_SINGLE_PAGE_LAST_INDEX, иначе прогон запросил бы вторую
+ * страницу и получил бы ту же самую выдачу ещё раз.
  */
-function readLastPage(paging: Record<string, unknown>): number | null {
+function readLastPage(paging: Record<string, unknown> | null): number | null {
+  if (paging === null) {
+    return HH_SEARCH_SINGLE_PAGE_LAST_INDEX;
+  }
+
   const lastPage = paging[HH_SEARCH_LAST_PAGE_FIELD];
 
   if (!isRecord(lastPage)) {

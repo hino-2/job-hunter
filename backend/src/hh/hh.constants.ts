@@ -137,6 +137,12 @@ export const HH_SEARCH_RESULT_FIELD = 'vacancySearchResult';
 export const HH_SEARCH_VACANCIES_FIELD = 'vacancies';
 export const HH_SEARCH_PAGING_FIELD = 'paging';
 export const HH_SEARCH_LAST_PAGE_FIELD = 'lastPage';
+
+/**
+ * §4.11.3: индекс последней страницы, когда hh.ru отдаёт `paging: null` — выдача
+ * целиком уместилась в одну (нулевую) страницу, следующей не существует.
+ */
+export const HH_SEARCH_SINGLE_PAGE_LAST_INDEX = 0;
 export const HH_SEARCH_PAGE_FIELD = 'page';
 
 /** §4.11.3: поля одного элемента выдачи, участвующие в разборе (таблица §4.11.3). */

@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { Agent } from 'node:https';
+import { rootCertificates } from 'node:tls';
 import { ConfigService } from '@nestjs/config';
 import type { HttpModuleOptions } from '@nestjs/axios';
 
@@ -16,13 +18,23 @@ import {
   HTML_MAIN_BLOCK_PATTERN,
   HTML_SCRIPT_STYLE_BLOCK_PATTERN,
   MD5_ALGORITHM,
+  RUSSIAN_TRUSTED_ROOT_CA_PEM,
 } from './company-sites.constants';
 import type { CompanySiteAnchor, CompanySiteItemInput } from './company-sites.interfaces';
 import type { CompanySiteListResult, CompanySitePageResult } from './company-sites.type';
 
-/** §4.14: опции axios общего HttpService модуля company-sites/ — без baseURL (§4.14/B1). */
+/**
+ * §4.14: опции axios общего HttpService модуля company-sites/ — без baseURL (§4.14/B1).
+ * httpsAgent доверяет корням Node плюс «Russian Trusted Root CA» (Минцифры): им
+ * подписан team.rzd.ru, и без него запрос к РЖД не проходит TLS-проверку.
+ * rejectUnauthorized намеренно не трогается — проверка цепочки остаётся строгой,
+ * расширяется лишь список доверенных корней, и только у этого клиента.
+ */
 export function buildCompanySiteHttpOptions(configService: ConfigService): HttpModuleOptions {
-  return buildVacancyHttpOptions(configService, COMPANY_SITE_HTTP_ENV_KEYS);
+  return {
+    ...buildVacancyHttpOptions(configService, COMPANY_SITE_HTTP_ENV_KEYS),
+    httpsAgent: new Agent({ ca: [...rootCertificates, RUSSIAN_TRUSTED_ROOT_CA_PEM] }),
+  };
 }
 
 /**
