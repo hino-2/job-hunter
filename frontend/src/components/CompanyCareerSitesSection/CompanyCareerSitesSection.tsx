@@ -30,6 +30,7 @@ import {
 import {
   ACCORDION_ELEVATION,
   COMPANY_CAREER_SITE_ADD_ROW_COL_SPAN,
+  COMPANY_CAREER_SITES_TABLE_SX,
   SUMMARY_PADDING_X,
 } from '../../constants/layout.constants';
 import { useCompanyCareerSites } from '../../hooks/useCompanyCareerSites';
@@ -111,7 +112,7 @@ export function CompanyCareerSitesSection({ onError }: CompanyCareerSitesSection
         {sitesQuery.isError ? (
           <Typography color="error">{COMPANY_CAREER_SITES_LOAD_ERROR_MESSAGE}</Typography>
         ) : (
-          <Table size="small">
+          <Table size="small" sx={COMPANY_CAREER_SITES_TABLE_SX}>
             <TableHead>
               <TableRow>
                 <TableCell>{COMPANY_CAREER_SITE_NAME_LABEL}</TableCell>

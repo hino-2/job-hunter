@@ -216,6 +216,13 @@ export const SETTINGS_DIALOG_MAX_WIDTH = 'md' as const;
  */
 export const COMPANY_CAREER_SITE_ADD_ROW_COL_SPAN = 2;
 
+/**
+ * §7.9: таблица «Сайты компаний» без разделителей между строками — дефолтная нижняя
+ * граница каждой ячейки MUI Table на десятке строк с полями ввода рябит в глазах,
+ * а строки и так разделены самими полями.
+ */
+export const COMPANY_CAREER_SITES_TABLE_SX = { '& td, & th': { borderBottom: 'none' } } as const;
+
 /** Многострочные поля промптов — выше, чем заметки отклика: текст длиннее (до 8000 симв.). */
 export const MULTILINE_MIN_ROWS_PROMPT = 3;
 export const MULTILINE_MAX_ROWS_PROMPT = 8;
