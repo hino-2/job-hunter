@@ -414,6 +414,17 @@ export const VACANCY_SCAN_MAX_DURATION_MS_ENV_KEY = 'VACANCY_SCAN_MAX_DURATION_M
 export const VACANCY_PREFILTER_MODE_ENV_KEY = 'VACANCY_PREFILTER_MODE';
 export const VACANCY_MATCH_MODE_ENV_KEY = 'VACANCY_MATCH_MODE';
 
+/**
+ * §4.11.8: потолок подряд идущих неудачных страниц выдачи в одной ноге. Одна неудачная
+ * страница пропускается (§4.11.3), но лежащий целиком источник иначе съедал бы весь
+ * бюджет VACANCY_SCAN_MAX_PAGES таймаутами (400 × 10 с) — после стольких сбоев подряд
+ * нога останавливается с ERROR, а позиция откатывается на первую страницу серии, чтобы
+ * «Продолжить» не потерял страницы, которые источник просто не отдал.
+ */
+export const VACANCY_SCAN_MAX_CONSECUTIVE_FAILED_PAGES = 3;
+export const VACANCY_SCAN_SOURCE_UNAVAILABLE_MESSAGE =
+  'Источник недоступен, страниц подряд не получено';
+
 export const VACANCY_SCAN_ALREADY_RUNNING_MESSAGE = 'Прогон поиска вакансий уже выполняется';
 export const VACANCY_SCAN_FINISHED_MESSAGE = 'Прогон поиска вакансий завершён';
 export const VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE =

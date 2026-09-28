@@ -44,12 +44,14 @@ import {
   VACANCY_SCAN_FINISHED_MESSAGE,
   VACANCY_SCAN_INITIAL_PAGE,
   VACANCY_SCAN_MAX_AGE_DAYS_ENV_KEY,
+  VACANCY_SCAN_MAX_CONSECUTIVE_FAILED_PAGES,
   VACANCY_SCAN_MAX_DURATION_MS_ENV_KEY,
   VACANCY_SCAN_MAX_PAGES_ENV_KEY,
   VACANCY_SCAN_MESSAGE_JOIN_SEPARATOR,
   VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE,
   VACANCY_SCAN_NOT_RUNNING_MESSAGE,
   VACANCY_SCAN_SOURCE_MESSAGE_SEPARATOR,
+  VACANCY_SCAN_SOURCE_UNAVAILABLE_MESSAGE,
   VACANCY_SCAN_STOP_REQUESTED_MESSAGE,
   VACANCY_SCAN_UNEXPECTED_ERROR_MESSAGE,
 } from './vacancy-search.constants';
@@ -398,12 +400,12 @@ export class VacancyScanService {
         );
 
         if (result.reason === SCAN_STOPPED_REASON.ERROR) {
-          // §4.11.3/§4.11.11: ERROR теперь приходит только от неожиданного исключения
-          // внутри ноги (одна неудачная страница выдачи сама по себе больше не
-          // прерывает ногу — она пропускается и считается в pagesFailed). Такое
-          // исключение не отменяет соседние источники — ошибка запоминается, и цикл
-          // переходит к следующей ноге; префикс с именем источника появляется только
-          // в мультипрогоне, где иначе не понять, чья ошибка.
+          // §4.11.3/§4.11.11: ERROR приходит от неожиданного исключения внутри ноги
+          // либо от серии неудачных страниц подряд (§4.11.8, источник лежит целиком;
+          // одна неудачная страница сама по себе ногу не прерывает — она пропускается
+          // и считается в pagesFailed). Ошибка ноги не отменяет соседние источники —
+          // она запоминается, и цикл переходит к следующей ноге; префикс с именем
+          // источника появляется только в мультипрогоне, где иначе не понять, чья ошибка.
           errors.push(
             isMultiSource
               ? `${leg.source}${VACANCY_SCAN_SOURCE_MESSAGE_SEPARATOR}${result.message ?? ''}`
@@ -472,6 +474,7 @@ export class VacancyScanService {
 
       let lastPage: number | null = null;
       let outcome: ScanStoppedReason | null = null;
+      let consecutiveFailures = 0;
 
       for (let page = startPage; page < this.maxPages; page += 1) {
         if (lastPage !== null && page > lastPage) {
@@ -498,17 +501,30 @@ export class VacancyScanService {
           // §4.11.3/§4.11.11: одна неудачная страница (таймаут/5xx/неразбираемый ответ)
           // больше не обрывает ногу — она пропускается и учитывается в pagesFailed,
           // листание продолжается со следующей страницы.
-          // ponytail: нет потолка подряд идущих сбоев — худший случай VACANCY_SCAN_MAX_PAGES × (таймаут × попытки)
-          // в пределах дедлайна прогона; добавить счётчик подряд идущих сбоев, если источник лежит целиком.
           handle.increment('pagesFailed');
+          consecutiveFailures += 1;
           this.logger.warn(
             `Страница выдачи ${source} (page=${page}) пропущена: ${pageResult.message}`,
           );
+
+          if (consecutiveFailures >= VACANCY_SCAN_MAX_CONSECUTIVE_FAILED_PAGES) {
+            // §4.11.8: серия сбоев подряд — источник лежит целиком, а не одна страница
+            // битая. Дальше листать бессмысленно (каждая страница — таймаут), нога
+            // останавливается с ERROR, а позиция откатывается на первую страницу серии:
+            // эти страницы источник не отдал, «Продолжить» должен их перечитать.
+            outcome = SCAN_STOPPED_REASON.ERROR;
+            message = `${VACANCY_SCAN_SOURCE_UNAVAILABLE_MESSAGE} (${consecutiveFailures}): ${pageResult.message}`;
+            resumePage = page + 1 - consecutiveFailures;
+            this.logger.error(`Нога ${source} остановлена: ${message}`);
+            break;
+          }
+
           resumePage = page + 1;
           await this.position.save(source, resumePage, searchUrlTemplate);
           continue;
         }
 
+        consecutiveFailures = 0;
         handle.increment('pagesFetched');
         handle.increment('itemsSeen', pageResult.page.items.length);
         handle.increment('skippedInvalid', pageResult.page.skippedInvalid);
