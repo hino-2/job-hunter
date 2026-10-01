@@ -69,7 +69,7 @@ export async function updateApplication(
 /**
  * POST /api/applications (§5.1, §7.4). status не отправляется — бэкенд создаёт OPEN. Таймаут
  * поднят: бэкенд синхронно докачивает логотип компании (§4.4, §4.10), поэтому запрос
- * штатно может занимать до ≈32 с.
+ * штатно может занимать до ≈47 с.
  */
 export async function createApplication(payload: ApplicationCreate): Promise<Application> {
   const response = await apiClient.post<Application>(APPLICATIONS_ENDPOINT, payload, {

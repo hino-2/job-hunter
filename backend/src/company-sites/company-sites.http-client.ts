@@ -41,7 +41,7 @@ function describeHost(url: string): string {
 
 /**
  * §4.14: единственная точка HTTP-транспорта для всех парсеров сайтов компаний —
- * троттл (один на все хосты, CompanySiteRequestThrottle), ретраи 429/5xx (§4.6,
+ * троттл (один на все хосты, CompanySiteRequestThrottle), ретраи 429/5xx и транспортных сбоев (§4.6,
  * fetchWithRetries), маппинг статуса на сообщение. Ни один парсер не обращается к
  * HttpService напрямую — так и SSRF-проверка (§4.14: только парсеры знают, какие
  * хосты им можно), и повтор транспортной логики остаются в одном месте.
@@ -136,6 +136,8 @@ export class CompanySiteHttpClient {
 
       return this.interpretStatus(response.status, response.data, url, parseOk);
     } catch (error) {
+      // Транспортный сбой (таймаут, DNS, отказ в соединении) чаще всего временный,
+      // поэтому ретраится наравне с 429/5xx (§4.6).
       const message = describeTransportError(
         `${COMPANY_SITE_TRANSPORT_ERROR_MESSAGE} (${describeHost(url)})`,
         error,
@@ -143,7 +145,7 @@ export class CompanySiteHttpClient {
 
       this.logger.warn(message);
 
-      return { result: { ok: false, message }, retryable: false };
+      return { result: { ok: false, message }, retryable: true };
     }
   }
 

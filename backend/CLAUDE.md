@@ -32,7 +32,7 @@ project-wide pipeline, commands, architecture and conventions.
   because the dependency runs `hh → applications` (the `last_sync_outcome` column is in
   `applications`).
 - **`hh-api.service.ts` throws nothing outward**: any failure (429, 5xx, timeout, broken JSON)
-  becomes a `SyncOutcome`. Retries happen only on 429 and 5xx. Values that reach the DB are
+  becomes a `SyncOutcome`. Retries happen on 429, 5xx and transport failures (timeout, DNS, connection refused). Values that reach the DB are
   truncated to column width at parse time — otherwise an over-long value from the source would
   produce a 500 instead of a normal outcome.
 - **`vacancy_external_id` is computed on the backend** on create and on **every** write of

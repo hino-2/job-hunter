@@ -72,7 +72,7 @@ Providers live in `main.tsx` (ThemeProvider + LocalizationProvider ru with picke
   does not know whether a record belongs to other cached filter combinations or where it sorts
   there. Invalidation also runs in `onError`: the run is synchronous and may have completed in
   the DB while the response timed out. The `/sync` and `/sync-open` timeouts are raised
-  per-request: the default 20 s is shorter than the normal worst case for one record (≈32 s).
+  per-request: the default 20 s is shorter than the normal worst case for one record (≈47 s).
 * **The run summary is a separate `SyncSummaryAlert` in the page flow, not `useNotification`**:
   the latter wants one short auto-dismissing message, the summary needs an expandable list of
   problem records that lives until explicitly closed. The three outcome channels never mix: an

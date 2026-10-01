@@ -23,7 +23,7 @@ export const DEFAULT_DATABASE_PORT = 5432;
 
 export const DEFAULT_HH_SITE_BASE_URL = 'https://hh.ru';
 export const DEFAULT_HH_REQUEST_TIMEOUT_MS = 10_000;
-export const DEFAULT_HH_MAX_RETRIES = 2;
+export const DEFAULT_HH_MAX_RETRIES = 3;
 
 /**
  * §4.9. Разведка не обнаружила у getmatch.ru отдельных требований к User-Agent
@@ -33,7 +33,7 @@ export const DEFAULT_HH_MAX_RETRIES = 2;
 export const DEFAULT_GETMATCH_SITE_BASE_URL = 'https://getmatch.ru';
 export const DEFAULT_GETMATCH_USER_AGENT = 'job-hunter/1.0';
 export const DEFAULT_GETMATCH_REQUEST_TIMEOUT_MS = 10_000;
-export const DEFAULT_GETMATCH_MAX_RETRIES = 2;
+export const DEFAULT_GETMATCH_MAX_RETRIES = 3;
 
 /**
  * §4.8/§4.11: третий источник. Как и у getmatch.ru, требований к конкретному
@@ -43,7 +43,7 @@ export const DEFAULT_GETMATCH_MAX_RETRIES = 2;
 export const DEFAULT_IT_VACANCIES_SITE_BASE_URL = 'https://it-vacancies.ru';
 export const DEFAULT_IT_VACANCIES_USER_AGENT = 'job-hunter/1.0';
 export const DEFAULT_IT_VACANCIES_REQUEST_TIMEOUT_MS = 10_000;
-export const DEFAULT_IT_VACANCIES_MAX_RETRIES = 2;
+export const DEFAULT_IT_VACANCIES_MAX_RETRIES = 3;
 
 /**
  * §4.11.2: свой лимит частоты, независимый от HH_MAX_REQUESTS_PER_SECOND — прогон
@@ -60,7 +60,7 @@ export const DEFAULT_IT_VACANCIES_MAX_REQUESTS_PER_SECOND = 2;
 export const DEFAULT_GEEKJOB_SITE_BASE_URL = 'https://geekjob.ru';
 export const DEFAULT_GEEKJOB_USER_AGENT = 'job-hunter/1.0';
 export const DEFAULT_GEEKJOB_REQUEST_TIMEOUT_MS = 10_000;
-export const DEFAULT_GEEKJOB_MAX_RETRIES = 2;
+export const DEFAULT_GEEKJOB_MAX_RETRIES = 3;
 
 /**
  * §4.11.2: свой лимит частоты, независимый от лимитов остальных источников —
@@ -244,7 +244,7 @@ export const VACANCY_AI_CONCURRENCY_MAX = 10;
  */
 export const DEFAULT_COMPANY_SITE_USER_AGENT = 'job-hunter/1.0';
 export const DEFAULT_COMPANY_SITE_REQUEST_TIMEOUT_MS = 10_000;
-export const DEFAULT_COMPANY_SITE_MAX_RETRIES = 2;
+export const DEFAULT_COMPANY_SITE_MAX_RETRIES = 3;
 
 /**
  * §4.11.2/§4.14: один общий троттл на ВСЕ хосты сайтов компаний — заведомо ниже, чем

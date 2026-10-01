@@ -336,18 +336,19 @@ describe('HhApiService', () => {
   });
 
   describe('транспортные ошибки', () => {
-    it('таймаут отдаёт ERROR без ретраев и не выбрасывает исключение', async () => {
+    it('таймаут повторяет запрос до лимита, отдаёт ERROR и не выбрасывает исключение', async () => {
       const { service, http } = createService(2);
 
+      jest.useFakeTimers();
       http.get.mockReturnValue(throwError(() => new Error('timeout of 10000ms exceeded')));
 
-      const result = await service.fetchVacancy(VACANCY_ID);
+      const result = await runWithRetries(service.fetchVacancy(VACANCY_ID));
 
       expect(result).toEqual({
         outcome: SYNC_OUTCOME.ERROR,
         message: expect.stringContaining('timeout of 10000ms exceeded') as string,
       });
-      expect(http.get).toHaveBeenCalledTimes(1);
+      expect(http.get).toHaveBeenCalledTimes(3);
     });
   });
 });

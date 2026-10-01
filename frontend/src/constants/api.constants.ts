@@ -54,24 +54,24 @@ export const VACANCY_SOURCES_ENDPOINT = '/vacancy-sources';
 export const SOURCE_ICON_PATH_SEGMENT = 'icon';
 
 /**
- * Худший случай одной записи на бэкенде: 3 попытки × 10 000 мс + backoff 500/1500 мс ≈ 32 с
+ * Худший случай одной записи на бэкенде: 4 попытки × 10 000 мс + backoff 500/1500/4500 мс ≈ 47 с
  * (backend/src/config/config.constants.ts, backend/src/vacancies/vacancies.constants.ts), то
  * есть дефолтный API_TIMEOUT_MS (20 000) оборвал бы штатный запрос. Одинаково для обоих
  * источников — общие дефолты ретраев.
  */
-export const SYNC_REQUEST_TIMEOUT_MS = 45_000;
+export const SYNC_REQUEST_TIMEOUT_MS = 60_000;
 
 /** Ровно столько же держит nginx (proxy_read_timeout 120s) — больше ждать бессмысленно. */
 export const SYNC_OPEN_REQUEST_TIMEOUT_MS = 120_000;
 
 /**
  * POST /api/applications теперь докачивает логотип компании (§4.4, §4.10): один запрос
- * к источнику (худший случай 3 попытки × 10 000 мс + backoff 500/1500 мс ≈ 32 с) плюс
+ * к источнику (худший случай 4 попытки × 10 000 мс + backoff 500/1500/4500 мс ≈ 47 с) плюс
  * скачивание логотипа (COMPANY_LOGO_REQUEST_TIMEOUT_MS = 5 000 мс). Дефолтный
  * API_TIMEOUT_MS (20 000) оборвал бы штатный запрос, а диалог создания при ошибке
  * остаётся открытым — повторный «Добавить» создал бы дубль записи.
  */
-export const CREATE_REQUEST_TIMEOUT_MS = 45_000;
+export const CREATE_REQUEST_TIMEOUT_MS = 60_000;
 
 /**
  * У прогона поиска (§4.11, §5.7) нет отдельного per-request таймаута, в отличие

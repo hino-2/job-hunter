@@ -48,7 +48,7 @@ import {
  * страница выдачи и страница вакансии (ради описания и логотипа, не архивности —
  * это делает ItVacanciesApiService при синхронизации). Тот же троттл, тот же
  * HttpService модуля it-vacancies/, та же схема ретраев (§4.6, через общий
- * fetchWithRetries): 429 и 5xx. Исключений наружу не выпускает — результат
+ * fetchWithRetries): 429, 5xx и транспортные сбои. Исключений наружу не выпускает — результат
  * дискриминирован по `ok`, а не по SyncOutcome (§4.5). Зеркало hh-search.service.ts.
  */
 @Injectable()
@@ -127,11 +127,13 @@ export class ItVacanciesSearchService implements VacancyLeadSearchProvider {
 
       return this.interpretSearchResponse(response.status, response.data, page);
     } catch (error) {
+      // Транспортный сбой (таймаут, DNS, отказ в соединении) чаще всего временный,
+      // поэтому ретраится наравне с 429/5xx (§4.6).
       const message = describeTransportError(IT_VACANCIES_TRANSPORT_ERROR_MESSAGE, error);
 
       this.logger.warn(`Страница выдачи (page=${page}): ${message}`);
 
-      return { result: { ok: false, message }, retryable: false };
+      return { result: { ok: false, message }, retryable: true };
     }
   }
 
@@ -203,11 +205,13 @@ export class ItVacanciesSearchService implements VacancyLeadSearchProvider {
 
       return this.interpretDescriptionResponse(response.status, response.data, externalId);
     } catch (error) {
+      // Транспортный сбой (таймаут, DNS, отказ в соединении) чаще всего временный,
+      // поэтому ретраится наравне с 429/5xx (§4.6).
       const message = describeTransportError(IT_VACANCIES_TRANSPORT_ERROR_MESSAGE, error);
 
       this.logger.warn(`Описание вакансии ${externalId}: ${message}`);
 
-      return { result: { ok: false, message }, retryable: false };
+      return { result: { ok: false, message }, retryable: true };
     }
   }
 

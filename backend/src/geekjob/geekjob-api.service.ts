@@ -108,11 +108,12 @@ export class GeekjobApiService implements VacancySourceProvider {
     } catch (error) {
       // Сюда попадает только транспорт: таймаут, DNS, отказ в соединении —
       // HTTP-статусы через validateStatus исключением не становятся.
+      // Транспортный сбой чаще всего временный, поэтому ретраится наравне с 429/5xx (§4.6).
       const message = describeTransportError(GEEKJOB_TRANSPORT_ERROR_MESSAGE, error);
 
       this.logger.warn(`Вакансия ${vacancyId}: ${message}`);
 
-      return { result: { outcome: SYNC_OUTCOME.ERROR, message }, retryable: false };
+      return { result: { outcome: SYNC_OUTCOME.ERROR, message }, retryable: true };
     }
   }
 

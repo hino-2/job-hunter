@@ -44,7 +44,7 @@ import { countGeekjobSearchSignals, parseGeekjobSearchPage } from './geekjob-sea
  * JSON-страница выдачи и HTML-страница вакансии (ради описания и логотипа, не
  * архивности — это GeekjobApiService при синхронизации). Тот же троттл, тот же
  * HttpService модуля geekjob/, та же схема ретраев (§4.6, через общий
- * fetchWithRetries): 429 и 5xx. Исключений наружу не выпускает — результат
+ * fetchWithRetries): 429, 5xx и транспортные сбои. Исключений наружу не выпускает — результат
  * дискриминирован по `ok`, а не по SyncOutcome (§4.5). Зеркало it-vacancies-search.service.ts.
  */
 @Injectable()
@@ -125,11 +125,13 @@ export class GeekjobSearchService implements VacancyLeadSearchProvider {
 
       return this.interpretSearchResponse(response.status, response.data, page);
     } catch (error) {
+      // Транспортный сбой (таймаут, DNS, отказ в соединении) чаще всего временный,
+      // поэтому ретраится наравне с 429/5xx (§4.6).
       const message = describeTransportError(GEEKJOB_TRANSPORT_ERROR_MESSAGE, error);
 
       this.logger.warn(`Страница выдачи (page=${page}): ${message}`);
 
-      return { result: { ok: false, message }, retryable: false };
+      return { result: { ok: false, message }, retryable: true };
     }
   }
 
@@ -193,11 +195,13 @@ export class GeekjobSearchService implements VacancyLeadSearchProvider {
 
       return this.interpretDescriptionResponse(response.status, response.data, externalId);
     } catch (error) {
+      // Транспортный сбой (таймаут, DNS, отказ в соединении) чаще всего временный,
+      // поэтому ретраится наравне с 429/5xx (§4.6).
       const message = describeTransportError(GEEKJOB_TRANSPORT_ERROR_MESSAGE, error);
 
       this.logger.warn(`Описание вакансии ${externalId}: ${message}`);
 
-      return { result: { ok: false, message }, retryable: false };
+      return { result: { ok: false, message }, retryable: true };
     }
   }
 

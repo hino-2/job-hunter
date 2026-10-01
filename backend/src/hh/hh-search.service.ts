@@ -49,8 +49,8 @@ import { parseHhSearchPage } from './hh-search.parser';
  * и страница вакансии (только ради описания, не архивности/логотипа — это делает
  * HhApiService при синхронизации). Тот же троттл, тот же HttpService модуля hh/
  * (baseURL/таймаут/User-Agent/потолок размера ответа из buildHhHttpOptions),
- * та же схема ретраев (§4.6, через общий fetchWithRetries): 429 и 5xx, backoff
- * 500/1500 мс. Исключений наружу не выпускает — результат дискриминирован по `ok`,
+ * та же схема ретраев (§4.6, через общий fetchWithRetries): 429, 5xx и транспортные сбои, backoff
+ * 500/1500/4500 мс. Исключений наружу не выпускает — результат дискриминирован по `ok`,
  * а не по SyncOutcome (§4.5): сбой поиска не пишется в applications.last_sync_outcome.
  */
 @Injectable()
@@ -131,11 +131,13 @@ export class HhSearchService implements VacancyLeadSearchProvider {
 
       return this.interpretSearchResponse(response.status, response.data, page);
     } catch (error) {
+      // Транспортный сбой (таймаут, DNS, отказ в соединении) чаще всего временный,
+      // поэтому ретраится наравне с 429/5xx (§4.6).
       const message = describeTransportError(HH_TRANSPORT_ERROR_MESSAGE, error);
 
       this.logger.warn(`Страница выдачи (page=${page}): ${message}`);
 
-      return { result: { ok: false, message }, retryable: false };
+      return { result: { ok: false, message }, retryable: true };
     }
   }
 
@@ -189,11 +191,13 @@ export class HhSearchService implements VacancyLeadSearchProvider {
 
       return this.interpretDescriptionResponse(response.status, response.data, externalId);
     } catch (error) {
+      // Транспортный сбой (таймаут, DNS, отказ в соединении) чаще всего временный,
+      // поэтому ретраится наравне с 429/5xx (§4.6).
       const message = describeTransportError(HH_TRANSPORT_ERROR_MESSAGE, error);
 
       this.logger.warn(`Описание вакансии ${externalId}: ${message}`);
 
-      return { result: { ok: false, message }, retryable: false };
+      return { result: { ok: false, message }, retryable: true };
     }
   }
 
