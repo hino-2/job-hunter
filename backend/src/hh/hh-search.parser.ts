@@ -15,6 +15,7 @@ import {
   HH_SEARCH_VACANCIES_FIELD,
   HH_SEARCH_WORK_FORMATS_SEPARATOR,
   HH_VACANCY_PAGE_PATH,
+  HH_VACANCY_URL_QUERY,
 } from './hh.constants';
 import type { VacancySearchItem, VacancySearchPage } from '../vacancies/vacancies.interfaces';
 import type { HhSearchState } from './hh.interfaces';
@@ -203,7 +204,7 @@ function parseSearchItem(raw: unknown, siteBaseUrl: string): VacancySearchItem |
     company,
     publishedAtIso,
     // §4.11.3: канонический адрес, а не links.desktop — тот несёт региональный хост.
-    vacancyUrl: `${siteBaseUrl}${HH_VACANCY_PAGE_PATH}/${externalId}`,
+    vacancyUrl: `${siteBaseUrl}${HH_VACANCY_PAGE_PATH}/${externalId}${HH_VACANCY_URL_QUERY}`,
     areaName: readAreaName(raw),
     ...readCompensation(raw),
     experience: readString(raw, HH_SEARCH_ITEM_FIELD.WORK_EXPERIENCE),

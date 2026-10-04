@@ -12,6 +12,13 @@ export const HH_SITE_BASE_URL_ENV_KEY = 'HH_SITE_BASE_URL';
  */
 export const HH_VACANCY_PAGE_PATH = '/vacancy';
 
+/**
+ * §4.11.3: query-хвост сохраняемого vacancy_url лида hh.ru. Запрет robots.txt касается
+ * только запросов к hh.ru, а в БД хранится ссылка для пользователя: с этим хвостом
+ * hh.ru считает переход сделанным со вкладки вакансий работодателя.
+ */
+export const HH_VACANCY_URL_QUERY = '?hhtmFromLabel=employer_vacancy_tab&hhtmFrom=employer';
+
 export const HH_USER_AGENT_ENV_KEY = 'HH_USER_AGENT';
 export const HH_REQUEST_TIMEOUT_MS_ENV_KEY = 'HH_REQUEST_TIMEOUT_MS';
 export const HH_MAX_RETRIES_ENV_KEY = 'HH_MAX_RETRIES';

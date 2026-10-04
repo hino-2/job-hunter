@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { isAllowedHhSearchUrlOrigin } from '../../../hh/hh-search-url.helpers';
 import { HhSearchService } from '../../../hh/hh-search.service';
+import { HH_VACANCY_URL_QUERY } from '../../../hh/hh.constants';
 import { parseHhVacancyId } from '../../../hh/hh-url.parser';
 import type { VacancyDescriptionResult } from '../../../vacancies/vacancies.type';
 import type { VacancySearchItem } from '../../../vacancies/vacancies.interfaces';
@@ -78,7 +79,9 @@ export class HhSearchSiteParser implements CompanySiteParser {
     const { lastPage } = pageResult.page;
     const items: VacancySearchItem[] = pageResult.page.items.map((item) =>
       buildCompanySiteItem({
-        vacancyUrl: item.vacancyUrl,
+        // §4.14: external_id = md5(vacancyUrl), поэтому query-хвост §4.11.3 здесь
+        // срезается — иначе уже сохранённые лиды строк hh.ru задвоились бы.
+        vacancyUrl: item.vacancyUrl.replace(HH_VACANCY_URL_QUERY, ''),
         // §4.14/D9: имя строки, а не company, разобранная со страницы hh.ru — строка
         // может искать по подстроке в названии (Fix Price, Папа Джонс), и hh.ru
         // способен вернуть однофамильца-непричастного работодателя.
