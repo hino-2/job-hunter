@@ -338,16 +338,6 @@ export const SCAN_PAGE_STOP_PRECEDENCE: readonly ScanStoppedReason[] = [
 export const SCAN_MODES = ['FRESH', 'RESUME'] as const;
 export const DEFAULT_SCAN_MODE = SCAN_MODES[0];
 
-/**
- * §5.7/§4.11.0: сентинел «прогнать по очереди все источники поиска лидов» — не булев
- * флаг и не массив, а ещё одно допустимое значение того же скалярного поля `source`,
- * что и сами источники (SCAN_SOURCE_SELECTIONS ниже).
- */
-export const SCAN_SOURCE_ALL = 'ALL';
-
-/** §5.7: полный список допустимых значений поля `source` — источники поиска лидов плюс сентинел «все». */
-export const SCAN_SOURCE_SELECTIONS = [...VACANCY_LEAD_SEARCH_SOURCES, SCAN_SOURCE_ALL] as const;
-
 /** §4.11.11: разделитель между именем источника и сообщением в списке ошибок мультипрогона. */
 export const VACANCY_SCAN_SOURCE_MESSAGE_SEPARATOR = ': ';
 
@@ -355,12 +345,10 @@ export const VACANCY_SCAN_SOURCE_MESSAGE_SEPARATOR = ': ';
 export const VACANCY_SCAN_MESSAGE_JOIN_SEPARATOR = '; ';
 
 /**
- * §5.7/§4.11.0: если тело POST /scan не назвало `source`, прогон теперь последовательно
- * проходит ВСЕ источники поиска лидов (VACANCY_LEAD_SEARCH_SOURCES), а не только hh.ru —
- * старой совместимости с одним-единственным источником больше нет, «искать по всем
- * источникам» стало дефолтным поведением.
+ * §5.7/§4.11.0: если тело POST /scan не назвало `sources`, прогон последовательно
+ * проходит ВСЕ источники поиска лидов (VACANCY_LEAD_SEARCH_SOURCES) в каноническом порядке.
  */
-export const DEFAULT_SCAN_SOURCE = SCAN_SOURCE_ALL;
+export const DEFAULT_SCAN_SOURCES = VACANCY_LEAD_SEARCH_SOURCES;
 
 /**
  * §3.7: таблица сохранённых позиций прогона — по строке на источник поиска (PK по

@@ -7,10 +7,12 @@ import StopIcon from '@mui/icons-material/Stop';
 import {
   Box,
   Button,
+  Checkbox,
   FormControl,
   IconButton,
   InputAdornment,
   InputLabel,
+  ListItemText,
   MenuItem,
   Select,
   TextField,
@@ -36,22 +38,26 @@ import {
   VACANCY_LEADS_HIDDEN_TOGGLE_LABEL,
   VACANCY_LEADS_SEARCH_PLACEHOLDER,
 } from '../../constants/vacancy-search.constants';
-import type { ScanSourceSelection } from '../../types/vacancy-search.type';
-import { formatResumeButtonLabel } from '../../utils/vacancy-scan.utils';
+import type { VacancyLeadSearchSource } from '../../types/vacancy-search.type';
+import {
+  formatResumeButtonLabel,
+  formatScanSourcesLabel,
+  toCanonicalScanSources,
+} from '../../utils/vacancy-scan.utils';
 import { SCAN_SOURCE_LABEL_ID } from './vacancy-leads-filter-bar.constants';
 import type { VacancyLeadsFilterBarProps } from './vacancy-leads-filter-bar.interfaces';
 
 /**
- * Панель фильтров экрана «Вакансии» (§7.9.1, §7.9.2, §4.11.12): выбор источника выдачи,
- * три кнопки прогона («Начать поиск», «Продолжить», «Остановить»), настройки, «Сайты
- * компаний», поиск, «Скрытые». Кнопки видимы всегда — доступность решают только описанные
- * ниже правила, никакой другой логики в компоненте нет (owner decision).
+ * Панель фильтров экрана «Вакансии» (§7.9.1, §7.9.2, §4.11.12): мультивыбор источников
+ * выдачи, три кнопки прогона («Начать поиск», «Продолжить», «Остановить»), настройки,
+ * «Сайты компаний», поиск, «Скрытые». Кнопки видимы всегда — доступность решают только
+ * описанные ниже правила, никакой другой логики в компоненте нет (owner decision).
  */
 export function VacancyLeadsFilterBar({
   filters,
   onFiltersChange,
-  scanSource,
-  onScanSourceChange,
+  scanSources,
+  onScanSourcesChange,
   onScanFresh,
   onScanResume,
   onScanStop,
@@ -63,8 +69,18 @@ export function VacancyLeadsFilterBar({
   onOpenSettings,
   onOpenCompanySites,
 }: VacancyLeadsFilterBarProps) {
-  const handleScanSourceChange = (event: SelectChangeEvent<ScanSourceSelection>) => {
-    onScanSourceChange(event.target.value);
+  const hasScanSources = scanSources.length > 0;
+
+  const handleScanSourcesChange = (event: SelectChangeEvent<VacancyLeadSearchSource[]>) => {
+    const { value } = event.target;
+
+    // Строковая форма — только автозаполнение браузера, которого у этого контрола нет.
+    if (typeof value === 'string') {
+      return;
+    }
+
+    // MUI дописывает кликнутый пункт в конец массива, поэтому порядок возвращаем каноническим.
+    onScanSourcesChange(toCanonicalScanSources(value));
   };
 
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -94,15 +110,19 @@ export function VacancyLeadsFilterBar({
         disabled={isScanRunning || isStartPending}
       >
         <InputLabel id={SCAN_SOURCE_LABEL_ID}>{SCAN_SOURCE_PICKER_LABEL}</InputLabel>
-        <Select<ScanSourceSelection>
+        {/* renderValue не вызывается для []: пустой выбор показывает только подпись «Источник». */}
+        <Select<VacancyLeadSearchSource[]>
+          multiple
           labelId={SCAN_SOURCE_LABEL_ID}
           label={SCAN_SOURCE_PICKER_LABEL}
-          value={scanSource}
-          onChange={handleScanSourceChange}
+          value={scanSources}
+          onChange={handleScanSourcesChange}
+          renderValue={formatScanSourcesLabel}
         >
           {LEAD_SEARCH_SOURCE_OPTIONS.map((option) => (
             <MenuItem key={option.value} value={option.value}>
-              {option.label}
+              <Checkbox checked={scanSources.includes(option.value)} />
+              <ListItemText primary={option.label} />
             </MenuItem>
           ))}
         </Select>
@@ -111,7 +131,7 @@ export function VacancyLeadsFilterBar({
       <Button
         variant="contained"
         startIcon={<SearchIcon />}
-        disabled={isScanRunning || isStartPending}
+        disabled={isScanRunning || isStartPending || !hasScanSources}
         onClick={onScanFresh}
       >
         {isScanRunning ? SCAN_BUTTON_PENDING_LABEL : SCAN_BUTTON_LABEL}
@@ -120,7 +140,7 @@ export function VacancyLeadsFilterBar({
       <Button
         variant="outlined"
         startIcon={<PlayArrowIcon />}
-        disabled={isScanRunning || isStartPending || !resume.available}
+        disabled={isScanRunning || isStartPending || !hasScanSources || !resume.available}
         onClick={onScanResume}
       >
         {formatResumeButtonLabel(resume)}

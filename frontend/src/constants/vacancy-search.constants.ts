@@ -5,7 +5,6 @@ import type {
 } from '../types/vacancy-search.interfaces';
 import type {
   MatchSource,
-  ScanSourceSelection,
   ScanStoppedReason,
   VacancyLeadsHiddenFilter,
   VacancyLeadsOrder,
@@ -73,9 +72,10 @@ export const SCAN_MODE = {
 /**
  * §5.7: источники, у которых есть поиск лидов — ручная копия VACANCY_LEAD_SEARCH_SOURCES
  * бэкенда. getmatch.ru сюда намеренно не входит: у него есть только синхронизация отклика
- * (§4.8), поиска по выдаче нет, и сервер отвергнет такое значение поля source 400-й ошибкой.
+ * (§4.8), поиска по выдаче нет, и сервер отвергнет такой элемент массива sources 400-й ошибкой.
  * COMPANY_SITE (§4.14) добавлен последним — пункт выпадающего списка «Источник» (§7.9.2)
- * выводится из этого списка, отдельно дублировать его не нужно.
+ * выводится из этого списка, отдельно дублировать его не нужно. Порядок — канонический:
+ * в нём сервер обходит ноги прогона, а подпись выбранных источников перечисляет их.
  */
 export const VACANCY_LEAD_SEARCH_SOURCES = [
   VACANCY_SOURCE.HH,
@@ -84,33 +84,29 @@ export const VACANCY_LEAD_SEARCH_SOURCES = [
   VACANCY_SOURCE.COMPANY_SITE,
 ] as const;
 
-/**
- * §5.7: значение поля source, означающее «прогнать все источники по очереди» —
- * ручная копия SCAN_SOURCE_ALL бэкенда.
- */
-export const SCAN_SOURCE_ALL = 'ALL';
+/** §7.9.2: подпись закрытого контрола и сводки прогона, когда отмечены все четыре источника. */
 export const SCAN_SOURCE_ALL_LABEL = 'Все источники';
 
-/**
- * §5.7: дефолт поля source у POST /api/vacancy-leads/scan (ручная копия DEFAULT_SCAN_SOURCE
- * бэкенда) — «Все источники» пресетит выпадающий список, выбор конкретного сайта — явное
- * сужение.
- */
-export const DEFAULT_SCAN_SOURCE: ScanSourceSelection = SCAN_SOURCE_ALL;
+/** §7.9.2: разделитель подписей отмеченных источников в закрытом контроле и сводке прогона. */
+export const SCAN_SOURCES_LABEL_SEPARATOR = ', ';
 
 /**
- * §7.9.2: пункты выпадающего списка «Источник» перед запуском прогона. «Все источники»
- * идёт первым пунктом (дефолт), дальше — конкретные сайты; их подписи берутся
+ * §7.9: единственный ключ localStorage приложения — выбор источников поиска, JSON-массив
+ * кодов источников в каноническом порядке (`["HH","GEEKJOB"]`). Бэкенд о нём не знает.
+ */
+export const SCAN_SOURCES_STORAGE_KEY = 'job-hunter:vacancy-scan-sources';
+
+/**
+ * §7.9.2: пункты выпадающего списка «Источник» перед запуском прогона — по одному на
+ * каждый источник поиска лидов, без пункта «Все источники»; их подписи берутся
  * из VACANCY_SOURCE_LABELS, а не дублируются: тот же текст показывает tooltip иконки
  * синхронизации отклика (§7.2.3), и расходиться они не должны.
  */
-export const LEAD_SEARCH_SOURCE_OPTIONS: readonly LeadSearchSourceOption[] = [
-  { value: SCAN_SOURCE_ALL, label: SCAN_SOURCE_ALL_LABEL },
-  ...VACANCY_LEAD_SEARCH_SOURCES.map((value) => ({
+export const LEAD_SEARCH_SOURCE_OPTIONS: readonly LeadSearchSourceOption[] =
+  VACANCY_LEAD_SEARCH_SOURCES.map((value) => ({
     value,
     label: VACANCY_SOURCE_LABELS[value],
-  })),
-];
+  }));
 
 /** Подписи §4.12 — тот же приём, что MATCH_SOURCE_LABELS у остальных enum-ов. */
 export const MATCH_SOURCE_LABELS: Record<MatchSource, string> = {
@@ -273,10 +269,10 @@ export const SCAN_SUMMARY_VALUE_SEPARATOR = ' ';
 export const EMPTY_SCAN_RESUME_STATE: ScanResumeState = { available: false, nextPage: null };
 
 /**
- * §10, §5.7: стабильная ссылка на «продолжить доступно» для «Все источники» — тем же
- * приёмом, что EMPTY_SCAN_RESUME_STATE. nextPage: null держит подпись кнопки простым
- * «Продолжить» без номера страницы: продолжение сразу нескольких источников не сводится
- * к одному номеру.
+ * §10, §5.7: стабильная ссылка на «продолжить доступно», когда отмечено несколько
+ * источников — тем же приёмом, что EMPTY_SCAN_RESUME_STATE. nextPage: null держит подпись
+ * кнопки простым «Продолжить» без номера страницы: продолжение сразу нескольких источников
+ * не сводится к одному номеру.
  */
 export const SCAN_RESUME_STATE_ANY_SOURCE: ScanResumeState = { available: true, nextPage: null };
 

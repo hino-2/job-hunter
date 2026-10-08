@@ -1,12 +1,12 @@
 import type { ScanResumeState, VacancyLeadsFilters } from '../../types/vacancy-search.interfaces';
-import type { ScanSourceSelection } from '../../types/vacancy-search.type';
+import type { VacancyLeadSearchSource } from '../../types/vacancy-search.type';
 
 export interface VacancyLeadsFilterBarProps {
   filters: VacancyLeadsFilters;
   onFiltersChange: (filters: VacancyLeadsFilters) => void;
-  /** §5.7, §7.9.2: источник, чью выдачу разберёт следующий прогон — сайт либо «Все источники». */
-  scanSource: ScanSourceSelection;
-  onScanSourceChange: (source: ScanSourceSelection) => void;
+  /** §5.7, §7.9.2: источники, чью выдачу разберёт следующий прогон, — в каноническом порядке; может быть пустым. */
+  scanSources: VacancyLeadSearchSource[];
+  onScanSourcesChange: (sources: VacancyLeadSearchSource[]) => void;
   onScanFresh: () => void;
   onScanResume: () => void;
   onScanStop: () => void;
@@ -16,7 +16,7 @@ export interface VacancyLeadsFilterBarProps {
   isStopRequested: boolean;
   isStartPending: boolean;
   isStopPending: boolean;
-  /** §4.11.12: доступность «Продолжить» и номер страницы в её подписи — срез выбранного источника. */
+  /** §4.11.12: доступность «Продолжить» и номер страницы в её подписи — по отмеченным источникам. */
   resume: ScanResumeState;
   onOpenSettings: () => void;
   onOpenCompanySites: () => void;

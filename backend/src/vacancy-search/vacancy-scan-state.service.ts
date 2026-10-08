@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import type { VacancySource } from '../applications/applications.type';
+import type { VacancyLeadSearchSource } from '../vacancies/vacancies.type';
 
 import {
   SCAN_STATUS,
@@ -14,7 +15,7 @@ import type {
   VacancyScanProgress,
   VacancyScanStateSnapshot,
 } from './vacancy-search.interfaces';
-import type { ScanSourceSelection, ScanStatus, ScanStoppedReason } from './vacancy-search.type';
+import type { ScanStatus, ScanStoppedReason } from './vacancy-search.type';
 
 function createEmptyProgress(): VacancyScanProgress {
   return {
@@ -57,7 +58,7 @@ export class VacancyScanStateService {
   private readonly maxPages: number;
   private status: ScanStatus = SCAN_STATUS.IDLE;
   private source: VacancySource | null = null;
-  private selection: ScanSourceSelection | null = null;
+  private selection: readonly VacancyLeadSearchSource[] | null = null;
   private startedAt: Date | null = null;
   private finishedAt: Date | null = null;
   private progress: VacancyScanProgress = createEmptyProgress();
@@ -80,7 +81,7 @@ export class VacancyScanStateService {
    * HTTP-запросов и один бюджет ИИ.
    */
   tryStart(
-    selection: ScanSourceSelection,
+    selection: readonly VacancyLeadSearchSource[],
     source: VacancySource,
     startPage: number,
   ): ScanRunHandle | null {

@@ -6,7 +6,6 @@ import type {
 import type { VacancyLeadSearchSource } from '../vacancies/vacancies.type';
 import type {
   MatchSource,
-  ScanSourceSelection,
   ScanStatus,
   ScanStoppedReason,
   VacancySearchUrlTemplateBySource,
@@ -109,12 +108,12 @@ export interface VacancyScanStateSnapshot {
   status: ScanStatus;
   /**
    * Источник, чья страница листается прямо сейчас, а после finish() — последней
-   * обработанной ноги; null, если прогонов ещё не было. При ALL меняется на
-   * каждой ноге (см. selection ниже — что было ЗАПРОШЕНО).
+   * обработанной ноги; null, если прогонов ещё не было. При мультипрогоне меняется
+   * на каждой ноге (см. selection ниже — что было ЗАПРОШЕНО).
    */
   source: VacancySource | null;
-  /** §4.11.0/§5.7: чем был запущен прогон — конкретный источник либо SCAN_SOURCE_ALL; живёт до следующего tryStart(), как и source. */
-  selection: ScanSourceSelection | null;
+  /** §4.11.0/§5.7: запрошенные источники в каноническом порядке; живёт до следующего tryStart(), как и source. */
+  selection: readonly VacancyLeadSearchSource[] | null;
   startedAt: Date | null;
   finishedAt: Date | null;
   progress: VacancyScanProgress;

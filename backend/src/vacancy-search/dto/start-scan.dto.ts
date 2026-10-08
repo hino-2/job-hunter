@@ -1,13 +1,14 @@
-import { IsIn, IsOptional } from 'class-validator';
+import { ArrayNotEmpty, ArrayUnique, IsArray, IsIn, IsOptional } from 'class-validator';
 
-import { SCAN_MODES, SCAN_SOURCE_SELECTIONS } from '../vacancy-search.constants';
-import type { ScanMode, ScanSourceSelection } from '../vacancy-search.type';
+import { VACANCY_LEAD_SEARCH_SOURCES } from '../../vacancies/vacancies.constants';
+import type { VacancyLeadSearchSource } from '../../vacancies/vacancies.type';
+import { SCAN_MODES } from '../vacancy-search.constants';
+import type { ScanMode } from '../vacancy-search.type';
 
 /**
  * Тело POST /api/vacancy-leads/scan (§5.7, §4.11.0, §4.11.12). Оба поля опциональны —
- * пустое тело трактуется как FRESH по всем источникам поиска лидов сразу
- * (DEFAULT_SCAN_MODE/DEFAULT_SCAN_SOURCE = SCAN_SOURCE_ALL) — «искать по всем
- * источникам» это дефолтное поведение, а не отдельная опция.
+ * пустое тело трактуется как FRESH по всем источникам поиска лидов
+ * (DEFAULT_SCAN_MODE/DEFAULT_SCAN_SOURCES).
  */
 export class StartScanDto {
   @IsOptional()
@@ -15,13 +16,17 @@ export class StartScanDto {
   mode?: ScanMode;
 
   /**
-   * §5.7/§4.11.0: источник поиска лидов либо сентинел 'ALL' — по одному скалярному
-   * полю, не массиву и не булеву флагу. Список — SCAN_SOURCE_SELECTIONS
-   * (VACANCY_LEAD_SEARCH_SOURCES + 'ALL', теперь включает и 'COMPANY_SITE', §4.14),
-   * а не все значения VacancySource: getmatch.ru выдачи для поиска не даёт, и
-   * 'GETMATCH' обязан получить 400, а не 500 из реестра.
+   * §5.7/§4.11.0: какие источники поиска лидов обходит прогон. Отсутствие поля — все
+   * источники. Пустой массив — 400: прогон без работы это ошибка клиента. Порядок
+   * элементов не важен — сервис сам ставит их в канонический порядок
+   * VACANCY_LEAD_SEARCH_SOURCES; дубли отсекает @ArrayUnique. Список допустимых —
+   * VACANCY_LEAD_SEARCH_SOURCES, а не все значения VacancySource: getmatch.ru выдачи для
+   * поиска не даёт, и 'GETMATCH' обязан получить 400, а не 500 из реестра.
    */
   @IsOptional()
-  @IsIn(SCAN_SOURCE_SELECTIONS)
-  source?: ScanSourceSelection;
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsIn(VACANCY_LEAD_SEARCH_SOURCES, { each: true })
+  sources?: VacancyLeadSearchSource[];
 }

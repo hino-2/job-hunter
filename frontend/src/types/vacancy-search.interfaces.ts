@@ -3,9 +3,9 @@ import type {
   MatchSource,
   ScanMode,
   ScanResumeStateBySource,
-  ScanSourceSelection,
   ScanStatusValue,
   ScanStoppedReason,
+  VacancyLeadSearchSource,
   VacancyLeadsHiddenFilter,
   VacancyLeadsOrder,
   VacancyLeadsSortField,
@@ -73,14 +73,14 @@ export interface ScanAcceptedResponse {
 }
 
 /**
- * Тело POST /api/vacancy-leads/scan (§5.7, §4.11.12) — режим старта прогона и источник
- * выдачи (конкретный сайт либо «Все источники»). source на сервере опционален (дефолт
- * «Все источники»), но фронт всегда шлёт его явно: в панели фильтров источник выбран
- * всегда, и неявный дефолт разошёлся бы с тем, что видит пользователь.
+ * Тело POST /api/vacancy-leads/scan (§5.7, §4.11.12) — режим старта прогона и отмеченные
+ * источники выдачи. sources на сервере опционален (дефолт — все четыре), но фронт всегда
+ * шлёт его явно: неявный дефолт разошёлся бы с тем, что видит пользователь. Пустым
+ * не бывает: при нуле отмеченных источников обе кнопки старта дизейблятся (§7.9.2).
  */
 export interface StartScanRequest {
   mode: ScanMode;
-  source: ScanSourceSelection;
+  sources: VacancyLeadSearchSource[];
 }
 
 /** Ответ 202 POST /api/vacancy-leads/scan/stop (§5.7, §4.11.12) — остановка запрошена, статус ещё RUNNING. */
@@ -117,11 +117,11 @@ export interface ScanPageProgress {
 }
 
 /**
- * §7.9.2: пункт выпадающего списка «Источник» в панели фильтров — значение поля source
- * запроса и подпись из VACANCY_SOURCE_LABELS (либо SCAN_SOURCE_ALL_LABEL для «Все источники»).
+ * §7.9.2: пункт выпадающего списка «Источник» в панели фильтров — элемент поля sources
+ * запроса и подпись из VACANCY_SOURCE_LABELS.
  */
 export interface LeadSearchSourceOption {
-  value: ScanSourceSelection;
+  value: VacancyLeadSearchSource;
   label: string;
 }
 
@@ -146,21 +146,21 @@ export interface ScanStatusResponse {
   aiWarmingUp: boolean;
   /**
    * §5.7: позиция для продолжения — по строке на источник (§3.7). Кнопка «Продолжить»
-   * читает срез выбранного источника, а не одно общее значение.
+   * читает срезы отмеченных источников, а не одно общее значение.
    */
   resumeBySource: ScanResumeStateBySource;
   /**
    * §5.7: источник, читающийся прямо сейчас (или последний прочитанный, если прогон уже
-   * закончен) — конкретный сайт, никогда 'ALL', даже когда запрошены «Все источники»:
+   * закончен) — конкретный сайт текущей ноги, даже когда запрошено несколько источников:
    * это то, чью выдачу разбирает текущий (или последний) этап прогона.
    */
   source: VacancySource | null;
   /**
-   * §5.7: что запросил пользователь при старте прогона — конкретный сайт либо «Все
-   * источники». В отличие от source не меняется этапами прогона, живёт до следующего
-   * старта.
+   * §5.7: что запросил пользователь при старте прогона — отмеченные источники в
+   * каноническом порядке. В отличие от source не меняется этапами прогона, живёт до
+   * следующего старта.
    */
-  selection: ScanSourceSelection | null;
+  selection: VacancyLeadSearchSource[] | null;
   stoppedReason: ScanStoppedReason | null;
   message: string | null;
 }

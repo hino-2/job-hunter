@@ -19,8 +19,9 @@ import {
   SCAN_RESUME_BUTTON_LABEL,
   SCAN_RESUME_BUTTON_PAGE_PREFIX,
   SCAN_RESUME_STATE_ANY_SOURCE,
-  SCAN_SOURCE_ALL,
   SCAN_SOURCE_ALL_LABEL,
+  SCAN_SOURCES_LABEL_SEPARATOR,
+  SCAN_SOURCES_STORAGE_KEY,
   SCAN_STATUS,
   SCAN_STOPPED_REASON,
   SCAN_STOPPED_REASON_LABELS,
@@ -30,7 +31,10 @@ import {
 } from '../constants/vacancy-search.constants';
 import { NOTIFICATION_SEVERITY } from '../constants/notification.constants';
 import type { NotificationSeverity } from '../types/notification.type';
-import type { ScanResumeStateBySource, ScanSourceSelection } from '../types/vacancy-search.type';
+import type {
+  ScanResumeStateBySource,
+  VacancyLeadSearchSource,
+} from '../types/vacancy-search.type';
 import type {
   ScanPageProgress,
   ScanProgress,
@@ -40,15 +44,88 @@ import type {
 
 /** Производные статуса прогона поиска (§7.9.2), чистые функции без литералов внутри. */
 
+/** §5.7: тип-предикат для сужения значения из localStorage (unknown) до кода источника поиска. */
+export function isVacancyLeadSearchSource(value: unknown): value is VacancyLeadSearchSource {
+  return VACANCY_LEAD_SEARCH_SOURCES.some((source) => source === value);
+}
+
+/**
+ * §7.9: отмеченные источники в каноническом порядке VACANCY_LEAD_SEARCH_SOURCES. MUI Select
+ * multiple добавляет кликнутый пункт в конец массива, а порядок ног прогона и подпись
+ * контрола должны быть одни и те же вне зависимости от порядка кликов.
+ */
+export function toCanonicalScanSources(
+  sources: readonly VacancyLeadSearchSource[],
+): VacancyLeadSearchSource[] {
+  return VACANCY_LEAD_SEARCH_SOURCES.filter((source) => sources.includes(source));
+}
+
+/**
+ * §7.9.2: подпись отмеченных источников — одна и та же для закрытого контрола и сводки
+ * прогона. Все четыре — «Все источники», иначе подписи в каноническом порядке через «, »
+ * (для одного источника — просто его подпись).
+ */
+export function formatScanSourcesLabel(sources: readonly VacancyLeadSearchSource[]): string {
+  if (VACANCY_LEAD_SEARCH_SOURCES.every((source) => sources.includes(source))) {
+    return SCAN_SOURCE_ALL_LABEL;
+  }
+
+  return toCanonicalScanSources(sources)
+    .map((source) => VACANCY_SOURCE_LABELS[source])
+    .join(SCAN_SOURCES_LABEL_SEPARATOR);
+}
+
+/**
+ * §7.9: выбор источников из localStorage. Нет значения, битый JSON, не массив или хоть один
+ * неизвестный код — дефолт, все четыре; сохранённый `[]` возвращается как есть (пользователь
+ * сознательно снял всё).
+ */
+export function loadScanSources(): VacancyLeadSearchSource[] {
+  try {
+    const raw = window.localStorage.getItem(SCAN_SOURCES_STORAGE_KEY);
+
+    if (raw === null) {
+      return [...VACANCY_LEAD_SEARCH_SOURCES];
+    }
+
+    const parsed: unknown = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) {
+      return [...VACANCY_LEAD_SEARCH_SOURCES];
+    }
+
+    const stored: readonly unknown[] = parsed;
+    const known = stored.filter(isVacancyLeadSearchSource);
+
+    if (known.length !== stored.length) {
+      return [...VACANCY_LEAD_SEARCH_SOURCES];
+    }
+
+    return toCanonicalScanSources(known);
+  } catch {
+    // Хранилище отключено или значение испорчено — это не должно ронять экран.
+    return [...VACANCY_LEAD_SEARCH_SOURCES];
+  }
+}
+
+/** §7.9: запись выбора источников в localStorage; сбой записи молча глотается. */
+export function saveScanSources(sources: readonly VacancyLeadSearchSource[]): void {
+  try {
+    window.localStorage.setItem(SCAN_SOURCES_STORAGE_KEY, JSON.stringify(sources));
+  } catch {
+    // Квота или выключенное хранилище — выбор просто не переживёт перезагрузку страницы.
+  }
+}
+
 /**
  * §5.7, §7.9.2: подпись источника прогона. Пока прогон RUNNING, называет конкретный сайт,
  * который читается прямо сейчас (status.source) — тот же словарь, что у tooltip'а иконки
  * синхронизации отклика (§7.2.3): пользователю важно, чью выдачу разбирают в этот момент,
- * даже когда запрошены «Все источники». В итоговой сводке счётчики — сумма по всем этапам
- * прогона, поэтому там название последнего этапа было бы неправдой: при selection === 'ALL'
- * сводка называет «Все источники», иначе — тот же конкретный сайт. source === null бывает
- * только до самого первого прогона, когда Alert ещё не показывается вовсе, но значение
- * всё равно обязано остаться читаемым, а не пустым.
+ * даже когда запрошено несколько источников. В итоговой сводке счётчики — сумма по всем
+ * этапам прогона, поэтому там название последнего этапа было бы неправдой: сводка называет
+ * запрошенные источники (status.selection) тем же текстом, что закрытый контрол.
+ * selection === null и source === null бывают только до самого первого прогона, когда Alert
+ * ещё не показывается вовсе, но значение всё равно обязано остаться читаемым, а не пустым.
  */
 export function formatScanSourceLabel(status: ScanStatusResponse): string {
   const concreteSourceLabel =
@@ -58,7 +135,7 @@ export function formatScanSourceLabel(status: ScanStatusResponse): string {
     return concreteSourceLabel;
   }
 
-  return status.selection === SCAN_SOURCE_ALL ? SCAN_SOURCE_ALL_LABEL : concreteSourceLabel;
+  return status.selection === null ? concreteSourceLabel : formatScanSourcesLabel(status.selection);
 }
 
 /**
@@ -178,27 +255,28 @@ export function formatResumeButtonLabel(resume: ScanResumeState): string {
 }
 
 /**
- * §5.7, §4.11.12: срез resumeBySource для выбранного пункта «Источник». При «Все
- * источники» кнопка «Продолжить» доступна, если хотя бы один сайт из
- * VACANCY_LEAD_SEARCH_SOURCES резервировал позицию — тогда прогон продолжит с них,
- * остальные пройдёт с нуля. Оба варианта возвращают стабильную ссылку (константу либо
- * сам объект из кэша запроса), поэтому useMemo на месте вызова не нужен (§10).
+ * §5.7, §4.11.12: срез resumeBySource для отмеченных источников. Для одного — его срез
+ * с номером страницы. Для нескольких кнопка «Продолжить» доступна, если хотя бы у одного
+ * из них есть позиция — тогда прогон продолжит с таких источников, а остальные отмеченные
+ * пропустит (бэкенд не запускает их с нуля). Пустой список даёт EMPTY. Все варианты
+ * возвращают стабильную ссылку (константу либо сам объект из кэша запроса), поэтому
+ * useMemo на месте вызова не нужен (§10).
  */
 export function selectScanResumeState(
   resumeBySource: ScanResumeStateBySource | undefined,
-  selection: ScanSourceSelection,
+  sources: readonly VacancyLeadSearchSource[],
 ): ScanResumeState {
   if (resumeBySource === undefined) {
     return EMPTY_SCAN_RESUME_STATE;
   }
 
-  if (selection === SCAN_SOURCE_ALL) {
-    const anyAvailable = VACANCY_LEAD_SEARCH_SOURCES.some(
-      (source) => resumeBySource[source]?.available === true,
-    );
+  const [onlySource] = sources;
 
-    return anyAvailable ? SCAN_RESUME_STATE_ANY_SOURCE : EMPTY_SCAN_RESUME_STATE;
+  if (sources.length === 1 && onlySource !== undefined) {
+    return resumeBySource[onlySource] ?? EMPTY_SCAN_RESUME_STATE;
   }
 
-  return resumeBySource[selection] ?? EMPTY_SCAN_RESUME_STATE;
+  const anyAvailable = sources.some((source) => resumeBySource[source]?.available === true);
+
+  return anyAvailable ? SCAN_RESUME_STATE_ANY_SOURCE : EMPTY_SCAN_RESUME_STATE;
 }

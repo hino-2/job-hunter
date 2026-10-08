@@ -33,7 +33,6 @@ import { VacancySearchSettingsService } from './vacancy-search-settings.service'
 import {
   MATCH_SOURCE,
   MS_IN_DAY,
-  SCAN_SOURCE_ALL,
   SCAN_STOPPED_REASON,
   VACANCY_MATCH_MODE_ENV_KEY,
   VACANCY_PREFILTER_MODE_ENV_KEY,
@@ -67,7 +66,6 @@ import type {
 } from './vacancy-search.interfaces';
 import type {
   ScanMode,
-  ScanSourceSelection,
   ScanStoppedReason,
   VacancyMatchMode,
   VacancyPrefilterMode,
@@ -174,12 +172,13 @@ function findExcludedInDescription(
 /**
  * §4.11/§4.11.0: конвейер отбора «стоп-слова → дедупликация → ИИ по названию →
  * загрузка страницы → ИИ по описанию» (§4.11.4). Публичные входы — start(mode,
- * selection) и requestStop() (§4.11.12). selection === 'ALL' (SCAN_SOURCE_ALL)
- * прогоняет ВСЕ источники поиска лидов последовательно, одной «ногой» за раз
- * (buildPlan/run/runSource ниже) — конкретный источник даёт план из одной ноги, тот
- * же код обслуживает оба случая. Источник каждой ноги резолвится в провайдера через
- * VacancyLeadSearchRegistry, а шаблон ссылки на выдачу берётся из снимка настроек по
- * тому же source — сам конвейер об источниках больше ничего не знает (§4.11).
+ * requestedSources) и requestStop() (§4.11.12). requestedSources — список источников
+ * поиска лидов (selection статуса); прогон проходит их последовательно в каноническом
+ * порядке, одной «ногой» за раз (buildPlan/run/runSource ниже) — один источник даёт
+ * план из одной ноги, тот же код обслуживает оба случая. Источник каждой ноги
+ * резолвится в провайдера через VacancyLeadSearchRegistry, а шаблон ссылки на выдачу
+ * берётся из снимка настроек по тому же source — сам конвейер об источниках больше
+ * ничего не знает (§4.11).
  * start() строит план (buildPlan) — резолвит стартовую страницу каждой ноги (снимок
  * настроек, для RESUME — сохранённая позиция), а затем СИНХРОННО вызывает
  * VacancyScanStateService.tryStart() (§4.11.9) — единственный check-and-set,
@@ -240,7 +239,7 @@ export class VacancyScanService {
    * одного await — иначе tryStart() перестаёт быть единственным арбитром
    * конкурентности и два одновременных RESUME могли бы породить два прогона.
    */
-  async start(mode: ScanMode, selection: ScanSourceSelection): Promise<Date> {
+  async start(mode: ScanMode, requestedSources: readonly VacancyLeadSearchSource[]): Promise<Date> {
     const settings = await this.settingsService.getSnapshot();
 
     if (!settings.aiEnabled) {
@@ -249,10 +248,11 @@ export class VacancyScanService {
       throw new ConflictException(VACANCY_SCAN_AI_DISABLED_MESSAGE);
     }
 
-    // §4.11.0: 'ALL' разворачивается в полный список источников поиска лидов,
-    // прогоняемых по очереди; конкретный источник — план из одной ноги тем же кодом.
-    const sources: readonly VacancyLeadSearchSource[] =
-      selection === SCAN_SOURCE_ALL ? VACANCY_LEAD_SEARCH_SOURCES : [selection];
+    // §4.11.0: ноги идут в каноническом порядке VACANCY_LEAD_SEARCH_SOURCES, порядок
+    // запроса игнорируется; дубли уже отсечены DTO (@ArrayUnique), членство — @IsIn.
+    const sources = VACANCY_LEAD_SEARCH_SOURCES.filter((source) =>
+      requestedSources.includes(source),
+    );
     const plan = await this.buildPlan(mode, sources, settings);
     const [firstLeg] = plan;
 
@@ -262,7 +262,7 @@ export class VacancyScanService {
       throw new ConflictException(VACANCY_SCAN_NO_RESUME_POSITION_MESSAGE);
     }
 
-    const handle = this.state.tryStart(selection, firstLeg.source, firstLeg.startPage);
+    const handle = this.state.tryStart(sources, firstLeg.source, firstLeg.startPage);
 
     if (handle === null) {
       throw new ConflictException(VACANCY_SCAN_ALREADY_RUNNING_MESSAGE);
@@ -283,7 +283,7 @@ export class VacancyScanService {
    * sources. FRESH включает КАЖДЫЙ источник (стартовая страница — 0). RESUME
    * включает только источники с валидной сохранённой позицией
    * (isResumablePosition) — источник без валидной позиции ПРОПУСКАЕТСЯ, а не
-   * перезапускается с нулевой страницы: иначе «Продолжить» по всем источникам
+   * перезапускается с нулевой страницы: иначе «Продолжить» по выбранным источникам
    * молча стало бы «Начать» для части из них.
    */
   private async buildPlan(

@@ -1,11 +1,11 @@
 import type { VacancySource } from '../../applications/applications.type';
+import type { VacancyLeadSearchSource } from '../../vacancies/vacancies.type';
 import type {
   VacancyScanPageProgress,
   VacancyScanProgress,
   VacancyScanStateSnapshot,
 } from '../vacancy-search.interfaces';
 import type {
-  ScanSourceSelection,
   ScanStatus,
   ScanStoppedReason,
   VacancyScanResumeStateBySource,
@@ -35,8 +35,8 @@ export class ScanStatusDto {
   aiWarmingUp!: boolean;
   /** §5.7: источник идущего прогона, а после завершения — последнего; null, если прогонов не было. */
   source!: VacancySource | null;
-  /** §5.7/§4.11.0: чем был запущен прогон — конкретный источник либо 'ALL'; null, если прогонов не было. */
-  selection!: ScanSourceSelection | null;
+  /** §5.7/§4.11.0: запрошенные источники в каноническом порядке; null, если прогонов не было. */
+  selection!: VacancyLeadSearchSource[] | null;
   /**
    * §5.7: «Продолжить» отдельно по каждому источнику поиска — прогон один на процесс,
    * но сохранённая позиция у источников своя, и кнопка гасится независимо.
@@ -61,7 +61,7 @@ export class ScanStatusDto {
     dto.stopRequested = snapshot.stopRequested;
     dto.aiWarmingUp = snapshot.aiWarmingUp;
     dto.source = snapshot.source;
-    dto.selection = snapshot.selection;
+    dto.selection = snapshot.selection === null ? null : [...snapshot.selection];
     dto.resumeBySource = resumeBySource;
     dto.stoppedReason = snapshot.stoppedReason;
     dto.message = snapshot.message;

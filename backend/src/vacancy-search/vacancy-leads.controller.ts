@@ -43,7 +43,7 @@ import type { VacancyLeadAppliedKeys } from './vacancy-search.interfaces';
 import { VacancySearchSettingsService } from './vacancy-search-settings.service';
 import {
   DEFAULT_SCAN_MODE,
-  DEFAULT_SCAN_SOURCE,
+  DEFAULT_SCAN_SOURCES,
   VACANCY_LEAD_APPLY_ROUTE,
   VACANCY_LEAD_BY_ID_ROUTE,
   VACANCY_LEAD_ID_PARAM,
@@ -112,16 +112,16 @@ export class VacancyLeadsController {
    * POST /api/vacancy-leads/scan (§5.7, §4.11.0, §4.11.9, §4.11.12) — 202 сразу,
    * 409 при уже идущем прогоне (любого источника: прогон один на процесс) либо
    * (mode === 'RESUME') при отсутствии валидной сохранённой позиции ни у одного из
-   * запрошенных источников. Отсутствие `source` в теле — DEFAULT_SCAN_SOURCE =
-   * 'ALL': прогон последовательно проходит все источники поиска лидов, а не
-   * только hh.ru.
+   * запрошенных источников. Отсутствие `sources` в теле — DEFAULT_SCAN_SOURCES:
+   * прогон последовательно проходит все источники поиска лидов; запрошенное
+   * подмножество сервис сам ставит в канонический порядок.
    */
   @Post(VACANCY_LEADS_SCAN_ROUTE)
   @HttpCode(HttpStatus.ACCEPTED)
   async scan(@Body() dto: StartScanDto): Promise<ScanAcceptedDto> {
     const startedAt = await this.scanService.start(
       dto.mode ?? DEFAULT_SCAN_MODE,
-      dto.source ?? DEFAULT_SCAN_SOURCE,
+      dto.sources ?? DEFAULT_SCAN_SOURCES,
     );
 
     return ScanAcceptedDto.fromStartedAt(startedAt);

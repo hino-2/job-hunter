@@ -11,7 +11,6 @@ import { SEARCH_DEBOUNCE_MS } from '../../constants/query.constants';
 import {
   APPLY_VACANCY_ERROR_FALLBACK_MESSAGE,
   APPLY_VACANCY_SUCCESS_MESSAGE,
-  DEFAULT_SCAN_SOURCE,
   DEFAULT_VACANCY_LEADS_FILTERS,
   EMPTY_VACANCY_LEADS,
   HIDE_VACANCY_ERROR_FALLBACK_MESSAGE,
@@ -33,10 +32,14 @@ import { useVacancyLeads } from '../../hooks/useVacancyLeads';
 import { useVacancyScanStatus } from '../../hooks/useVacancyScanStatus';
 import type { UpdateVacancyLeadVariables } from '../../hooks/use-update-vacancy-lead.interfaces';
 import type { VacancyLeadsFilters } from '../../types/vacancy-search.interfaces';
-import type { ScanSourceSelection } from '../../types/vacancy-search.type';
+import type { VacancyLeadSearchSource } from '../../types/vacancy-search.type';
 import { extractApiErrorMessage } from '../../utils/error.utils';
 import { isVacancyLeadsSearchActive } from '../../utils/vacancy-lead.utils';
-import { selectScanResumeState } from '../../utils/vacancy-scan.utils';
+import {
+  loadScanSources,
+  saveScanSources,
+  selectScanResumeState,
+} from '../../utils/vacancy-scan.utils';
 import { CompanyCareerSitesDialog } from '../CompanyCareerSitesDialog/CompanyCareerSitesDialog';
 import { ScanStatusAlert } from '../ScanStatusAlert/ScanStatusAlert';
 import { SearchSettingsDialog } from '../SearchSettingsDialog/SearchSettingsDialog';
@@ -65,12 +68,20 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   const scanStatus = useVacancyScanStatus();
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isCompanySitesOpen, setCompanySitesOpen] = useState(false);
-  // §5.7: источник следующего прогона. Локальное состояние экрана, а не часть filters:
-  // на выдачу лидов он не влияет вовсе — только на тело POST …/scan и на то, чей срез
-  // resumeBySource читает «Продолжить».
-  const [scanSource, setScanSource] = useState<ScanSourceSelection>(DEFAULT_SCAN_SOURCE);
+  // §5.7, §7.9: источники следующего прогона. Локальное состояние экрана, а не часть filters:
+  // на выдачу лидов они не влияют вовсе — только на тело POST …/scan и на то, чьи срезы
+  // resumeBySource читает «Продолжить». Выбор хранится в localStorage; ленивый инициализатор
+  // читает его один раз при монтировании.
+  const [scanSources, setScanSources] = useState<VacancyLeadSearchSource[]>(loadScanSources);
 
   const items = leads.data ?? EMPTY_VACANCY_LEADS;
+
+  // Запись — в обработчике, а не в эффекте: иначе монтирование сохраняло бы дефолт,
+  // которого пользователь не выбирал.
+  const handleScanSourcesChange = (sources: VacancyLeadSearchSource[]) => {
+    setScanSources(sources);
+    saveScanSources(sources);
+  };
 
   const handleRetry = () => {
     void leads.refetch();
@@ -188,11 +199,11 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
   });
 
   const handleScanFresh = () => {
-    startScan.mutate({ mode: SCAN_MODE.FRESH, source: scanSource });
+    startScan.mutate({ mode: SCAN_MODE.FRESH, sources: scanSources });
   };
 
   const handleScanResume = () => {
-    startScan.mutate({ mode: SCAN_MODE.RESUME, source: scanSource });
+    startScan.mutate({ mode: SCAN_MODE.RESUME, sources: scanSources });
   };
 
   const handleScanStop = () => {
@@ -209,9 +220,9 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
 
   const isScanRunning = scanStatus.data?.status === SCAN_STATUS.RUNNING;
   const isStopRequested = scanStatus.data?.stopRequested === true;
-  // §5.7: позиция для продолжения хранится по строке на источник, кнопке нужен срез
-  // выбранного пункта — конкретного сайта либо «Все источники» (selectScanResumeState).
-  const resume = selectScanResumeState(scanStatus.data?.resumeBySource, scanSource);
+  // §5.7: позиция для продолжения хранится по строке на источник, кнопке нужны срезы
+  // отмеченных источников (selectScanResumeState).
+  const resume = selectScanResumeState(scanStatus.data?.resumeBySource, scanSources);
   const showScanAlert =
     scanStatus.data !== undefined && scanStatus.data.status !== SCAN_STATUS.IDLE;
 
@@ -222,8 +233,8 @@ export function VacanciesScreen({ notification }: VacanciesScreenProps) {
           <VacancyLeadsFilterBar
             filters={filters}
             onFiltersChange={setFilters}
-            scanSource={scanSource}
-            onScanSourceChange={setScanSource}
+            scanSources={scanSources}
+            onScanSourcesChange={handleScanSourcesChange}
             onScanFresh={handleScanFresh}
             onScanResume={handleScanResume}
             onScanStop={handleScanStop}
