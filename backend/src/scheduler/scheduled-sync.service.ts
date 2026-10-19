@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 
+import { APPLICATION_STATUS } from '../applications/applications.constants';
 import { NON_ERROR_THROWN_MESSAGE } from '../common/common.constants';
 import { TRUE_ENV_VALUE } from '../config/config.constants';
 import { VacancySyncService } from '../vacancies/vacancy-sync.service';
@@ -78,9 +79,11 @@ export class ScheduledSyncService implements OnApplicationBootstrap {
     this.logger.debug(SCHEDULED_SYNC_TICK_MESSAGE);
 
     try {
-      // Сводку прогона не логируем — её уже пишет VacancySyncService.syncOpen(),
-      // дубль был бы шумом.
-      await this.vacancySyncService.syncOpen();
+      // Только OPEN, а не все активные статусы: отклик на этапе собеседования
+      // (HR_INTERVIEW/TECH_INTERVIEW) по расписанию не трогаем — его закрывает человек
+      // или ручной прогон (§5.2). Сводку прогона не логируем — её уже пишет
+      // VacancySyncService.syncOpen(), дубль был бы шумом.
+      await this.vacancySyncService.syncOpen([APPLICATION_STATUS.OPEN]);
     } catch (error) {
       const details =
         error instanceof Error ? (error.stack ?? error.message) : NON_ERROR_THROWN_MESSAGE;

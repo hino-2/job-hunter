@@ -11,7 +11,7 @@ Features:
 - company and position auto-filled from a pasted vacancy link (hh.ru, getmatch.ru,
   it-vacancies.ru, geekjob.ru);
 - manual status refresh — per record (🔄) and for all open records at once, across all sources;
-- a scheduled background refresh of all open records, running inside the `api` process;
+- a scheduled background refresh of records with status «Открыта» only, running inside the `api` process;
 - «Все / Открытые / HR-собес / Тех-собес / Закрытые» filters (the two interview-stage chips list
   only records still open, §5.1), search by company/position/notes, and sorting;
 - a second screen, «Вакансии»: searching for new vacancies on hh.ru, it-vacancies.ru, geekjob.ru and a
@@ -357,7 +357,8 @@ request-rate ceiling shared by every company career site host at once) is the fi
 fully optional; unlike the other four it has no `*_SITE_BASE_URL` — the source has no single base
 host, each parser talks to its own constant host.
 
-The application runs the same sweep as the «Обновить все открытые» button on a schedule of its own
+The application runs the same sweep as the «Обновить все открытые» button on a schedule of its own,
+narrowed to records with status «Открыта» — interview-stage records are left to the manual button
 (§4.7): `SCHEDULED_SYNC_ENABLED` (`true`/`false`, default `true`) and `SCHEDULED_SYNC_INTERVAL_MS`
 (default `1800000` — 30 minutes, allowed range `60000`…`86400000`). The first sweep happens after
 one interval, not at startup. To switch background requests to the vacancy sources off, set

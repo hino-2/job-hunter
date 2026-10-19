@@ -17,6 +17,7 @@ import type {
   ApplicationsSyncSummary,
 } from '../applications/applications.interfaces';
 import type {
+  ApplicationStatus,
   ApplicationSyncPatch,
   ApplicationSyncSnapshot,
   SyncOutcomeCounts,
@@ -226,11 +227,14 @@ export class VacancySyncService {
 
   /**
    * §5.2 POST /api/applications/sync-open: все записи с «активным» статусом (§3.2 —
-   * OPEN, HR_INTERVIEW, TECH_INTERVIEW), прочие (CLOSED) не трогаем.
+   * OPEN, HR_INTERVIEW, TECH_INTERVIEW), прочие (CLOSED) не трогаем. Планировщик (§4.7)
+   * сужает выборку до одного OPEN — отклик на этапе собеседования трогать без человека нельзя.
    */
-  async syncOpen(): Promise<ApplicationsSyncSummary> {
+  async syncOpen(
+    statuses: readonly ApplicationStatus[] = ACTIVE_APPLICATION_STATUSES,
+  ): Promise<ApplicationsSyncSummary> {
     const applications = await this.applications.find({
-      where: { status: In([...ACTIVE_APPLICATION_STATUSES]) },
+      where: { status: In([...statuses]) },
       order: {
         createdAt: APPLICATION_ORDER_DIRECTIONS.asc,
         id: APPLICATION_ORDER_DIRECTIONS.asc,
