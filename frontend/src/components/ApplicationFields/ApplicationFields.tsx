@@ -19,6 +19,7 @@ import {
   FIELD_FLEX,
   FIELD_GAP,
   FIELD_MAX_WIDTH,
+  INTERVIEW_GROUP_SX,
   MULTILINE_MAX_ROWS_CONTACT,
   MULTILINE_MAX_ROWS_NOTES,
   MULTILINE_MIN_ROWS,
@@ -32,7 +33,9 @@ import {
 import type { EditableTextField } from '../../types/application.type';
 import { readTextFieldValue } from '../../utils/application.utils';
 import { isCommittableDate, toDayjsOrNull, toIsoOrNull } from '../../utils/date.utils';
+import { buildInterviewCalendarUrl } from '../../utils/google-calendar.utils';
 import type { ApplicationFieldsProps } from './application-fields.interfaces';
+import { AddToCalendarButton } from '../AddToCalendarButton/AddToCalendarButton';
 import { FieldCell } from '../FieldCell/FieldCell';
 import { UrlField } from '../UrlField/UrlField';
 
@@ -158,33 +161,41 @@ export const ApplicationFields = memo(function ApplicationFields({
           />
         </FieldCell>
 
-        <FieldCell flex={FIELD_FLEX.hrInterviewAt} isSaved={savedFields.has('hrInterviewAt')}>
-          <DateTimePicker
-            label={APPLICATION_FIELD_LABELS.hrInterviewAt}
-            value={toDayjsOrNull(application.hrInterviewAt)}
-            format={DATE_TIME_DISPLAY_FORMAT}
-            ampm={PICKER_AMPM}
-            onChange={handleHrInterviewChange}
-            slotProps={{
-              field: PICKER_FIELD_SLOT_PROPS,
-              textField: PICKER_TEXT_FIELD_SLOT_PROPS,
-            }}
-          />
-        </FieldCell>
+        <Box sx={INTERVIEW_GROUP_SX}>
+          <FieldCell flex={FIELD_FLEX.hrInterviewAt} isSaved={savedFields.has('hrInterviewAt')}>
+            <DateTimePicker
+              label={APPLICATION_FIELD_LABELS.hrInterviewAt}
+              value={toDayjsOrNull(application.hrInterviewAt)}
+              format={DATE_TIME_DISPLAY_FORMAT}
+              ampm={PICKER_AMPM}
+              onChange={handleHrInterviewChange}
+              slotProps={{
+                field: PICKER_FIELD_SLOT_PROPS,
+                textField: PICKER_TEXT_FIELD_SLOT_PROPS,
+              }}
+            />
+          </FieldCell>
 
-        <FieldCell flex={FIELD_FLEX.techInterviewAt} isSaved={savedFields.has('techInterviewAt')}>
-          <DateTimePicker
-            label={APPLICATION_FIELD_LABELS.techInterviewAt}
-            value={toDayjsOrNull(application.techInterviewAt)}
-            format={DATE_TIME_DISPLAY_FORMAT}
-            ampm={PICKER_AMPM}
-            onChange={handleTechInterviewChange}
-            slotProps={{
-              field: PICKER_FIELD_SLOT_PROPS,
-              textField: PICKER_TEXT_FIELD_SLOT_PROPS,
-            }}
-          />
-        </FieldCell>
+          <AddToCalendarButton href={buildInterviewCalendarUrl(application, 'hrInterviewAt')} />
+        </Box>
+
+        <Box sx={INTERVIEW_GROUP_SX}>
+          <FieldCell flex={FIELD_FLEX.techInterviewAt} isSaved={savedFields.has('techInterviewAt')}>
+            <DateTimePicker
+              label={APPLICATION_FIELD_LABELS.techInterviewAt}
+              value={toDayjsOrNull(application.techInterviewAt)}
+              format={DATE_TIME_DISPLAY_FORMAT}
+              ampm={PICKER_AMPM}
+              onChange={handleTechInterviewChange}
+              slotProps={{
+                field: PICKER_FIELD_SLOT_PROPS,
+                textField: PICKER_TEXT_FIELD_SLOT_PROPS,
+              }}
+            />
+          </FieldCell>
+
+          <AddToCalendarButton href={buildInterviewCalendarUrl(application, 'techInterviewAt')} />
+        </Box>
       </Box>
 
       <Box sx={ROW_SX}>

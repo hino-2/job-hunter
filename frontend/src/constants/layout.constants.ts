@@ -163,6 +163,19 @@ export const SNACKBAR_ANCHOR_ORIGIN = { vertical: 'bottom', horizontal: 'center'
 /** Ряд полей §7.2.2: собственный flex-контейнер с переносом и зазором 8px по обеим осям. */
 export const ROW_SX = { display: 'flex', flexWrap: 'wrap', gap: FIELD_GAP } as const;
 
+/** Дата собеса и её кнопка календаря (§7.2.2) — одна группа, чтобы перенос строки их не разрывал. */
+export const INTERVIEW_GROUP_SX = { display: 'flex', gap: FIELD_GAP, flex: '0 0 auto' } as const;
+
+/** Квадрат по высоте поля size="small" (40px). */
+export const CALENDAR_BUTTON_SIZE_PX = 40;
+
+export const CALENDAR_BUTTON_SX = {
+  minWidth: 0,
+  width: CALENDAR_BUTTON_SIZE_PX,
+  height: CALENDAR_BUTTON_SIZE_PX,
+  p: 0,
+} as const;
+
 /** Спиннер preview в endAdornment поля-ссылки (§4.4) — по размеру рядом с иконкой OpenInNew. */
 export const FIELD_PROGRESS_SIZE_PX = 16;
 
